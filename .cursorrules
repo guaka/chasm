@@ -1,0 +1,63 @@
+# Web MIDI Tracker Project
+
+This is a Web MIDI tracker project inspired by Schism Tracker, a free and open-source reimplementation of Impulse Tracker.
+
+## Reference
+
+- **Schism Tracker GitHub**: https://github.com/schismtracker/schismtracker
+- Schism Tracker is designed for creating high-quality music using a tracker-style interface
+
+## Project Context
+
+- **Technology**: Web MIDI API, vanilla JavaScript, HTML5
+- **Purpose**: Browser-based MIDI tracker with pattern-based sequencing
+- **Key Features**:
+  - Pattern editor with multiple channels (up to 256 channels like Schism Tracker)
+  - QWERTY keyboard note entry (Schism Tracker style)
+  - MIDI output to hardware synths and drum machines
+  - Pattern order/sequencing
+  - Effect commands (volume, panning, portamento, etc.)
+
+## Code Style & Conventions
+
+- Use vanilla JavaScript (no frameworks)
+- Inline styles in HTML files for simplicity
+- Monospace fonts: 'Courier New', 'Consolas'
+- Dark theme: black background (#000), dark grays for UI elements
+- State management: single state object per tracker instance
+- Pattern structure: `{ channels: [[{note, inst, vol, effect, param}, ...], ...] }`
+- Default pattern size: 64 rows
+- Default channels: 8 (expandable to 256)
+
+## MIDI Implementation
+
+- Use Web MIDI API (`navigator.requestMIDIAccess`)
+- MIDI channels: 0-15 (standard MIDI)
+- Note format: "C-4", "C#3", etc. (Schism Tracker style)
+- Effect commands: hex values (0x00-0xFF)
+- Volume: hex values (0x00-0xFF, converted to MIDI velocity)
+
+## Keyboard Shortcuts (Schism Tracker Style)
+
+- QWERTY keys for note entry: Q=C, W=C#, E=D, R=D#, T=E, Y=F, U=F#, I=G, O=G#, P=A, [=A#, ]=B
+- Number keys (0-9): Set octave
+- Arrow keys: Navigate cells
+- Space: Play/Stop
+- Tab: Next channel
+- Enter: Step down
+- Delete/Backspace: Clear cell
+- Ctrl+C/V: Copy/Paste
+
+## File Structure
+
+- `tracker*.html`: Main tracker implementations (various versions)
+- `midi*.html`: MIDI experiments and synth interfaces
+- `midi-synths.js`: MIDI synth abstraction library (BaseSynth, hardware-specific classes)
+
+## Notes
+
+- When implementing tracker features, refer to Schism Tracker behavior for consistency
+- Support both manual note entry and QWERTY keyboard entry
+- Maintain compatibility with standard MIDI hardware
+- Use requestAnimationFrame for smooth playback timing
+

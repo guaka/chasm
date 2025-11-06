@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambient MIDI Generator v5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            height: 100vh;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .controls-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+        }
+
+        .controls-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .controls-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .controls-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 50%, #45b7d1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #a0a0a0;
+            margin-bottom: 15px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #c0c0c0;
+        }
+
+        select, button {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:hover, button:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        select:focus, button:focus {
+            outline: none;
+            border-color: #4ecdc4;
+            box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.2);
+        }
+
+        button {
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+            border: none;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #4ecdc4 0%, #ff6b6b 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .slider-container {
+            position: relative;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(78, 205, 196, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 3px 8px rgba(78, 205, 196, 0.6);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(78, 205, 196, 0.4);
+        }
+
+        .slider-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 12px;
+            color: #4ecdc4;
+            font-weight: 600;
+        }
+
+        .toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(24px);
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .status.connected {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .status.disconnected {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+
+        .canvas-container {
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .canvas-container:fullscreen {
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 0;
+            border: none;
+        }
+
+        .canvas-container:-webkit-full-screen {
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 0;
+            border: none;
+        }
+
+        .canvas-container:-moz-full-screen {
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 0;
+            border: none;
+        }
+
+        .canvas-container:-ms-fullscreen {
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 0;
+            border: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls-panel">
+            <h1>Ambient MIDI v5</h1>
+            
+            <div class="section">
+                <div class="section-title">Connection</div>
+                <div class="control-group">
+                    <label>Output Mode</label>
+                    <div class="toggle">
+                        <span style="font-size: 12px;">MIDI</span>
+                        <div class="toggle-switch" id="modeToggle"></div>
+                        <span style="font-size: 12px;">Web Audio</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Synth Type</label>
+                    <select id="synthTypeSelect">
+                        <option value="BaseSynth">Generic (BaseSynth)</option>
+                        <option value="SH4d">Roland SH-4d</option>
+                        <option value="TR8S">Roland TR-8S</option>
+                        <option value="TT303">Roland TT-303</option>
+                        <option value="SP404MK2">Roland SP-404 MK2</option>
+                        <option value="BehringerTD3">Behringer TD-3</option>
+                        <option value="RD6">Behringer RD-6</option>
+                        <option value="RD8">Behringer RD-8</option>
+                        <option value="RD9">Behringer RD-9</option>
+                        <option value="KorgMinilogueXD">Korg Minilogue XD</option>
+                        <option value="BossRC600">Boss RC-600</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>MIDI Device</label>
+                    <select id="midiDeviceSelect">
+                        <option value="">No device selected</option>
+                    </select>
+                </div>
+                <div class="status disconnected" id="status">Disconnected</div>
+                <button id="connectBtn">Connect MIDI</button>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Playback</div>
+                <div class="control-group">
+                    <button id="playBtn">Play</button>
+                    <button id="stopBtn" style="margin-top: 10px;">Stop</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Music</div>
+                <div class="control-group">
+                    <label>Tempo: <span class="slider-value" id="tempoValue">85</span> BPM</label>
+                    <input type="range" class="slider" id="tempoSlider" min="10" max="500" value="85">
+                </div>
+                <div class="control-group">
+                    <label>Scale</label>
+                    <select id="scaleSelect">
+                        <option value="major">Major</option>
+                        <option value="minor">Minor</option>
+                        <option value="pentatonic">Pentatonic</option>
+                        <option value="dorian">Dorian</option>
+                        <option value="lydian">Lydian</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Intensity: <span class="slider-value" id="intensityValue">50</span>%</label>
+                    <input type="range" class="slider" id="intensitySlider" min="0" max="100" value="50">
+                </div>
+                <div class="control-group">
+                    <label>Root Note</label>
+                    <select id="rootNoteSelect">
+                        <option value="48">C3</option>
+                        <option value="50">D3</option>
+                        <option value="52">E3</option>
+                        <option value="53">F3</option>
+                        <option value="55">G3</option>
+                        <option value="57">A3</option>
+                        <option value="59">B3</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Effects</div>
+                <div class="control-group">
+                    <label>Delay: <span class="slider-value" id="delayValue">0.3</span>s</label>
+                    <input type="range" class="slider" id="delaySlider" min="0" max="1" step="0.01" value="0.3">
+                </div>
+                <div class="control-group">
+                    <label>Delay Feedback: <span class="slider-value" id="delayFeedbackValue">30</span>%</label>
+                    <input type="range" class="slider" id="delayFeedbackSlider" min="0" max="80" value="30">
+                </div>
+                <div class="control-group">
+                    <label>Reverb: <span class="slider-value" id="reverbValue">0.3</span></label>
+                    <input type="range" class="slider" id="reverbSlider" min="0" max="1" step="0.01" value="0.3">
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="visualCanvas"></canvas>
+        </div>
+    </div>
+
+    <script src="midi-synths.js"></script>
+    <script>
+        // State management
+        const state = {
+            midiManager: null,
+            synth: null,
+            synthType: 'BaseSynth',
+            midiAccess: null,
+            midiOutput: null,
+            audioContext: null,
+            analyser: null,
+            delayNode: null,
+            delayFeedbackGain: null,
+            convolverNode: null,
+            reverbGain: null,
+            masterGain: null,
+            isPlaying: false,
+            mode: 'webaudio',
+            tempo: 85,
+            scale: 'major',
+            intensity: 50,
+            rootNote: 48,
+            particleCount: 400, // Always 400
+            visualIntensity: 100, // Always 100%
+            delayTime: 0.3,
+            delayFeedback: 0.3,
+            reverbAmount: 0.3,
+            visuals: {
+                particles: true, // Always enabled
+                oscilloscope: true, // Always enabled
+                geometric: true // Always enabled
+            },
+            activeNotes: [],
+            lastNoteTime: 0,
+            lastBeatTime: 0,
+            beatIndex: 0,
+            // Beat buildup - gradually introduce elements
+            beatStartTime: 0,
+            beatBuildup: {
+                kick: false,
+                snare: false,
+                hihat: false,
+                kickDrum: false,
+                bassline: false
+            },
+            // Actual IDM patterns - 32 steps (kick, snare, hihat, kickdrum)
+            kickPattern: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+            snarePattern: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+            hihatPattern: [1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0],
+            kickDrumPattern: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+            // Slow dub bassline pattern (plays on root note, slower than beat)
+            basslinePattern: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            lastBasslineTime: 0,
+            basslineIndex: 0,
+            // Interactive sound parameters
+            mouseX: 0.5,
+            mouseY: 0.5,
+            isDragging: false,
+            // Filter and LFO parameters
+            filterCutoff: 2000,
+            filterResonance: 5,
+            lfoRate: 2,
+            lfoAmount: 500,
+            // Panning parameters
+            panLfoRate: 0.5,
+            panLfoAmount: 0.8,
+            animationId: null,
+            waveformData: new Uint8Array(2048),
+            frequencyData: new Uint8Array(1024),
+            waveformDataLeft: new Uint8Array(2048),
+            waveformDataRight: new Uint8Array(2048)
+        };
+
+        // Scale definitions
+        const scales = {
+            major: [0, 2, 4, 5, 7, 9, 11],
+            minor: [0, 2, 3, 5, 7, 8, 10],
+            pentatonic: [0, 2, 4, 7, 9],
+            dorian: [0, 2, 3, 5, 7, 9, 10],
+            lydian: [0, 2, 4, 6, 7, 9, 11]
+        };
+
+        // Color palette - vibrant colors
+        const colorPalette = [
+            { h: 0, s: 70, l: 60 },    // Red
+            { h: 30, s: 80, l: 65 },   // Orange
+            { h: 60, s: 75, l: 70 },   // Yellow
+            { h: 120, s: 70, l: 60 },  // Green
+            { h: 180, s: 70, l: 60 },  // Cyan
+            { h: 210, s: 80, l: 65 },  // Light Blue
+            { h: 240, s: 70, l: 60 },  // Blue
+            { h: 270, s: 70, l: 60 },  // Purple
+            { h: 300, s: 70, l: 60 },  // Magenta
+            { h: 330, s: 70, l: 60 }   // Pink
+        ];
+
+        // Canvas setup
+        const canvas = document.getElementById('visualCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Enhanced Particles that respond to sound
+        class Particle {
+            constructor(x, y, frequency = 0, amplitude = 0) {
+                this.x = x;
+                this.y = y;
+                this.frequency = frequency; // Normalized 0-1
+                this.amplitude = amplitude; // Normalized 0-1
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.003 + 0.001;
+                this.size = Math.random() * 4 + 1;
+                // Color based on frequency
+                const colorIndex = Math.floor(this.frequency * colorPalette.length) % colorPalette.length;
+                const color = colorPalette[colorIndex];
+                this.hue = color.h + (Math.random() - 0.5) * 20;
+                this.saturation = color.s;
+                this.lightness = color.l;
+            }
+
+            update(frequencyData) {
+                // Respond to current frequency data
+                if (frequencyData && frequencyData.length > 0) {
+                    const freqIndex = Math.floor(this.frequency * (frequencyData.length - 1));
+                    const currentAmp = frequencyData[freqIndex] / 255;
+                    this.amplitude = currentAmp;
+                    
+                    // Velocity affected by frequency response
+                    const freqResponse = currentAmp * 0.5;
+                    this.vx += (Math.random() - 0.5) * freqResponse * 0.1;
+                    this.vy += (Math.random() - 0.5) * freqResponse * 0.1;
+                }
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= this.decay;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                
+                // Bounce off edges
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -0.8;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -0.8;
+                this.x = Math.max(0, Math.min(canvas.width, this.x));
+                this.y = Math.max(0, Math.min(canvas.height, this.y));
+            }
+
+            draw() {
+                ctx.save();
+                const alpha = this.life * (0.5 + this.amplitude * 0.5);
+                ctx.globalAlpha = alpha;
+                const size = this.size * (1 + this.amplitude * 0.5);
+                ctx.fillStyle = `hsl(${this.hue}, ${this.saturation}%, ${this.lightness}%)`;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = `hsl(${this.hue}, ${this.saturation}%, ${this.lightness}%)`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            isDead() {
+                return this.life <= 0;
+            }
+        }
+
+        let particles = [];
+        let geometricRotation = 0;
+        let geometricScale = 1;
+        let beatPulse = 0;
+
+        // MIDI Functions using MidiManager
+        async function requestMIDIAccess() {
+            if (!state.midiManager) {
+                state.midiManager = new MidiManager();
+                state.midiManager.onStateChange = updateMIDIDevices;
+            }
+            
+            const success = await state.midiManager.initialize();
+            if (success) {
+                updateMIDIDevices();
+                return true;
+            } else {
+                updateStatus('MIDI not available', false);
+                return false;
+            }
+        }
+
+        function updateMIDIDevices() {
+            const select = document.getElementById('midiDeviceSelect');
+            select.innerHTML = '<option value="">No device selected</option>';
+            
+            if (state.midiManager) {
+                const devices = state.midiManager.getDevices();
+                devices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = device.name || `MIDI Output ${index + 1}`;
+                    select.appendChild(option);
+                });
+            }
+        }
+
+        function connectMIDI() {
+            const select = document.getElementById('midiDeviceSelect');
+            const index = parseInt(select.value);
+            
+            if (!state.midiManager || isNaN(index)) {
+                updateStatus('No device selected', false);
+                return;
+            }
+
+            const success = state.midiManager.connect(index);
+            if (success) {
+                state.midiOutput = state.midiManager.midiOutput;
+                createSynthInstance();
+                updateStatus(`Connected: ${state.midiManager.getConnectedDeviceName()}`, true);
+            } else {
+                updateStatus('Device not found', false);
+            }
+        }
+
+        function createSynthInstance() {
+            if (!state.midiManager || !state.midiManager.midiOutput) {
+                state.synth = null;
+                return;
+            }
+
+            const SynthClass = {
+                'BaseSynth': BaseSynth,
+                'SH4d': SH4d,
+                'TR8S': TR8S,
+                'TT303': TT303,
+                'SP404MK2': SP404MK2,
+                'BehringerTD3': BehringerTD3,
+                'RD6': RD6,
+                'RD8': RD8,
+                'RD9': RD9,
+                'KorgMinilogueXD': KorgMinilogueXD,
+                'BossRC600': BossRC600
+            }[state.synthType] || BaseSynth;
+
+            state.synth = new SynthClass(state.midiManager.midiOutput);
+        }
+
+        function sendMIDINote(note, velocity, duration) {
+            if (state.mode === 'midi' && state.synth) {
+                state.synth.playNote(note, velocity, duration);
+            }
+        }
+
+        // Create reverb impulse response - more spacious
+        function createReverbImpulse(audioContext, duration = 4, decay = 1.5) {
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * duration;
+            const impulse = audioContext.createBuffer(2, length, sampleRate);
+            
+            for (let channel = 0; channel < 2; channel++) {
+                const channelData = impulse.getChannelData(channel);
+                // Add some stereo width with slight delay between channels
+                const channelDelay = channel === 1 ? Math.floor(sampleRate * 0.01) : 0;
+                
+                for (let i = 0; i < length; i++) {
+                    const n = length - i;
+                    const decayFactor = Math.pow(n / length, decay);
+                    // Add some modulation for more spaciousness
+                    const modulation = Math.sin(i / sampleRate * 0.5) * 0.3;
+                    const sampleIndex = i - channelDelay;
+                    if (sampleIndex >= 0 && sampleIndex < length) {
+                        channelData[sampleIndex] = (Math.random() * 2 - 1) * decayFactor * (1 + modulation);
+                    }
+                }
+            }
+            
+            return impulse;
+        }
+
+        // Web Audio Functions
+        async function initAudioContext() {
+            if (!state.audioContext) {
+                state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create master gain
+                state.masterGain = state.audioContext.createGain();
+                state.masterGain.connect(state.audioContext.destination);
+                
+                // Create analyser for oscilloscope (mono)
+                state.analyser = state.audioContext.createAnalyser();
+                state.analyser.fftSize = 4096;
+                state.analyser.smoothingTimeConstant = 0.8;
+                state.analyser.connect(state.masterGain);
+                
+                // Create delay
+                state.delayNode = state.audioContext.createDelay(1.0);
+                state.delayNode.delayTime.value = state.delayTime;
+                state.delayFeedbackGain = state.audioContext.createGain();
+                state.delayFeedbackGain.gain.value = state.delayFeedback;
+                state.delayNode.connect(state.delayFeedbackGain);
+                state.delayFeedbackGain.connect(state.delayNode); // Feedback loop
+                state.delayFeedbackGain.connect(state.analyser);
+                
+                // Create reverb - more spacious
+                state.convolverNode = state.audioContext.createConvolver();
+                state.convolverNode.buffer = createReverbImpulse(state.audioContext, 4, 1.5);
+                state.reverbGain = state.audioContext.createGain();
+                state.reverbGain.gain.value = state.reverbAmount;
+                state.convolverNode.connect(state.reverbGain);
+                state.reverbGain.connect(state.analyser);
+                
+                // Create filter with LFO
+                state.filterNode = state.audioContext.createBiquadFilter();
+                state.filterNode.type = 'lowpass';
+                state.filterNode.frequency.value = state.filterCutoff;
+                state.filterNode.Q.value = state.filterResonance;
+                
+                // Create LFO for filter cutoff modulation
+                state.lfoOscillator = state.audioContext.createOscillator();
+                state.lfoGain = state.audioContext.createGain();
+                state.lfoOffset = state.audioContext.createConstantSource();
+                state.lfoOffset.offset.value = state.filterCutoff;
+                
+                state.lfoOscillator.type = 'sine';
+                state.lfoOscillator.frequency.value = state.lfoRate;
+                state.lfoGain.gain.value = state.lfoAmount;
+                state.lfoOscillator.connect(state.lfoGain);
+                
+                // Combine offset and LFO modulation
+                state.lfoOffset.connect(state.filterNode.frequency);
+                state.lfoGain.connect(state.filterNode.frequency);
+                state.lfoOffset.start();
+                state.lfoOscillator.start();
+                
+                // Create stereo panning with LFO
+                state.panLfoOscillator = state.audioContext.createOscillator();
+                state.panLfoGain = state.audioContext.createGain();
+                state.panLfoOffset = state.audioContext.createConstantSource();
+                
+                state.panLfoOscillator.type = 'sine';
+                state.panLfoOscillator.frequency.value = state.panLfoRate;
+                state.panLfoGain.gain.value = state.panLfoAmount;
+                state.panLfoOffset.offset.value = 0;
+                
+                state.panLfoOscillator.connect(state.panLfoGain);
+                
+                // Create analysers for left and right channels for X/Y oscilloscope
+                state.analyserLeft = state.audioContext.createAnalyser();
+                state.analyserRight = state.audioContext.createAnalyser();
+                state.analyserLeft.fftSize = 4096;
+                state.analyserRight.fftSize = 4096;
+                state.analyserLeft.smoothingTimeConstant = 0.8;
+                state.analyserRight.smoothingTimeConstant = 0.8;
+                
+                // Create splitter and merger for stereo processing
+                state.splitter = state.audioContext.createChannelSplitter(2);
+                state.merger = state.audioContext.createChannelMerger(2);
+                
+                // Filter connects to analyser (mono)
+                state.filterNode.connect(state.analyser);
+                
+                // Route final stereo output for X/Y oscilloscope
+                // Connect master gain to splitter to capture final stereo mix
+                state.masterGain.connect(state.splitter);
+                state.splitter.connect(state.analyserLeft, 0);
+                state.splitter.connect(state.analyserRight, 1);
+                
+                // Update waveform/frequency arrays
+                state.waveformData = new Uint8Array(state.analyser.fftSize);
+                state.frequencyData = new Uint8Array(state.analyser.frequencyBinCount);
+                state.waveformDataLeft = new Uint8Array(state.analyserLeft.fftSize);
+                state.waveformDataRight = new Uint8Array(state.analyserRight.fftSize);
+            }
+            if (state.audioContext.state === 'suspended') {
+                await state.audioContext.resume();
+            }
+        }
+
+        function playWebAudioNote(note, velocity, duration, isBeat = false) {
+            if (state.mode === 'webaudio' && state.audioContext && state.audioContext.state === 'running') {
+                try {
+                    const oscillator = state.audioContext.createOscillator();
+                    const gainNode = state.audioContext.createGain();
+                    
+                    // Use different wave types for beats vs notes
+                    if (isBeat) {
+                        oscillator.type = 'square';
+                        oscillator.frequency.value = 60 + Math.random() * 40; // Kick-like
+                    } else {
+                        const waveTypes = ['sine', 'triangle', 'sawtooth'];
+                        oscillator.type = waveTypes[Math.floor(Math.random() * waveTypes.length)];
+                        oscillator.frequency.value = 440 * Math.pow(2, (note - 69) / 12);
+                    }
+                    
+                    const volume = (velocity / 127) * (state.intensity / 100);
+                    const now = state.audioContext.currentTime;
+                    
+                    // Envelope
+                    gainNode.gain.setValueAtTime(0, now);
+                    if (isBeat) {
+                        gainNode.gain.linearRampToValueAtTime(volume * 0.8, now + 0.01);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    } else {
+                        gainNode.gain.linearRampToValueAtTime(volume * 0.5, now + 0.1);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration / 1000);
+                    }
+                    
+                    // Add panning to ambient notes - mostly LFO panning
+                    const panner = createPanner(Math.random() * 0.4 - 0.2, true);
+                    
+                    // Connect through filter, then effects
+                    oscillator.connect(gainNode);
+                    gainNode.connect(panner);
+                    panner.connect(state.filterNode);
+                    state.filterNode.connect(state.delayNode);
+                    state.filterNode.connect(state.convolverNode);
+                    state.filterNode.connect(state.masterGain);
+                    state.filterNode.connect(state.analyser);
+                    
+                    oscillator.start(now);
+                    oscillator.stop(now + (isBeat ? 0.1 : duration / 1000));
+                } catch (error) {
+                    console.error('Error playing note:', error);
+                }
+            }
+        }
+
+        // Beat buildup - gradually introduce elements
+        function updateBeatBuildup() {
+            if (!state.isPlaying) return;
+            
+            const elapsed = (Date.now() - state.beatStartTime) / 1000; // seconds
+            
+            // Gradually introduce beat elements
+            if (elapsed >= 2) state.beatBuildup.kick = true;
+            if (elapsed >= 3) state.beatBuildup.bassline = true;
+            if (elapsed >= 4) state.beatBuildup.kickDrum = true;
+            if (elapsed >= 6) state.beatBuildup.snare = true;
+            if (elapsed >= 8) state.beatBuildup.hihat = true;
+        }
+        
+        // Slow dub bassline - more prominent
+        function playBassline() {
+            if (!state.isPlaying) return;
+            
+            const basslineInterval = (60000 / state.tempo) * 2; // Half note intervals (slow dub style)
+            const now = Date.now();
+            
+            if (now - state.lastBasslineTime >= basslineInterval) {
+                const step = state.basslineIndex % 32;
+                
+                if (state.beatBuildup.bassline && state.basslinePattern[step]) {
+                    // Play root note 2 octaves lower for deep bass
+                    const bassNote = state.rootNote - 24; // 2 octaves lower
+                    const velocity = 110; // Louder
+                    const duration = 1800; // Longer sustain
+                    
+                    if (state.mode === 'midi') {
+                        sendMIDINote(bassNote, velocity, duration);
+                    } else {
+                        // Use sawtooth for more prominent bass
+                        playWebAudioBassNote(bassNote, velocity, duration);
+                    }
+                }
+                
+                state.basslineIndex = (state.basslineIndex + 1) % 32;
+                state.lastBasslineTime = now;
+            }
+        }
+        
+        // Helper function to create panner with LFO or static pan
+        function createPanner(basePan = 0, useLfo = false) {
+            const panner = state.audioContext.createStereoPanner();
+            
+            if (useLfo) {
+                // Create LFO for this panner
+                const panLfo = state.audioContext.createOscillator();
+                const panLfoGain = state.audioContext.createGain();
+                const panOffset = state.audioContext.createConstantSource();
+                
+                panLfo.type = 'sine';
+                panLfo.frequency.value = state.panLfoRate + (Math.random() * 0.3 - 0.15); // Slight variation
+                panLfoGain.gain.value = state.panLfoAmount;
+                panOffset.offset.value = basePan;
+                
+                panLfo.connect(panLfoGain);
+                panOffset.connect(panner.pan);
+                panLfoGain.connect(panner.pan);
+                
+                panLfo.start();
+                panOffset.start();
+            } else {
+                panner.pan.value = basePan;
+            }
+            
+            return panner;
+        }
+
+        // Special bass note function for more prominent bass
+        function playWebAudioBassNote(note, velocity, duration) {
+            if (state.mode === 'webaudio' && state.audioContext && state.audioContext.state === 'running') {
+                try {
+                    const oscillator = state.audioContext.createOscillator();
+                    const gainNode = state.audioContext.createGain();
+                    
+                    // Use sawtooth for more harmonics and presence
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.value = 440 * Math.pow(2, (note - 69) / 12);
+                    
+                    const volume = (velocity / 127) * (state.intensity / 100);
+                    const now = state.audioContext.currentTime;
+                    
+                    // Envelope with longer attack for smooth bass
+                    gainNode.gain.setValueAtTime(0, now);
+                    gainNode.gain.linearRampToValueAtTime(volume * 0.8, now + 0.05); // More volume
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration / 1000);
+                    
+                    // Add panning - bass mostly center/slight left
+                    const panner = createPanner(-0.2, false);
+                    
+                    // Connect through filter for bass shaping
+                    oscillator.connect(gainNode);
+                    gainNode.connect(panner);
+                    panner.connect(state.filterNode);
+                    state.filterNode.connect(state.delayNode);
+                    state.filterNode.connect(state.convolverNode);
+                    state.filterNode.connect(state.masterGain);
+                    state.filterNode.connect(state.analyser);
+                    
+                    oscillator.start(now);
+                    oscillator.stop(now + duration / 1000);
+                } catch (error) {
+                    console.error('Error playing bass note:', error);
+                }
+            }
+        }
+
+        // Actual IDM Beat generation with kicks, snares, hi-hats, kickdrum
+        function playBeat() {
+            if (!state.isPlaying) return;
+            
+            updateBeatBuildup();
+            
+            const beatInterval = (60000 / state.tempo) / 8; // 32nd note intervals for IDM
+            const now = Date.now();
+            
+            if (now - state.lastBeatTime >= beatInterval) {
+                const step = state.beatIndex % 32;
+                
+                // Kick drum (low frequency) - vary octaves
+                if (state.beatBuildup.kick && state.kickPattern[step]) {
+                    const velocity = step % 16 === 0 ? 100 : (step % 8 === 0 ? 85 : 70);
+                    // Vary octaves: 36 (C2), 48 (C3), 60 (C4)
+                    const octaveOffset = Math.floor(Math.random() * 3) * 12;
+                    playWebAudioBeat(36 + octaveOffset, velocity, 'kick');
+                    beatPulse = 1.0;
+                }
+                
+                // Kick drum (sub bass) - various octaves
+                if (state.beatBuildup.kickDrum && state.kickDrumPattern[step]) {
+                    const velocity = step % 16 === 0 ? 95 : 80;
+                    // Very low octaves: 24 (C1), 36 (C2), 48 (C3)
+                    const octaveOffset = Math.floor(Math.random() * 3) * 12;
+                    playWebAudioBeat(24 + octaveOffset, velocity, 'kickdrum');
+                    beatPulse = 1.2;
+                }
+                
+                // Snare drum (mid frequency) - vary octaves
+                if (state.beatBuildup.snare && state.snarePattern[step]) {
+                    const velocity = step % 16 === 4 || step % 16 === 12 ? 90 : 75;
+                    // Vary octaves: 38 (D2), 50 (D3), 62 (D4)
+                    const octaveOffset = Math.floor(Math.random() * 3) * 12;
+                    playWebAudioBeat(38 + octaveOffset, velocity, 'snare');
+                }
+                
+                // Hi-hat (high frequency) - vary octaves
+                if (state.beatBuildup.hihat && state.hihatPattern[step]) {
+                    const velocity = step % 8 === 0 ? 60 : 45;
+                    // Vary octaves: 42 (F#2), 54 (F#3), 66 (F#4)
+                    const octaveOffset = Math.floor(Math.random() * 3) * 12;
+                    playWebAudioBeat(42 + octaveOffset, velocity, 'hihat');
+                }
+                
+                // Add particles on strong beats
+                if ((state.kickPattern[step] || state.snarePattern[step] || state.kickDrumPattern[step]) && state.visuals.particles) {
+                    const velocity = state.kickDrumPattern[step] ? 95 : (state.kickPattern[step] ? 100 : 90);
+                    const count = Math.floor(velocity / 8);
+                    for (let i = 0; i < count; i++) {
+                        particles.push(new Particle(
+                            canvas.width / 2 + (Math.random() - 0.5) * 150,
+                            canvas.height / 2 + (Math.random() - 0.5) * 150,
+                            Math.random() * 0.3, // Lower frequency for beats
+                            velocity / 127
+                        ));
+                    }
+                }
+                
+                state.beatIndex = (state.beatIndex + 1) % 32;
+                state.lastBeatTime = now;
+            }
+        }
+        
+        function playWebAudioBeat(note, velocity, type) {
+            if (state.mode === 'webaudio' && state.audioContext && state.audioContext.state === 'running') {
+                try {
+                    const oscillator = state.audioContext.createOscillator();
+                    const gainNode = state.audioContext.createGain();
+                    
+                    const now = state.audioContext.currentTime;
+                    
+                    // Different characteristics for each drum type
+                    if (type === 'kick') {
+                        // 808-style kick
+                        oscillator.type = 'sine';
+                        const baseFreq = 440 * Math.pow(2, (note - 69) / 12);
+                        oscillator.frequency.setValueAtTime(baseFreq, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(baseFreq * 0.4, now + 0.12);
+                        gainNode.gain.setValueAtTime(0, now);
+                        gainNode.gain.linearRampToValueAtTime((velocity / 127) * 1.0, now + 0.005);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                        
+                        // Add subtle click
+                        const clickOsc = state.audioContext.createOscillator();
+                        const clickGain = state.audioContext.createGain();
+                        clickOsc.type = 'square';
+                        clickOsc.frequency.setValueAtTime(300, now);
+                        clickOsc.frequency.exponentialRampToValueAtTime(150, now + 0.01);
+                        clickGain.gain.setValueAtTime(0, now);
+                        clickGain.gain.linearRampToValueAtTime((velocity / 127) * 0.2, now + 0.001);
+                        clickGain.gain.exponentialRampToValueAtTime(0.01, now + 0.015);
+                        clickOsc.connect(clickGain);
+                        clickGain.connect(gainNode);
+                        clickOsc.start(now);
+                        clickOsc.stop(now + 0.015);
+                        
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.18);
+                    } else if (type === 'kickdrum') {
+                        // 808-style kick drum - very prominent
+                        // Main sub bass sweep
+                        oscillator.type = 'sine';
+                        const kickFreq = 80; // Start higher for more punch
+                        oscillator.frequency.setValueAtTime(kickFreq, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(40, now + 0.2); // Drop to 40Hz
+                        gainNode.gain.setValueAtTime(0, now);
+                        gainNode.gain.linearRampToValueAtTime((velocity / 127) * 1.5, now + 0.003); // Very loud
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.4);
+                        
+                        // 808-style click/punch - more prominent
+                        const clickOsc = state.audioContext.createOscillator();
+                        const clickGain = state.audioContext.createGain();
+                        clickOsc.type = 'square';
+                        clickOsc.frequency.setValueAtTime(400, now);
+                        clickOsc.frequency.exponentialRampToValueAtTime(150, now + 0.015);
+                        clickGain.gain.setValueAtTime(0, now);
+                        clickGain.gain.linearRampToValueAtTime((velocity / 127) * 0.5, now + 0.001);
+                        clickGain.gain.exponentialRampToValueAtTime(0.01, now + 0.03);
+                        clickOsc.connect(clickGain);
+                        clickGain.connect(gainNode);
+                        clickOsc.start(now);
+                        clickOsc.stop(now + 0.03);
+                        
+                        // Additional sub harmonic for depth
+                        const subOsc = state.audioContext.createOscillator();
+                        const subGain = state.audioContext.createGain();
+                        subOsc.type = 'sine';
+                        subOsc.frequency.setValueAtTime(40, now);
+                        subOsc.frequency.exponentialRampToValueAtTime(20, now + 0.25);
+                        subGain.gain.setValueAtTime(0, now);
+                        subGain.gain.linearRampToValueAtTime((velocity / 127) * 0.8, now + 0.01);
+                        subGain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                        subOsc.connect(subGain);
+                        subGain.connect(gainNode);
+                        subOsc.start(now);
+                        subOsc.stop(now + 0.35);
+                    } else if (type === 'snare') {
+                        // White noise for snare
+                        const buffer = state.audioContext.createBuffer(1, state.audioContext.sampleRate * 0.1, state.audioContext.sampleRate);
+                        const data = buffer.getChannelData(0);
+                        for (let i = 0; i < data.length; i++) {
+                            data[i] = Math.random() * 2 - 1;
+                        }
+                        const noise = state.audioContext.createBufferSource();
+                        noise.buffer = buffer;
+                        const filter = state.audioContext.createBiquadFilter();
+                        filter.type = 'highpass';
+                        filter.frequency.value = 1000;
+                        noise.connect(filter);
+                        filter.connect(gainNode);
+                        gainNode.gain.setValueAtTime(0, now);
+                        gainNode.gain.linearRampToValueAtTime((velocity / 127) * 0.6, now + 0.01);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                        noise.start(now);
+                        noise.stop(now + 0.1);
+                    } else if (type === 'hihat') {
+                        // Hi-hat with filtering
+                        oscillator.type = 'square';
+                        oscillator.frequency.value = 8000 + Math.random() * 2000;
+                        
+                        // Add filter for hi-hat
+                        const hihatFilter = state.audioContext.createBiquadFilter();
+                        hihatFilter.type = 'highpass';
+                        hihatFilter.frequency.value = 6000; // Cut low frequencies
+                        hihatFilter.Q.value = 1;
+                        
+                        // Add resonance filter for character
+                        const hihatResonance = state.audioContext.createBiquadFilter();
+                        hihatResonance.type = 'bandpass';
+                        hihatResonance.frequency.value = 10000;
+                        hihatResonance.Q.value = 2;
+                        
+                        oscillator.connect(hihatFilter);
+                        hihatFilter.connect(hihatResonance);
+                        hihatResonance.connect(gainNode);
+                        
+                        gainNode.gain.setValueAtTime(0, now);
+                        gainNode.gain.linearRampToValueAtTime((velocity / 127) * 0.5, now + 0.003);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.06);
+                        
+                        // Add panning - hi-hat panned left with LFO
+                        const panner = createPanner(-0.4, true);
+                        
+                        // Also connect filtered hi-hat through main filter chain with panning
+                        gainNode.connect(panner);
+                        panner.connect(state.filterNode);
+                        state.filterNode.connect(state.delayNode);
+                        state.filterNode.connect(state.convolverNode);
+                        state.filterNode.connect(state.masterGain);
+                        state.filterNode.connect(state.analyser);
+                        return; // Early return to avoid double connection
+                    }
+                    
+                    // Add stereo panning - different sounds panned differently
+                    let panner;
+                    if (type === 'kick' || type === 'kickdrum') {
+                        // Kicks mostly center
+                        panner = createPanner(0, false);
+                    } else if (type === 'snare') {
+                        // Snare panned right with LFO
+                        panner = createPanner(0.3, true);
+                    } else if (type === 'hihat') {
+                        // Hi-hat panned left with LFO
+                        panner = createPanner(-0.4, true);
+                    } else {
+                        // Default: slight pan with LFO
+                        panner = createPanner(Math.random() * 0.6 - 0.3, Math.random() > 0.5);
+                    }
+                    
+                    // Connect through effects with panning
+                    // For kickdrum, send more directly to preserve low end punch
+                    if (type === 'kickdrum') {
+                        // Kick drum bypasses filter to preserve low frequencies
+                        gainNode.connect(panner);
+                        panner.connect(state.delayNode);
+                        panner.connect(state.convolverNode);
+                        panner.connect(state.masterGain);
+                        panner.connect(state.analyser);
+                    } else if (type !== 'hihat') {
+                        // Other sounds (not hi-hat) go through filter
+                        gainNode.connect(panner);
+                        panner.connect(state.filterNode);
+                        state.filterNode.connect(state.delayNode);
+                        state.filterNode.connect(state.convolverNode);
+                        state.filterNode.connect(state.masterGain);
+                        state.filterNode.connect(state.analyser);
+                    }
+                    // Hi-hat already connected above
+                } catch (error) {
+                    console.error('Error playing beat:', error);
+                }
+            }
+        }
+
+        // Music Generation - Lower pitches (2 octaves lower for intensity-controlled sounds)
+        function generateNextNote() {
+            if (!state.isPlaying) return null;
+
+            const scaleNotes = scales[state.scale];
+            // Lower octaves: 2-3 instead of 3-4
+            const octave = Math.floor(Math.random() * 2) + 2;
+            const scaleIndex = Math.floor(Math.random() * scaleNotes.length);
+            let note = state.rootNote + (octave * 12) + scaleNotes[scaleIndex];
+            
+            // Make intensity-controlled sounds 2 octaves lower (subtract 24 semitones)
+            note = note - 24;
+            
+            // Lower max pitch - clamp to 72 (C5) instead of 108, but accounting for 2 octaves lower
+            const clampedNote = Math.max(21, Math.min(72, note));
+            const velocity = Math.floor(60 + (state.intensity / 100) * 40);
+            const duration = 2000 + (Math.random() * 4000) + ((100 - state.intensity) * 20);
+            
+            return { note: clampedNote, velocity, duration };
+        }
+
+        function playNote(noteData) {
+            if (!noteData) return;
+
+            const { note, velocity, duration } = noteData;
+            
+            if (state.mode === 'midi') {
+                sendMIDINote(note, velocity, duration);
+            } else {
+                playWebAudioNote(note, velocity, duration, false);
+            }
+
+            // Trigger visual effects
+            triggerVisualEffect(note, velocity);
+        }
+
+        function triggerVisualEffect(note, velocity) {
+            // Add particles with frequency mapping
+            if (state.visuals.particles) {
+                const count = Math.floor((velocity / 127) * 15);
+                const normalizedNote = (note - 21) / (72 - 21); // Normalize to 0-1 (max is now 72)
+                for (let i = 0; i < count; i++) {
+                    particles.push(new Particle(
+                        Math.random() * canvas.width,
+                        Math.random() * canvas.height,
+                        normalizedNote + (Math.random() - 0.5) * 0.1,
+                        velocity / 127
+                    ));
+                }
+            }
+
+            // Update geometric pattern
+            if (state.visuals.geometric) {
+                geometricRotation += (velocity / 127) * 0.15;
+                geometricScale = 0.8 + (velocity / 127) * 0.5;
+            }
+        }
+
+        // Playback control
+        async function startPlayback() {
+            if (state.isPlaying) return;
+
+            if (state.mode === 'webaudio') {
+                await initAudioContext();
+            }
+
+            state.isPlaying = true;
+            state.lastNoteTime = Date.now();
+            state.lastBeatTime = Date.now();
+            state.beatIndex = 0;
+            state.beatStartTime = Date.now();
+            state.lastBasslineTime = Date.now();
+            state.basslineIndex = 0;
+            // Reset buildup
+            state.beatBuildup = {
+                kick: false,
+                snare: false,
+                hihat: false,
+                kickDrum: false,
+                bassline: false
+            };
+
+            function scheduleNext() {
+                if (!state.isPlaying) return;
+
+                const now = Date.now();
+                const interval = 60000 / state.tempo;
+                const noteInterval = interval * (1 + Math.random() * 2);
+                const elapsed = now - state.lastNoteTime;
+                
+                // Play IDM beat
+                playBeat();
+                
+                // Play slow dub bassline
+                playBassline();
+                
+                // Play ambient notes (less frequent, more ambient)
+                if (elapsed >= noteInterval * 2) { // Slower note generation
+                    const noteData = generateNextNote();
+                    if (noteData) {
+                        playNote(noteData);
+                    }
+                    state.lastNoteTime = now;
+                }
+
+                setTimeout(scheduleNext, 50);
+            }
+
+            scheduleNext();
+        }
+
+        function stopPlayback() {
+            state.isPlaying = false;
+            particles = [];
+            beatPulse = 0;
+            
+            if (state.synth && state.mode === 'midi') {
+                for (let note = 21; note <= 72; note++) {
+                    state.synth.noteOff(note, 0);
+                }
+            }
+        }
+
+        // Enhanced Visualization
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Update analyser data
+            if (state.analyser && state.mode === 'webaudio') {
+                state.analyser.getByteTimeDomainData(state.waveformData);
+                state.analyser.getByteFrequencyData(state.frequencyData);
+                
+                // Get stereo data for X/Y oscilloscope
+                if (state.analyserLeft && state.analyserRight) {
+                    state.analyserLeft.getByteTimeDomainData(state.waveformDataLeft);
+                    state.analyserRight.getByteTimeDomainData(state.waveformDataRight);
+                }
+            }
+
+            // Particles
+            if (state.visuals.particles) {
+                particles = particles.filter(p => {
+                    p.update(state.frequencyData);
+                    p.draw();
+                    return !p.isDead();
+                });
+            }
+
+            // Enhanced Oscilloscope with X/Y Lissajous patterns
+            if (state.visuals.oscilloscope) {
+                // X/Y Oscilloscope (Lissajous patterns)
+                if (state.waveformDataLeft && state.waveformDataRight && state.waveformDataLeft.length > 0) {
+                    ctx.save();
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height / 2;
+                    const radius = Math.min(canvas.width, canvas.height) / 3;
+                    
+                    // Draw X/Y oscilloscope with multiple layers
+                    for (let layer = 0; layer < 3; layer++) {
+                        ctx.strokeStyle = `hsla(${200 + layer * 60}, 80%, ${60 + layer * 10}%, ${0.7 - layer * 0.2})`;
+                        ctx.lineWidth = 1.5 + layer * 0.5;
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = `hsl(${200 + layer * 60}, 80%, 60%)`;
+                        ctx.beginPath();
+                        
+                        // Sample rate for Lissajous - use fewer points for smoother curves
+                        const step = Math.max(1, Math.floor(state.waveformDataLeft.length / 512));
+                        
+                        for (let i = 0; i < state.waveformDataLeft.length; i += step) {
+                            const left = state.waveformDataLeft[i] / 128.0;
+                            const right = state.waveformDataRight[i] / 128.0;
+                            
+                            // Normalize to -1 to 1, then scale
+                            const x = centerX + (left - 0.5) * 2 * radius * (1 - layer * 0.15);
+                            const y = centerY + (right - 0.5) * 2 * radius * (1 - layer * 0.15);
+                            
+                            if (i === 0) {
+                                ctx.moveTo(x, y);
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
+                
+                // Traditional oscilloscope (waveform)
+                if (state.waveformData && state.waveformData.length > 0) {
+                    ctx.save();
+                    const centerY = canvas.height / 2;
+                    const amplitude = (canvas.height / 6) * 1.0; // Smaller to leave room for X/Y
+                    
+                    // Draw waveform at bottom
+                    ctx.strokeStyle = `hsla(200, 80%, 60%, 0.4)`;
+                    ctx.lineWidth = 1;
+                    ctx.shadowBlur = 5;
+                    ctx.shadowColor = `hsl(200, 80%, 60%)`;
+                    ctx.beginPath();
+                    
+                    const sliceWidth = canvas.width / state.waveformData.length;
+                    let x = 0;
+                    
+                    for (let i = 0; i < state.waveformData.length; i++) {
+                        const v = state.waveformData[i] / 128.0;
+                        const y = canvas.height - 50 + (v - 0.5) * amplitude;
+                        
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                        x += sliceWidth;
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+
+            // Enhanced Geometric patterns with colors
+            if (state.visuals.geometric) {
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(geometricRotation);
+                
+                const pulseScale = 1 + beatPulse * 0.2;
+                ctx.scale(geometricScale * pulseScale, geometricScale * pulseScale);
+                
+                const intensity = 1.0; // Always 100%
+                const layers = 6;
+                
+                for (let i = 0; i < layers; i++) {
+                    ctx.save();
+                    ctx.rotate((i / layers) * Math.PI * 2 + Date.now() * 0.0005);
+                    const colorIndex = i % colorPalette.length;
+                    const color = colorPalette[colorIndex];
+                    ctx.strokeStyle = `hsla(${color.h}, ${color.s}%, ${color.l}%, ${0.4 * intensity})`;
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = `hsl(${color.h}, ${color.s}%, ${color.l}%)`;
+                    ctx.beginPath();
+                    
+                    const size = 60 + i * 40;
+                    const sides = 5 + i;
+                    
+                    for (let j = 0; j <= sides; j++) {
+                        const angle = (j / sides) * Math.PI * 2;
+                        const x = Math.cos(angle) * size;
+                        const y = Math.sin(angle) * size;
+                        
+                        if (j === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                
+                geometricRotation += 0.003;
+                geometricScale = 0.93 + (geometricScale - 0.93) * 0.97;
+                beatPulse *= 0.95;
+                
+                ctx.restore();
+            }
+
+            state.animationId = requestAnimationFrame(animate);
+        }
+
+        // localStorage functions
+        function saveSettings() {
+            const settings = {
+                mode: state.mode,
+                tempo: state.tempo,
+                scale: state.scale,
+                intensity: state.intensity,
+                rootNote: state.rootNote,
+                delayTime: state.delayTime,
+                delayFeedback: state.delayFeedback,
+                reverbAmount: state.reverbAmount
+            };
+            localStorage.setItem('midi3Settings', JSON.stringify(settings));
+        }
+
+        function loadSettings() {
+            const saved = localStorage.getItem('midi3Settings');
+            if (saved) {
+                try {
+                    const settings = JSON.parse(saved);
+                    state.mode = settings.mode || state.mode;
+                    state.tempo = settings.tempo || state.tempo;
+                    state.scale = settings.scale || state.scale;
+                    state.intensity = settings.intensity || state.intensity;
+                    state.rootNote = settings.rootNote || state.rootNote;
+                    // particleCount always 400, visualIntensity always 100%, visuals always enabled
+                    state.delayTime = settings.delayTime !== undefined ? settings.delayTime : state.delayTime;
+                    state.delayFeedback = settings.delayFeedback !== undefined ? settings.delayFeedback : state.delayFeedback;
+                    state.reverbAmount = settings.reverbAmount !== undefined ? settings.reverbAmount : state.reverbAmount;
+                    
+                    // Update UI
+                    updateUIFromState();
+                } catch (error) {
+                    console.error('Error loading settings:', error);
+                }
+            }
+        }
+
+        function updateUIFromState() {
+            document.getElementById('tempoSlider').value = state.tempo;
+            document.getElementById('tempoValue').textContent = state.tempo;
+            document.getElementById('scaleSelect').value = state.scale;
+            document.getElementById('intensitySlider').value = state.intensity;
+            document.getElementById('intensityValue').textContent = state.intensity;
+            document.getElementById('rootNoteSelect').value = state.rootNote;
+            document.getElementById('delaySlider').value = state.delayTime;
+            document.getElementById('delayValue').textContent = state.delayTime.toFixed(2);
+            document.getElementById('delayFeedbackSlider').value = Math.round(state.delayFeedback * 100);
+            document.getElementById('delayFeedbackValue').textContent = Math.round(state.delayFeedback * 100);
+            document.getElementById('reverbSlider').value = state.reverbAmount;
+            document.getElementById('reverbValue').textContent = state.reverbAmount.toFixed(2);
+            
+            // Update mode toggle
+            const modeToggle = document.getElementById('modeToggle');
+            if (state.mode === 'webaudio') {
+                modeToggle.classList.add('active');
+            } else {
+                modeToggle.classList.remove('active');
+            }
+        }
+
+        // Canvas interaction - affect sound
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            return {
+                x: Math.max(0, Math.min(1, x / canvas.width)),
+                y: Math.max(0, Math.min(1, y / canvas.height))
+            };
+        }
+
+        function updateSoundFromMouse() {
+            // X-axis affects filter cutoff and LFO rate
+            // Y-axis affects filter resonance and LFO amount
+            if (state.filterNode && state.audioContext) {
+                // Filter cutoff: 200Hz to 8000Hz based on X
+                state.filterCutoff = 200 + (state.mouseX * 7800);
+                if (state.lfoOffset) {
+                    state.lfoOffset.offset.value = state.filterCutoff;
+                }
+                
+                // Filter resonance: 1 to 20 based on Y
+                state.filterResonance = 1 + ((1 - state.mouseY) * 19);
+                state.filterNode.Q.value = state.filterResonance;
+            }
+            
+            if (state.lfoOscillator && state.lfoGain) {
+                // LFO rate: 0.1Hz to 10Hz based on X
+                state.lfoRate = 0.1 + (state.mouseX * 9.9);
+                state.lfoOscillator.frequency.value = state.lfoRate;
+                
+                // LFO amount: 0 to 1000Hz based on Y
+                state.lfoAmount = (1 - state.mouseY) * 1000;
+                state.lfoGain.gain.value = state.lfoAmount;
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            state.isDragging = true;
+            const coords = getCanvasCoords(e);
+            state.mouseX = coords.x;
+            state.mouseY = coords.y;
+            updateSoundFromMouse();
+            
+            // Trigger a note on click
+            if (state.mode === 'webaudio' && state.audioContext) {
+                const note = 48 + Math.floor(state.mouseX * 24); // C3 to C5
+                const velocity = Math.floor((1 - state.mouseY) * 127);
+                playWebAudioNote(note, velocity, 500, false);
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (state.isDragging) {
+                const coords = getCanvasCoords(e);
+                state.mouseX = coords.x;
+                state.mouseY = coords.y;
+                updateSoundFromMouse();
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            state.isDragging = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            state.isDragging = false;
+        });
+
+        // Touch events
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            state.isDragging = true;
+            const coords = getCanvasCoords(e);
+            state.mouseX = coords.x;
+            state.mouseY = coords.y;
+            updateSoundFromMouse();
+            
+            if (state.mode === 'webaudio' && state.audioContext) {
+                const note = 48 + Math.floor(state.mouseX * 24);
+                const velocity = Math.floor((1 - state.mouseY) * 127);
+                playWebAudioNote(note, velocity, 500, false);
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (state.isDragging) {
+                const coords = getCanvasCoords(e);
+                state.mouseX = coords.x;
+                state.mouseY = coords.y;
+                updateSoundFromMouse();
+            }
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            state.isDragging = false;
+        });
+
+        // Fullscreen toggle on double-click
+        const canvasContainer = document.querySelector('.canvas-container');
+        let isFullscreen = false;
+
+        async function toggleFullscreen() {
+            try {
+                if (!isFullscreen) {
+                    // Enter fullscreen
+                    if (canvasContainer.requestFullscreen) {
+                        await canvasContainer.requestFullscreen();
+                    } else if (canvasContainer.webkitRequestFullscreen) {
+                        await canvasContainer.webkitRequestFullscreen();
+                    } else if (canvasContainer.mozRequestFullScreen) {
+                        await canvasContainer.mozRequestFullScreen();
+                    } else if (canvasContainer.msRequestFullscreen) {
+                        await canvasContainer.msRequestFullscreen();
+                    }
+                } else {
+                    // Exit fullscreen
+                    if (document.exitFullscreen) {
+                        await document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        await document.webkitExitFullscreen();
+                    } else if (document.mozCancelFullScreen) {
+                        await document.mozCancelFullScreen();
+                    } else if (document.msExitFullscreen) {
+                        await document.msExitFullscreen();
+                    }
+                }
+            } catch (error) {
+                console.error('Fullscreen error:', error);
+            }
+        }
+
+        // Handle fullscreen change events
+        function handleFullscreenChange() {
+            isFullscreen = !!(
+                document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement
+            );
+            
+            // Resize canvas when entering/exiting fullscreen
+            setTimeout(() => {
+                resizeCanvas();
+            }, 100);
+        }
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+        // Double-click to toggle fullscreen
+        canvas.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            toggleFullscreen();
+        });
+
+        // UI Controls
+        function updateStatus(message, connected) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + (connected ? 'connected' : 'disconnected');
+        }
+
+        // Event listeners
+        document.getElementById('synthTypeSelect').addEventListener('change', (e) => {
+            state.synthType = e.target.value;
+            if (state.midiManager && state.midiManager.isConnected()) {
+                createSynthInstance();
+            }
+        });
+
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            if (!state.midiManager) {
+                await requestMIDIAccess();
+            }
+            connectMIDI();
+        });
+
+        document.getElementById('modeToggle').addEventListener('click', async () => {
+            const toggle = document.getElementById('modeToggle');
+            toggle.classList.toggle('active');
+            state.mode = toggle.classList.contains('active') ? 'webaudio' : 'midi';
+            
+            if (state.mode === 'webaudio') {
+                await initAudioContext();
+                updateStatus('Web Audio Mode', true);
+            } else {
+                updateStatus(state.midiManager && state.midiManager.isConnected() ? `Connected: ${state.midiManager.getConnectedDeviceName()}` : 'Disconnected', !!state.midiManager && state.midiManager.isConnected());
+            }
+            saveSettings();
+        });
+
+        document.getElementById('modeToggle').classList.add('active');
+        state.mode = 'webaudio';
+
+        document.getElementById('playBtn').addEventListener('click', async () => {
+            await startPlayback();
+            if (!state.animationId) {
+                animate();
+            }
+        });
+
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            stopPlayback();
+        });
+
+        document.getElementById('tempoSlider').addEventListener('input', (e) => {
+            state.tempo = parseInt(e.target.value);
+            document.getElementById('tempoValue').textContent = state.tempo;
+            saveSettings();
+        });
+
+        document.getElementById('scaleSelect').addEventListener('change', (e) => {
+            state.scale = e.target.value;
+            saveSettings();
+        });
+
+        document.getElementById('intensitySlider').addEventListener('input', (e) => {
+            state.intensity = parseInt(e.target.value);
+            document.getElementById('intensityValue').textContent = state.intensity;
+            saveSettings();
+        });
+
+        document.getElementById('rootNoteSelect').addEventListener('change', (e) => {
+            state.rootNote = parseInt(e.target.value);
+            saveSettings();
+        });
+
+        document.getElementById('delaySlider').addEventListener('input', (e) => {
+            state.delayTime = parseFloat(e.target.value);
+            document.getElementById('delayValue').textContent = state.delayTime.toFixed(2);
+            if (state.delayNode) {
+                state.delayNode.delayTime.value = state.delayTime;
+            }
+            saveSettings();
+        });
+
+        document.getElementById('delayFeedbackSlider').addEventListener('input', (e) => {
+            state.delayFeedback = parseInt(e.target.value) / 100;
+            document.getElementById('delayFeedbackValue').textContent = Math.round(state.delayFeedback * 100);
+            if (state.delayFeedbackGain) {
+                state.delayFeedbackGain.gain.value = state.delayFeedback;
+            }
+            saveSettings();
+        });
+
+        document.getElementById('reverbSlider').addEventListener('input', (e) => {
+            state.reverbAmount = parseFloat(e.target.value);
+            document.getElementById('reverbValue').textContent = state.reverbAmount.toFixed(2);
+            if (state.reverbGain) {
+                state.reverbGain.gain.value = state.reverbAmount;
+            }
+            saveSettings();
+        });
+
+        // Visuals are always enabled, no controls needed
+
+        // Initialize
+        loadSettings(); // Load saved settings first
+        requestMIDIAccess();
+        animate();
+        
+        (async () => {
+            if (state.mode === 'webaudio') {
+                await initAudioContext();
+                updateStatus('Web Audio Mode - Ready', true);
+            }
+        })();
+    </script>
+</body>
+</html>
+

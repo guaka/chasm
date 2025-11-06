@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI Tracker 2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', 'Consolas', monospace;
+            background: #000;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            background: #1a1a1a;
+            padding: 10px;
+            border-bottom: 2px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .header-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header label {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .header input, .header select, .header button {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 5px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .header button {
+            cursor: pointer;
+            min-width: 60px;
+        }
+
+        .header button:hover {
+            background: #3a3a3a;
+        }
+
+        .header button.active {
+            background: #4a4a4a;
+        }
+
+        .pattern-editor-container {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        .pattern-editor {
+            border-collapse: collapse;
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 13px;
+            width: 100%;
+        }
+
+        .pattern-editor th {
+            background: #1a1a1a;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            padding: 5px;
+            border: 1px solid #333;
+            text-align: center;
+            font-weight: normal;
+        }
+
+        .pattern-editor th.row-header {
+            width: 40px;
+            background: #1a1a1a;
+            color: #666;
+        }
+
+        .pattern-editor th.channel-header {
+            background: #2a2a2a;
+            color: #fff;
+            min-width: 120px;
+        }
+
+        .pattern-editor td {
+            border: 1px solid #222;
+            padding: 0;
+            height: 20px;
+        }
+
+        .pattern-editor td.row-number {
+            background: #1a1a1a;
+            color: #666;
+            text-align: right;
+            padding: 0 5px;
+            width: 40px;
+            font-size: 11px;
+        }
+
+        .pattern-editor td.cell {
+            background: #0a0a0a;
+            padding: 0;
+            cursor: text;
+        }
+
+        .pattern-editor td.cell:hover {
+            background: #1a1a1a;
+        }
+
+        .pattern-editor td.cell.active {
+            background: #004080;
+            border: 1px solid #0066cc;
+        }
+
+        .pattern-editor td.cell.playing {
+            background: #400040;
+            border: 1px solid #800080;
+        }
+
+        .pattern-editor td.cell.active.playing {
+            background: #404080;
+            border: 1px solid #6666cc;
+        }
+
+        .cell-content {
+            display: flex;
+            height: 100%;
+        }
+
+        .cell-field {
+            flex: 1;
+            padding: 2px 3px;
+            border: none;
+            background: transparent;
+            color: #fff;
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+
+        .cell-field:focus {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .note-field {
+            width: 35px;
+            text-align: center;
+        }
+
+        .inst-field, .vol-field {
+            width: 25px;
+            text-align: center;
+        }
+
+        .eff-field, .param-field {
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: #1a1a1a;
+            border-left: 2px solid #333;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 11px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 20px;
+        }
+
+        .sidebar-title {
+            color: #aaa;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .pattern-order {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .pattern-order-item {
+            background: #2a2a2a;
+            padding: 5px 10px;
+            cursor: pointer;
+            border: 1px solid #444;
+        }
+
+        .pattern-order-item.active {
+            background: #4a4a4a;
+            border-color: #666;
+        }
+
+        .status {
+            padding: 5px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            margin-top: 10px;
+        }
+
+        .status.connected {
+            color: #4caf50;
+        }
+
+        .status.disconnected {
+            color: #f44336;
+        }
+
+        .help {
+            margin-top: 20px;
+            font-size: 10px;
+            color: #666;
+        }
+
+        .help-key {
+            display: inline-block;
+            background: #2a2a2a;
+            padding: 2px 5px;
+            border: 1px solid #444;
+            margin: 2px;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-group">
+                <button id="playBtn">Play</button>
+                <button id="stopBtn">Stop</button>
+            </div>
+            <div class="header-group">
+                <label>Tempo:</label>
+                <input type="number" id="tempoInput" value="125" min="32" max="255" style="width: 60px;">
+            </div>
+            <div class="header-group">
+                <label>Speed:</label>
+                <input type="number" id="speedInput" value="6" min="1" max="32" style="width: 50px;">
+            </div>
+            <div class="header-group">
+                <label>Pattern:</label>
+                <input type="number" id="patternInput" value="0" min="0" style="width: 60px;">
+            </div>
+            <div class="header-group">
+                <label>Output Mode:</label>
+                <select id="outputModeSelect" style="width: 120px;">
+                    <option value="midi">MIDI</option>
+                    <option value="webaudio">Web Audio</option>
+                </select>
+            </div>
+            <div class="header-group">
+                <label>MIDI Device:</label>
+                <select id="midiDeviceSelect" style="width: 200px;">
+                    <option value="">No device</option>
+                </select>
+                <button id="connectBtn">Connect</button>
+            </div>
+            <div class="header-group">
+                <div id="status" class="status disconnected">Disconnected</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="editor-wrapper">
+                <div class="pattern-editor-container">
+                    <table class="pattern-editor" id="patternTable">
+                        <thead id="patternHeader"></thead>
+                        <tbody id="patternBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Pattern Order</div>
+                    <div class="pattern-order" id="patternOrder"></div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Info</div>
+                    <div>Current: <span id="currentPattern">0</span></div>
+                    <div>Step: <span id="currentStep">0</span></div>
+                    <div>Channels: <span id="channelCount">1</span></div>
+                </div>
+                <div class="sidebar-section">
+                    <button id="addChannelBtn" style="width: 100%; padding: 5px; margin-bottom: 5px;">Add Channel</button>
+                    <button id="addPatternBtn" style="width: 100%; padding: 5px;">Add Pattern</button>
+                </div>
+                <div class="sidebar-section help">
+                    <div class="sidebar-title">Shortcuts</div>
+                    <div><span class="help-key">Space</span> Play/Stop</div>
+                    <div><span class="help-key">↑↓←→</span> Navigate</div>
+                    <div><span class="help-key">Enter</span> Step down</div>
+                    <div><span class="help-key">Tab</span> Next channel</div>
+                    <div><span class="help-key">Del</span> Clear cell</div>
+                    <div><span class="help-key">Ctrl+C/V</span> Copy/Paste</div>
+                    <div><span class="help-key">QWERTY</span> Note entry</div>
+                    <div><span class="help-key">0-9</span> Octave</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        const state = {
+            patterns: [],
+            currentPattern: 0,
+            currentStep: 0,
+            isPlaying: false,
+            tempo: 125,
+            speed: 6,
+            channels: 8, // Start with 8 channels visible (like Schism Tracker)
+            order: [0],
+            midiAccess: null,
+            midiOutput: null,
+            // Web Audio state
+            audioContext: null,
+            masterGain: null,
+            delayNode: null,
+            delayFeedbackGain: null,
+            convolverNode: null,
+            reverbGain: null,
+            filterNode: null,
+            outputMode: 'midi', // 'midi' or 'webaudio'
+            activeWebAudioNotes: new Map(), // Track active Web Audio notes per channel
+            activeCell: { row: 0, channel: 0, field: 'note' },
+            clipboard: null,
+            activeNotes: new Map(), // Track active MIDI notes per channel
+            lastTickTime: 0,
+            tickCounter: 0,
+            animationFrame: null,
+            maxChannels: 256, // Maximum channels like Schism Tracker
+            currentOctave: 4, // Default octave for note entry
+            noteEntryBuffer: '' // Buffer for note entry (e.g., "C#4")
+        };
+
+        // QWERTY keyboard to note mapping (Schism Tracker style)
+        // Q = C, W = C#, E = D, R = D#, T = E, Y = F, U = F#, I = G, O = G#, P = A, [ = A#, ] = B
+        const qwertyNoteMap = {
+            'q': 'C', 'w': 'C#', 'e': 'D', 'r': 'D#', 't': 'E',
+            'y': 'F', 'u': 'F#', 'i': 'G', 'o': 'G#', 'p': 'A',
+            '[': 'A#', ']': 'B',
+            // Also support direct note names
+            'c': 'C', 'd': 'D', 'e': 'E', 'f': 'F', 'g': 'G', 'a': 'A', 'b': 'B'
+        };
+
+        // Note name mapping
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const noteNameMap = {
+            'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3,
+            'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8,
+            'A': 9, 'A#': 10, 'BB': 10, 'B': 11
+        };
+
+        // Initialize first pattern
+        function initPattern(patternIndex = null) {
+            const idx = patternIndex !== null ? patternIndex : state.patterns.length;
+            if (state.patterns[idx]) {
+                // Pattern exists, just ensure it has correct number of channels
+                return;
+            }
+            const pattern = {
+                channels: []
+            };
+            for (let ch = 0; ch < state.channels; ch++) {
+                const channel = [];
+                for (let row = 0; row < 64; row++) {
+                    channel.push({
+                        note: '',
+                        inst: '',
+                        vol: '',
+                        effect: '',
+                        param: ''
+                    });
+                }
+                pattern.channels.push(channel);
+            }
+            state.patterns[idx] = pattern;
+        }
+
+        // Create empty step
+        function createEmptyStep() {
+            return {
+                note: '',
+                inst: '',
+                vol: '',
+                effect: '',
+                param: ''
+            };
+        }
+
+        // Initialize first pattern with 8 channels
+        initPattern(0);
+
+        // MIDI Functions
+        async function requestMIDIAccess() {
+            try {
+                if (!navigator.requestMIDIAccess) {
+                    throw new Error('Web MIDI API not supported');
+                }
+                state.midiAccess = await navigator.requestMIDIAccess();
+                updateMIDIDevices();
+                state.midiAccess.onstatechange = updateMIDIDevices;
+                return true;
+            } catch (error) {
+                console.error('MIDI access denied:', error);
+                updateStatus('MIDI not available', false);
+                return false;
+            }
+        }
+
+        function updateMIDIDevices() {
+            const select = document.getElementById('midiDeviceSelect');
+            select.innerHTML = '<option value="">No device</option>';
+            
+            if (state.midiAccess) {
+                const outputs = Array.from(state.midiAccess.outputs.values());
+                outputs.forEach((output, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = output.name || `MIDI Output ${index + 1}`;
+                    select.appendChild(option);
+                });
+            }
+        }
+
+        function connectMIDI() {
+            const select = document.getElementById('midiDeviceSelect');
+            const index = parseInt(select.value);
+            
+            if (isNaN(index) || !state.midiAccess) {
+                updateStatus('No device selected', false);
+                return;
+            }
+
+            const outputs = Array.from(state.midiAccess.outputs.values());
+            if (index >= 0 && index < outputs.length) {
+                state.midiOutput = outputs[index];
+                updateStatus(`Connected: ${state.midiOutput.name}`, true);
+            } else {
+                updateStatus('Device not found', false);
+            }
+        }
+
+        function sendMIDINote(channel, note, velocity, on = true) {
+            if (!state.midiOutput) return;
+            
+            const midiChannel = Math.min(channel, 15); // MIDI channels are 0-15
+            const status = on ? 0x90 : 0x80;
+            state.midiOutput.send([status + midiChannel, note, velocity]);
+        }
+
+        function sendMIDICC(channel, cc, value) {
+            if (!state.midiOutput) return;
+            
+            const midiChannel = Math.min(channel, 15);
+            state.midiOutput.send([0xB0 + midiChannel, cc, value]);
+        }
+
+        // Web Audio Functions
+        async function initAudioContext() {
+            if (!state.audioContext) {
+                state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create master gain
+                state.masterGain = state.audioContext.createGain();
+                state.masterGain.gain.value = 0.7; // Master volume
+                state.masterGain.connect(state.audioContext.destination);
+                
+                // Create delay
+                state.delayNode = state.audioContext.createDelay(1.0);
+                state.delayNode.delayTime.value = 0.3;
+                state.delayFeedbackGain = state.audioContext.createGain();
+                state.delayFeedbackGain.gain.value = 0.3;
+                state.delayNode.connect(state.delayFeedbackGain);
+                state.delayFeedbackGain.connect(state.delayNode); // Feedback loop
+                state.delayFeedbackGain.connect(state.masterGain);
+                
+                // Create reverb
+                state.convolverNode = state.audioContext.createConvolver();
+                state.convolverNode.buffer = createReverbImpulse(state.audioContext, 2, 2);
+                state.reverbGain = state.audioContext.createGain();
+                state.reverbGain.gain.value = 0.3;
+                state.convolverNode.connect(state.reverbGain);
+                state.reverbGain.connect(state.masterGain);
+                
+                // Create filter
+                state.filterNode = state.audioContext.createBiquadFilter();
+                state.filterNode.type = 'lowpass';
+                state.filterNode.frequency.value = 2000;
+                state.filterNode.Q.value = 5;
+            }
+            // Resume audio context if suspended (Chrome autoplay policy)
+            if (state.audioContext.state === 'suspended') {
+                await state.audioContext.resume();
+            }
+        }
+
+        // Create reverb impulse response
+        function createReverbImpulse(audioContext, duration = 2, decay = 2) {
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * duration;
+            const impulse = audioContext.createBuffer(2, length, sampleRate);
+            
+            for (let channel = 0; channel < 2; channel++) {
+                const channelData = impulse.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    const n = length - i;
+                    channelData[i] = (Math.random() * 2 - 1) * Math.pow(n / length, decay);
+                }
+            }
+            
+            return impulse;
+        }
+
+        // Play note using Web Audio
+        function playWebAudioNote(channel, note, velocity, duration = null) {
+            if (!state.audioContext || state.audioContext.state !== 'running') return null;
+            
+            try {
+                const oscillator = state.audioContext.createOscillator();
+                const gainNode = state.audioContext.createGain();
+                
+                // Use different wave types for variety
+                const waveTypes = ['sine', 'triangle', 'sawtooth'];
+                oscillator.type = waveTypes[channel % waveTypes.length];
+                
+                const frequency = 440 * Math.pow(2, (note - 69) / 12);
+                oscillator.frequency.value = frequency;
+                
+                const volume = (velocity / 127) * 0.5;
+                const now = state.audioContext.currentTime;
+                
+                // Envelope
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
+                if (duration) {
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration / 1000);
+                } else {
+                    // Sustain until note off
+                    gainNode.gain.setValueAtTime(volume, now + 0.01);
+                }
+                
+                // Connect through filter, then effects
+                oscillator.connect(gainNode);
+                gainNode.connect(state.filterNode);
+                state.filterNode.connect(state.delayNode);
+                state.filterNode.connect(state.convolverNode);
+                state.filterNode.connect(state.masterGain);
+                
+                oscillator.start(now);
+                if (duration) {
+                    oscillator.stop(now + duration / 1000);
+                }
+                
+                return { oscillator, gainNode, note, channel };
+            } catch (error) {
+                console.error('Error playing Web Audio note:', error);
+                return null;
+            }
+        }
+
+        // Stop Web Audio note
+        function stopWebAudioNote(noteInfo) {
+            if (!noteInfo) return;
+            
+            try {
+                const now = state.audioContext.currentTime;
+                noteInfo.gainNode.gain.cancelScheduledValues(now);
+                noteInfo.gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                noteInfo.oscillator.stop(now + 0.1);
+            } catch (error) {
+                console.error('Error stopping Web Audio note:', error);
+            }
+        }
+
+        // Parse note string (C-4, C#3, etc.) to MIDI note number
+        function parseNote(noteStr) {
+            if (!noteStr || noteStr.trim() === '') return null;
+            
+            const match = noteStr.match(/^([A-G][#Bb]?)(-?)(\d+)$/);
+            if (!match) return null;
+            
+            const [, noteName, , octave] = match;
+            const noteNum = noteNameMap[noteName.toUpperCase()];
+            if (noteNum === undefined) return null;
+            
+            const octaveNum = parseInt(octave);
+            return (octaveNum + 1) * 12 + noteNum;
+        }
+
+        // Format MIDI note number to note string
+        function formatNote(midiNote) {
+            if (midiNote === null || midiNote === undefined) return '';
+            const octave = Math.floor(midiNote / 12) - 1;
+            const note = midiNote % 12;
+            return noteNames[note] + octave;
+        }
+
+        // Render pattern editor
+        function renderPattern() {
+            // Ensure pattern exists
+            if (!state.patterns[state.currentPattern]) {
+                initPattern(state.currentPattern);
+            }
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern) return;
+            
+            // Ensure pattern has correct number of channels
+            while (pattern.channels.length < state.channels) {
+                const channel = [];
+                for (let row = 0; row < 64; row++) {
+                    channel.push(createEmptyStep());
+                }
+                pattern.channels.push(channel);
+            }
+
+            const header = document.getElementById('patternHeader');
+            const body = document.getElementById('patternBody');
+            
+            header.innerHTML = '';
+            body.innerHTML = '';
+
+            // Create header
+            const headerRow = document.createElement('tr');
+            const rowHeader = document.createElement('th');
+            rowHeader.className = 'row-header';
+            rowHeader.textContent = '';
+            headerRow.appendChild(rowHeader);
+
+            for (let ch = 0; ch < state.channels; ch++) {
+                const th = document.createElement('th');
+                th.className = 'channel-header';
+                th.textContent = `Ch${ch + 1}`;
+                headerRow.appendChild(th);
+            }
+            header.appendChild(headerRow);
+
+            // Create rows
+            for (let row = 0; row < 64; row++) {
+                const tr = document.createElement('tr');
+                
+                // Row number
+                const rowNum = document.createElement('td');
+                rowNum.className = 'row-number';
+                rowNum.textContent = String(row).padStart(2, '0');
+                tr.appendChild(rowNum);
+
+                // Channel cells
+                for (let ch = 0; ch < state.channels; ch++) {
+                    const step = pattern.channels[ch] ? pattern.channels[ch][row] : createEmptyStep();
+                    const cell = createCell(row, ch, step);
+                    tr.appendChild(cell);
+                }
+                
+                body.appendChild(tr);
+            }
+
+            updateActiveCell();
+        }
+
+        // Create a cell
+        function createCell(row, channel, step) {
+            const td = document.createElement('td');
+            td.className = 'cell';
+            td.dataset.row = row;
+            td.dataset.channel = channel;
+
+            const content = document.createElement('div');
+            content.className = 'cell-content';
+
+            // Note field
+            const noteField = document.createElement('input');
+            noteField.type = 'text';
+            noteField.className = 'cell-field note-field';
+            noteField.value = step.note || '';
+            noteField.placeholder = '---';
+            noteField.maxLength = 4;
+            noteField.dataset.field = 'note';
+            noteField.addEventListener('input', (e) => handleCellInput(row, channel, 'note', e.target.value));
+            noteField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
+            noteField.addEventListener('focus', () => {
+                state.activeCell.row = row;
+                state.activeCell.channel = channel;
+                state.activeCell.field = 'note';
+            });
+            content.appendChild(noteField);
+
+            // Instrument field
+            const instField = document.createElement('input');
+            instField.type = 'text';
+            instField.className = 'cell-field inst-field';
+            instField.value = step.inst || '';
+            instField.placeholder = '--';
+            instField.maxLength = 2;
+            instField.dataset.field = 'inst';
+            instField.addEventListener('input', (e) => handleCellInput(row, channel, 'inst', e.target.value));
+            instField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
+            instField.addEventListener('focus', () => {
+                state.activeCell.row = row;
+                state.activeCell.channel = channel;
+                state.activeCell.field = 'inst';
+            });
+            content.appendChild(instField);
+
+            // Volume field
+            const volField = document.createElement('input');
+            volField.type = 'text';
+            volField.className = 'cell-field vol-field';
+            volField.value = step.vol || '';
+            volField.placeholder = '--';
+            volField.maxLength = 2;
+            volField.dataset.field = 'vol';
+            volField.addEventListener('input', (e) => handleCellInput(row, channel, 'vol', e.target.value));
+            volField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
+            volField.addEventListener('focus', () => {
+                state.activeCell.row = row;
+                state.activeCell.channel = channel;
+                state.activeCell.field = 'vol';
+            });
+            content.appendChild(volField);
+
+            // Effect field
+            const effField = document.createElement('input');
+            effField.type = 'text';
+            effField.className = 'cell-field eff-field';
+            effField.value = step.effect || '';
+            effField.placeholder = '-';
+            effField.maxLength = 2;
+            effField.dataset.field = 'effect';
+            effField.addEventListener('input', (e) => handleCellInput(row, channel, 'effect', e.target.value));
+            effField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
+            effField.addEventListener('focus', () => {
+                state.activeCell.row = row;
+                state.activeCell.channel = channel;
+                state.activeCell.field = 'effect';
+            });
+            content.appendChild(effField);
+
+            // Parameter field
+            const paramField = document.createElement('input');
+            paramField.type = 'text';
+            paramField.className = 'cell-field param-field';
+            paramField.value = step.param || '';
+            paramField.placeholder = '-';
+            paramField.maxLength = 2;
+            paramField.dataset.field = 'param';
+            paramField.addEventListener('input', (e) => handleCellInput(row, channel, 'param', e.target.value));
+            paramField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
+            paramField.addEventListener('focus', () => {
+                state.activeCell.row = row;
+                state.activeCell.channel = channel;
+                state.activeCell.field = 'param';
+            });
+            content.appendChild(paramField);
+
+            td.appendChild(content);
+            return td;
+        }
+
+        // Handle cell input
+        function handleCellInput(row, channel, field, value) {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern.channels[channel]) {
+                pattern.channels[channel] = [];
+                for (let i = 0; i < 64; i++) {
+                    pattern.channels[channel].push(createEmptyStep());
+                }
+            }
+            
+            if (!pattern.channels[channel][row]) {
+                pattern.channels[channel][row] = createEmptyStep();
+            }
+
+            // Validate and format input
+            if (field === 'note') {
+                value = value.toUpperCase().replace(/[^A-G#B0-9-]/g, '');
+            } else if (field === 'inst' || field === 'vol' || field === 'effect' || field === 'param') {
+                value = value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+            }
+
+            pattern.channels[channel][row][field] = value;
+        }
+
+        // Handle keyboard navigation in cells
+        function handleCellKeydown(e, row, channel) {
+            const fields = ['note', 'inst', 'vol', 'effect', 'param'];
+            const currentField = e.target.dataset.field;
+            const currentIndex = fields.indexOf(currentField);
+            
+            // Let QWERTY note keys pass through to global handler
+            const key = e.key.toLowerCase();
+            if (qwertyNoteMap[key] && currentField === 'note') {
+                // Prevent default so input field doesn't capture the key
+                // But don't stop propagation - let it bubble to global handler
+                e.preventDefault();
+                // Global handler will handle it
+                return;
+            }
+
+            if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                e.preventDefault();
+                focusField(row, channel, fields[currentIndex - 1]);
+            } else if (e.key === 'ArrowRight' && currentIndex < fields.length - 1) {
+                e.preventDefault();
+                focusField(row, channel, fields[currentIndex + 1]);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                moveCell(row - 1, channel, currentField);
+                focusField(row - 1, channel, currentField);
+            } else if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                e.preventDefault();
+                moveCell(row + 1, channel, currentField);
+                focusField(row + 1, channel, currentField);
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                moveCell(row, channel + 1, currentField);
+                focusField(row, channel + 1, currentField);
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (e.target.value === '') {
+                    e.preventDefault();
+                    clearCell(row, channel);
+                }
+            }
+        }
+
+        // Focus a specific field
+        function focusField(row, channel, field) {
+            const cell = document.querySelector(`td.cell[data-row="${row}"][data-channel="${channel}"]`);
+            if (cell) {
+                const input = cell.querySelector(`input[data-field="${field}"]`);
+                if (input) {
+                    state.activeCell.row = row;
+                    state.activeCell.channel = channel;
+                    state.activeCell.field = field;
+                    input.focus();
+                    input.select();
+                }
+            }
+        }
+
+        // Move active cell
+        function moveCell(row, channel, field = null) {
+            row = Math.max(0, Math.min(63, row));
+            channel = Math.max(0, Math.min(state.channels - 1, channel));
+            state.activeCell = { row, channel, field: field || state.activeCell.field };
+            updateActiveCell();
+        }
+
+        // Update active cell highlighting
+        function updateActiveCell() {
+            document.querySelectorAll('td.cell').forEach(cell => {
+                cell.classList.remove('active');
+                const row = parseInt(cell.dataset.row);
+                const channel = parseInt(cell.dataset.channel);
+                if (row === state.activeCell.row && channel === state.activeCell.channel) {
+                    cell.classList.add('active');
+                }
+                if (state.isPlaying && row === state.currentStep) {
+                    cell.classList.add('playing');
+                } else {
+                    cell.classList.remove('playing');
+                }
+            });
+
+            // Scroll to active cell
+            const activeCell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
+            if (activeCell) {
+                activeCell.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        }
+
+        // Clear cell
+        function clearCell(row, channel) {
+            const pattern = state.patterns[state.currentPattern];
+            if (pattern.channels[channel] && pattern.channels[channel][row]) {
+                pattern.channels[channel][row] = createEmptyStep();
+                renderPattern();
+                moveCell(row, channel, state.activeCell.field);
+            }
+        }
+
+        // Enter note directly using QWERTY keyboard (Schism Tracker style)
+        function enterNote(noteName) {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern.channels[state.activeCell.channel]) {
+                pattern.channels[state.activeCell.channel] = [];
+                for (let i = 0; i < 64; i++) {
+                    pattern.channels[state.activeCell.channel].push(createEmptyStep());
+                }
+            }
+            
+            if (!pattern.channels[state.activeCell.channel][state.activeCell.row]) {
+                pattern.channels[state.activeCell.channel][state.activeCell.row] = createEmptyStep();
+            }
+
+            // Format note: C#4, D3, etc.
+            const noteStr = noteName + state.currentOctave;
+            pattern.channels[state.activeCell.channel][state.activeCell.row].note = noteStr;
+            
+            // Update the display
+            const cell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
+            if (cell) {
+                const noteField = cell.querySelector('input[data-field="note"]');
+                if (noteField) {
+                    noteField.value = noteStr;
+                }
+            }
+
+            // Auto-advance: move to next row (like Schism Tracker)
+            moveCell(state.activeCell.row + 1, state.activeCell.channel, 'note');
+            focusField(state.activeCell.row, state.activeCell.channel, 'note');
+        }
+
+        // Enter hex value in current field
+        function enterHexValue(value) {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern.channels[state.activeCell.channel]) {
+                pattern.channels[state.activeCell.channel] = [];
+                for (let i = 0; i < 64; i++) {
+                    pattern.channels[state.activeCell.channel].push(createEmptyStep());
+                }
+            }
+            
+            if (!pattern.channels[state.activeCell.channel][state.activeCell.row]) {
+                pattern.channels[state.activeCell.channel][state.activeCell.row] = createEmptyStep();
+            }
+
+            const field = state.activeCell.field;
+            const currentValue = pattern.channels[state.activeCell.channel][state.activeCell.row][field] || '';
+            
+            // For single-digit fields, replace; for two-digit fields, append
+            let newValue;
+            if (field === 'effect' || field === 'param') {
+                // Single hex digit
+                newValue = value.toUpperCase();
+            } else {
+                // Two hex digits - append or replace
+                if (currentValue.length >= 2) {
+                    newValue = value.toUpperCase();
+                } else {
+                    newValue = (currentValue + value).toUpperCase().padStart(2, '0');
+                }
+            }
+
+            pattern.channels[state.activeCell.channel][state.activeCell.row][field] = newValue;
+            
+            // Update the display
+            const cell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
+            if (cell) {
+                const fieldInput = cell.querySelector(`input[data-field="${field}"]`);
+                if (fieldInput) {
+                    fieldInput.value = newValue;
+                }
+            }
+
+            // Auto-advance to next field or row based on field
+            if (field === 'param') {
+                // After parameter, move to next row
+                moveCell(state.activeCell.row + 1, state.activeCell.channel, 'note');
+                focusField(state.activeCell.row, state.activeCell.channel, 'note');
+            } else {
+                // Move to next field
+                const fields = ['note', 'inst', 'vol', 'effect', 'param'];
+                const currentIndex = fields.indexOf(field);
+                if (currentIndex < fields.length - 1) {
+                    focusField(state.activeCell.row, state.activeCell.channel, fields[currentIndex + 1]);
+                    state.activeCell.field = fields[currentIndex + 1];
+                }
+            }
+        }
+
+        // Playback engine
+        function playTick() {
+            if (!state.isPlaying) return;
+
+            const now = performance.now();
+            const tickInterval = (60000 / state.tempo / state.speed);
+
+            if (now - state.lastTickTime >= tickInterval) {
+                state.lastTickTime = now;
+                state.tickCounter++;
+
+                if (state.tickCounter >= state.speed) {
+                    state.tickCounter = 0;
+                    playStep();
+                }
+            }
+
+            state.animationFrame = requestAnimationFrame(playTick);
+        }
+
+        function playStep() {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern) return;
+
+            // Process current step
+            for (let ch = 0; ch < state.channels; ch++) {
+                if (!pattern.channels[ch]) continue;
+                const step = pattern.channels[ch][state.currentStep];
+                if (!step) continue;
+
+                // Stop previous note if new note or note off
+                const noteKey = `${ch}-${state.currentStep}`;
+                
+                if (state.outputMode === 'midi') {
+                    if (state.activeNotes.has(noteKey)) {
+                        const activeNote = state.activeNotes.get(noteKey);
+                        sendMIDINote(ch, activeNote.note, 0, false);
+                        state.activeNotes.delete(noteKey);
+                    }
+                } else {
+                    // Web Audio mode
+                    if (state.activeWebAudioNotes.has(ch)) {
+                        const activeNote = state.activeWebAudioNotes.get(ch);
+                        stopWebAudioNote(activeNote);
+                        state.activeWebAudioNotes.delete(ch);
+                    }
+                }
+
+                // Parse and play note
+                if (step.note && step.note.trim() !== '') {
+                    const midiNote = parseNote(step.note);
+                    if (midiNote !== null) {
+                        const velocity = step.vol ? parseInt(step.vol, 16) * 2 : 64;
+                        const clampedVelocity = Math.min(127, velocity);
+                        
+                        if (state.outputMode === 'midi') {
+                            sendMIDINote(ch, midiNote, clampedVelocity);
+                            state.activeNotes.set(noteKey, { note: midiNote, channel: ch });
+                        } else {
+                            // Web Audio mode
+                            const noteInfo = playWebAudioNote(ch, midiNote, clampedVelocity);
+                            if (noteInfo) {
+                                state.activeWebAudioNotes.set(ch, noteInfo);
+                            }
+                        }
+                    }
+                }
+
+                // Handle effects
+                if (step.effect) {
+                    const effect = parseInt(step.effect, 16) || 0;
+                    const param = parseInt(step.param, 16) || 0;
+                    handleEffect(ch, effect, param);
+                }
+            }
+
+            // Update visual
+            updateActiveCell();
+
+            // Advance step
+            state.currentStep++;
+            if (state.currentStep >= 64) {
+                state.currentStep = 0;
+                // Advance to next pattern in order
+                const orderIndex = state.order.indexOf(state.currentPattern);
+                if (orderIndex >= 0 && orderIndex < state.order.length - 1) {
+                    state.currentPattern = state.order[orderIndex + 1];
+                    document.getElementById('patternInput').value = state.currentPattern;
+                    renderPattern();
+                } else {
+                    // Loop
+                    state.currentPattern = state.order[0];
+                    document.getElementById('patternInput').value = state.currentPattern;
+                    renderPattern();
+                }
+            }
+
+            document.getElementById('currentStep').textContent = state.currentStep;
+        }
+
+        // Handle effect commands
+        function handleEffect(channel, effect, param) {
+            switch (effect) {
+                case 0x0C: // Set volume
+                    sendMIDICC(channel, 7, param);
+                    break;
+                case 0x0B: // Set panning
+                    sendMIDICC(channel, 10, param);
+                    break;
+                case 0x01: // Portamento up
+                    // Implementation depends on synth
+                    break;
+                case 0x02: // Portamento down
+                    // Implementation depends on synth
+                    break;
+                // Add more effects as needed
+            }
+        }
+
+        // Start playback
+        async function startPlayback() {
+            if (state.isPlaying) return;
+            
+            // Initialize Web Audio if needed
+            if (state.outputMode === 'webaudio') {
+                await initAudioContext();
+            }
+            
+            state.isPlaying = true;
+            state.currentStep = 0;
+            state.tickCounter = 0;
+            state.lastTickTime = performance.now();
+            document.getElementById('playBtn').classList.add('active');
+            playTick();
+        }
+
+        // Stop playback
+        function stopPlayback() {
+            state.isPlaying = false;
+            state.currentStep = 0;
+            document.getElementById('playBtn').classList.remove('active');
+            
+            // Stop all active notes
+            if (state.outputMode === 'midi') {
+                state.activeNotes.forEach((note, key) => {
+                    sendMIDINote(note.channel, note.note, 0, false);
+                });
+                state.activeNotes.clear();
+            } else {
+                // Web Audio mode
+                state.activeWebAudioNotes.forEach((noteInfo, ch) => {
+                    stopWebAudioNote(noteInfo);
+                });
+                state.activeWebAudioNotes.clear();
+            }
+
+            if (state.animationFrame) {
+                cancelAnimationFrame(state.animationFrame);
+            }
+            document.getElementById('currentStep').textContent = state.currentStep;
+            updateActiveCell();
+        }
+
+        // Update status
+        function updateStatus(message, connected) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + (connected ? 'connected' : 'disconnected');
+        }
+
+        // Update pattern order display
+        function updatePatternOrder() {
+            const orderDiv = document.getElementById('patternOrder');
+            orderDiv.innerHTML = '';
+            state.order.forEach((patternIndex, index) => {
+                const item = document.createElement('div');
+                item.className = 'pattern-order-item';
+                if (patternIndex === state.currentPattern) {
+                    item.classList.add('active');
+                }
+                item.textContent = patternIndex;
+                item.addEventListener('click', () => {
+                    state.currentPattern = patternIndex;
+                    document.getElementById('patternInput').value = patternIndex;
+                    renderPattern();
+                    updatePatternOrder();
+                });
+                orderDiv.appendChild(item);
+            });
+        }
+
+        // Add channel
+        function addChannel() {
+            if (state.channels >= state.maxChannels) {
+                alert(`Maximum ${state.maxChannels} channels reached`);
+                return;
+            }
+            state.channels++;
+            state.patterns.forEach(pattern => {
+                const channel = [];
+                for (let i = 0; i < 64; i++) {
+                    channel.push(createEmptyStep());
+                }
+                pattern.channels.push(channel);
+            });
+            document.getElementById('channelCount').textContent = state.channels;
+            renderPattern();
+        }
+
+        // Add pattern
+        function addPattern() {
+            const pattern = {
+                channels: []
+            };
+            for (let ch = 0; ch < state.channels; ch++) {
+                const channel = [];
+                for (let row = 0; row < 64; row++) {
+                    channel.push(createEmptyStep());
+                }
+                pattern.channels.push(channel);
+            }
+            state.patterns.push(pattern);
+            state.order.push(state.patterns.length - 1);
+            updatePatternOrder();
+        }
+
+        // Enhanced keyboard shortcuts (Schism Tracker style)
+        document.addEventListener('keydown', (e) => {
+            // Don't intercept if user is typing in header inputs
+            if (e.target.tagName === 'INPUT' && (e.target.id === 'tempoInput' || e.target.id === 'speedInput' || e.target.id === 'patternInput')) {
+                return;
+            }
+
+            const isCellInput = e.target.tagName === 'INPUT' && e.target.closest('td.cell');
+            const key = e.key.toLowerCase();
+
+            // QWERTY note entry (Schism Tracker style) - check this FIRST
+            // Always allow QWERTY note entry when in note field or when not actively typing
+            if (qwertyNoteMap[key] && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                // Only allow if we're in note field, or if we're not in a cell input
+                if (state.activeCell.field === 'note' || !isCellInput) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Blur the input field if focused, so it doesn't capture the key
+                    if (isCellInput && document.activeElement) {
+                        document.activeElement.blur();
+                    }
+                    const noteName = qwertyNoteMap[key];
+                    enterNote(noteName);
+                    // Play note preview
+                    const midiNote = parseNote(noteName + state.currentOctave);
+                    if (midiNote !== null) {
+                        if (state.outputMode === 'midi' && state.midiOutput) {
+                            sendMIDINote(state.activeCell.channel, midiNote, 64);
+                            setTimeout(() => {
+                                sendMIDINote(state.activeCell.channel, midiNote, 0, false);
+                            }, 100);
+                        } else if (state.outputMode === 'webaudio') {
+                            // Preview with Web Audio
+                            playWebAudioNote(state.activeCell.channel, midiNote, 64, 100);
+                        }
+                    }
+                    return;
+                }
+            }
+
+            // Number keys for octave selection
+            if (key >= '0' && key <= '9' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                if (state.activeCell.field === 'note' || !isCellInput) {
+                    e.preventDefault();
+                    const octave = parseInt(key);
+                    // If we just entered a note, append octave; otherwise set octave for next note
+                    const pattern = state.patterns[state.currentPattern];
+                    const step = pattern.channels[state.activeCell.channel]?.[state.activeCell.row];
+                    if (step && step.note && step.note.match(/^[A-G][#]?$/)) {
+                        // Append octave to existing note
+                        step.note = step.note + octave;
+                        const cell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
+                        if (cell) {
+                            const noteField = cell.querySelector('input[data-field="note"]');
+                            if (noteField) noteField.value = step.note;
+                        }
+                        moveCell(state.activeCell.row + 1, state.activeCell.channel, 'note');
+                        focusField(state.activeCell.row, state.activeCell.channel, 'note');
+                    } else {
+                        // Set octave for next note entry
+                        state.currentOctave = octave;
+                    }
+                    return;
+                }
+            }
+
+            // Arrow keys - always handle navigation (even in cell inputs)
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                moveCell(state.activeCell.row - 1, state.activeCell.channel, state.activeCell.field);
+                focusField(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+                return;
+            } else if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                e.preventDefault();
+                moveCell(state.activeCell.row + 1, state.activeCell.channel, state.activeCell.field);
+                focusField(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+                return;
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const fields = ['note', 'inst', 'vol', 'effect', 'param'];
+                const currentIndex = fields.indexOf(state.activeCell.field);
+                if (currentIndex > 0) {
+                    // Move to previous field in same channel
+                    state.activeCell.field = fields[currentIndex - 1];
+                    focusField(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+                } else {
+                    // Move to previous channel (last field)
+                    if (state.activeCell.channel > 0) {
+                        moveCell(state.activeCell.row, state.activeCell.channel - 1, 'param');
+                        focusField(state.activeCell.row, state.activeCell.channel, 'param');
+                    }
+                }
+                return;
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                const fields = ['note', 'inst', 'vol', 'effect', 'param'];
+                const currentIndex = fields.indexOf(state.activeCell.field);
+                if (currentIndex < fields.length - 1) {
+                    // Move to next field in same channel
+                    state.activeCell.field = fields[currentIndex + 1];
+                    focusField(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+                } else {
+                    // Move to next channel (first field)
+                    if (state.activeCell.channel < state.channels - 1) {
+                        moveCell(state.activeCell.row, state.activeCell.channel + 1, 'note');
+                        focusField(state.activeCell.row, state.activeCell.channel, 'note');
+                    }
+                }
+                return;
+            }
+
+            // Hex digit entry for instrument, volume, effect, parameter
+            if (/[0-9A-Fa-f]/.test(key) && (state.activeCell.field === 'inst' || state.activeCell.field === 'vol' || 
+                state.activeCell.field === 'effect' || state.activeCell.field === 'param')) {
+                if (!isCellInput) {
+                    e.preventDefault();
+                    enterHexValue(key);
+                }
+                return;
+            }
+
+            // Control keys
+            if (e.key === ' ') {
+                e.preventDefault();
+                if (state.isPlaying) {
+                    stopPlayback();
+                } else {
+                    startPlayback();
+                }
+                return;
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (!isCellInput || e.target.value === '') {
+                    e.preventDefault();
+                    clearCell(state.activeCell.row, state.activeCell.channel);
+                }
+                return;
+            } else if (e.ctrlKey && key === 'c') {
+                e.preventDefault();
+                copyCell();
+                return;
+            } else if (e.ctrlKey && key === 'v') {
+                e.preventDefault();
+                pasteCell();
+                return;
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                moveCell(state.activeCell.row, state.activeCell.channel + 1, state.activeCell.field);
+                focusField(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+                return;
+            } else if (e.key.startsWith('F') && e.key.length === 2) {
+                const num = parseInt(e.key.substring(1));
+                if (num >= 1 && num <= 8) {
+                    e.preventDefault();
+                    state.currentPattern = num - 1;
+                    if (state.currentPattern >= state.patterns.length) {
+                        state.currentPattern = state.patterns.length - 1;
+                    }
+                    document.getElementById('patternInput').value = state.currentPattern;
+                    renderPattern();
+                    updatePatternOrder();
+                }
+                return;
+            }
+        });
+
+        // Copy/paste
+        function copyCell() {
+            const pattern = state.patterns[state.currentPattern];
+            if (pattern.channels[state.activeCell.channel]) {
+                state.clipboard = pattern.channels[state.activeCell.channel][state.activeCell.row];
+            }
+        }
+
+        function pasteCell() {
+            if (!state.clipboard) return;
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern.channels[state.activeCell.channel]) {
+                pattern.channels[state.activeCell.channel] = [];
+                for (let i = 0; i < 64; i++) {
+                    pattern.channels[state.activeCell.channel].push(createEmptyStep());
+                }
+            }
+            pattern.channels[state.activeCell.channel][state.activeCell.row] = { ...state.clipboard };
+            renderPattern();
+            moveCell(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+        }
+
+        // Event listeners
+        document.getElementById('playBtn').addEventListener('click', startPlayback);
+        document.getElementById('stopBtn').addEventListener('click', stopPlayback);
+        document.getElementById('connectBtn').addEventListener('click', connectMIDI);
+        document.getElementById('addChannelBtn').addEventListener('click', addChannel);
+        document.getElementById('addPatternBtn').addEventListener('click', addPattern);
+        
+        // Output mode selector
+        document.getElementById('outputModeSelect').addEventListener('change', async (e) => {
+            state.outputMode = e.target.value;
+            
+            // Stop all notes when switching modes
+            if (state.isPlaying) {
+                stopPlayback();
+            }
+            
+            // Initialize Web Audio if switching to Web Audio mode
+            if (state.outputMode === 'webaudio') {
+                await initAudioContext();
+                updateStatus('Web Audio Mode', true);
+            } else {
+                updateStatus(state.midiOutput ? `Connected: ${state.midiOutput.name}` : 'Disconnected', !!state.midiOutput);
+            }
+        });
+
+        document.getElementById('tempoInput').addEventListener('input', (e) => {
+            state.tempo = parseInt(e.target.value) || 125;
+        });
+
+        document.getElementById('speedInput').addEventListener('input', (e) => {
+            state.speed = parseInt(e.target.value) || 6;
+        });
+
+        document.getElementById('patternInput').addEventListener('input', (e) => {
+            const patternIndex = parseInt(e.target.value) || 0;
+            if (patternIndex >= 0 && patternIndex < state.patterns.length) {
+                state.currentPattern = patternIndex;
+                renderPattern();
+                updatePatternOrder();
+            }
+        });
+
+        // Initialize
+        // Ensure pattern 0 exists and has 8 channels
+        if (!state.patterns[0] || state.patterns[0].channels.length < state.channels) {
+            initPattern(0);
+            // Ensure it has all 8 channels
+            const pattern = state.patterns[0];
+            while (pattern.channels.length < state.channels) {
+                const channel = [];
+                for (let row = 0; row < 64; row++) {
+                    channel.push(createEmptyStep());
+                }
+                pattern.channels.push(channel);
+            }
+        }
+        
+        requestMIDIAccess();
+        renderPattern();
+        updatePatternOrder();
+        document.getElementById('currentPattern').textContent = state.currentPattern;
+        document.getElementById('channelCount').textContent = state.channels;
+        
+        // Focus the editor on load
+        setTimeout(() => {
+            focusField(0, 0, 'note');
+        }, 100);
+    </script>
+</body>
+</html>
+

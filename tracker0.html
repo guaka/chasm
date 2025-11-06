@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #c0c0c0;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .tracker-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #000;
+        }
+
+        .header {
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-shrink: 0;
+        }
+
+        .header button {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #c0c0c0;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .header button:hover {
+            background: #3a3a3a;
+            border-color: #555;
+        }
+
+        .header button:active {
+            background: #1a1a1a;
+        }
+
+        .header select {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #c0c0c0;
+            padding: 6px 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .header label {
+            font-size: 12px;
+            color: #a0a0a0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .header input[type="number"] {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #c0c0c0;
+            padding: 4px 8px;
+            width: 60px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .status {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 3px;
+        }
+
+        .status.connected {
+            background: #2a4a2a;
+            color: #4caf50;
+        }
+
+        .status.disconnected {
+            background: #4a2a2a;
+            color: #f44336;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .pattern-editor-container {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        .pattern-editor {
+            border-collapse: collapse;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            white-space: nowrap;
+        }
+
+        .pattern-editor td {
+            padding: 2px 4px;
+            border: 1px solid #222;
+            background: #0a0a0a;
+            color: #c0c0c0;
+            min-width: 20px;
+            text-align: left;
+        }
+
+        .pattern-editor th {
+            padding: 4px;
+            border: 1px solid #333;
+            background: #1a1a1a;
+            color: #a0a0a0;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .row-number {
+            background: #151515 !important;
+            color: #666 !important;
+            text-align: right !important;
+            padding-right: 8px !important;
+            width: 40px;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+        }
+
+        .channel-header {
+            background: #1a1a1a !important;
+            color: #a0a0a0 !important;
+            text-align: center !important;
+            font-weight: bold;
+        }
+
+        .cell {
+            cursor: text;
+            user-select: none;
+        }
+
+        .cell.editing {
+            background: #2a4a4a !important;
+            outline: 2px solid #4ecdc4;
+        }
+
+        .cell.current-row {
+            background: #2a2a4a !important;
+        }
+
+        .cell.current-row.current-step {
+            background: #4a2a2a !important;
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { background: #4a2a2a; }
+            50% { background: #6a3a3a; }
+        }
+
+        .pattern-cell {
+            display: inline-block;
+            width: 50px;
+        }
+
+        .note-cell {
+            width: 50px;
+            color: #4ecdc4;
+        }
+
+        .inst-cell {
+            width: 30px;
+            color: #ff6b6b;
+        }
+
+        .vol-cell {
+            width: 30px;
+            color: #ffd93d;
+        }
+
+        .effect-cell {
+            width: 30px;
+            color: #95e1d3;
+        }
+
+        .param-cell {
+            width: 30px;
+            color: #95e1d3;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: #1a1a1a;
+            border-left: 1px solid #333;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 11px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 15px;
+        }
+
+        .sidebar-title {
+            color: #888;
+            margin-bottom: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 10px;
+        }
+
+        .pattern-order {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .pattern-order-item {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            padding: 4px 8px;
+            cursor: pointer;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .pattern-order-item:hover {
+            background: #3a3a3a;
+        }
+
+        .pattern-order-item.active {
+            background: #4a4a2a;
+            border-color: #ffd93d;
+        }
+
+        .help-shortcuts {
+            font-size: 10px;
+            line-height: 1.6;
+        }
+
+        .help-shortcuts kbd {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+
+        .empty-cell {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="tracker-container">
+        <div class="header">
+            <button id="playBtn">Play [Space]</button>
+            <button id="stopBtn">Stop</button>
+            <label>
+                BPM:
+                <input type="number" id="tempoInput" value="125" min="30" max="300" style="width: 50px;">
+            </label>
+            <label>
+                Speed:
+                <input type="number" id="speedInput" value="6" min="1" max="32" style="width: 40px;">
+            </label>
+            <label>
+                Pattern:
+                <input type="number" id="patternInput" value="0" min="0" style="width: 50px;">
+            </label>
+            <select id="midiDeviceSelect">
+                <option value="">No MIDI device</option>
+            </select>
+            <button id="connectBtn">Connect</button>
+            <div class="status disconnected" id="status">Disconnected</div>
+        </div>
+        
+        <div class="main-content">
+            <div class="pattern-editor-container" id="patternEditorContainer">
+                <table class="pattern-editor" id="patternEditor">
+                    <thead id="patternHeader"></thead>
+                    <tbody id="patternBody"></tbody>
+                </table>
+            </div>
+            
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Pattern Order</div>
+                    <div class="pattern-order" id="patternOrder"></div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Channels</div>
+                    <div id="channelInfo"></div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Keyboard Shortcuts</div>
+                    <div class="help-shortcuts">
+                        <div><kbd>Space</kbd> Play/Stop</div>
+                        <div><kbd>↑↓</kbd> Navigate rows</div>
+                        <div><kbd>←→</kbd> Navigate columns</div>
+                        <div><kbd>Tab</kbd> Next channel</div>
+                        <div><kbd>Enter</kbd> Step down</div>
+                        <div><kbd>Del</kbd> Clear cell</div>
+                        <div><kbd>Ctrl+C</kbd> Copy</div>
+                        <div><kbd>Ctrl+V</kbd> Paste</div>
+                        <div><kbd>F1-F8</kbd> Select pattern</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        const state = {
+            midiAccess: null,
+            midiOutput: null,
+            patterns: [],
+            currentPattern: 0,
+            currentStep: 0,
+            currentRow: 0,
+            currentChannel: 0,
+            currentField: 0, // 0=note, 1=inst, 2=vol, 3=effect, 4=param
+            isPlaying: false,
+            tempo: 125,
+            speed: 6,
+            order: [0],
+            orderIndex: 0,
+            tickCounter: 0,
+            activeNotes: new Map(), // channel -> note -> {midiNote, velocity, step}
+            editingCell: null,
+            copyBuffer: null,
+            channels: 4,
+            numPatterns: 1
+        };
+
+        const FIELD_NAMES = ['note', 'inst', 'vol', 'effect', 'param'];
+        const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const EFFECT_COMMANDS = {
+            '00': 'None',
+            '01': 'Portamento Up',
+            '02': 'Portamento Down',
+            '03': 'Tone Portamento',
+            '04': 'Vibrato',
+            '05': 'Portamento + Volume',
+            '06': 'Vibrato + Volume',
+            '0C': 'Volume',
+            '0E': 'Delay',
+            '0F': 'Speed/Tempo'
+        };
+
+        // Initialize pattern data structure
+        function initPattern(patternIndex, channels) {
+            if (!state.patterns[patternIndex]) {
+                state.patterns[patternIndex] = {
+                    channels: []
+                };
+                for (let ch = 0; ch < channels; ch++) {
+                    state.patterns[patternIndex].channels[ch] = [];
+                    for (let step = 0; step < 64; step++) {
+                        state.patterns[patternIndex].channels[ch][step] = {
+                            note: '',
+                            inst: '',
+                            vol: '',
+                            effect: '00',
+                            param: '00'
+                        };
+                    }
+                }
+            }
+        }
+
+        // MIDI Functions
+        async function requestMIDIAccess() {
+            try {
+                if (!navigator.requestMIDIAccess) {
+                    throw new Error('Web MIDI API not supported');
+                }
+                state.midiAccess = await navigator.requestMIDIAccess();
+                updateMIDIDevices();
+                state.midiAccess.onstatechange = updateMIDIDevices;
+                return true;
+            } catch (error) {
+                console.error('MIDI access denied:', error);
+                updateStatus('MIDI not available', false);
+                return false;
+            }
+        }
+
+        function updateMIDIDevices() {
+            const select = document.getElementById('midiDeviceSelect');
+            select.innerHTML = '<option value="">No MIDI device</option>';
+            
+            if (state.midiAccess) {
+                const outputs = Array.from(state.midiAccess.outputs.values());
+                outputs.forEach((output, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = output.name || `MIDI Output ${index + 1}`;
+                    select.appendChild(option);
+                });
+            }
+        }
+
+        function connectMIDI() {
+            const select = document.getElementById('midiDeviceSelect');
+            const index = parseInt(select.value);
+            
+            if (isNaN(index) || !state.midiAccess) {
+                updateStatus('No device selected', false);
+                return;
+            }
+
+            const outputs = Array.from(state.midiAccess.outputs.values());
+            if (index >= 0 && index < outputs.length) {
+                state.midiOutput = outputs[index];
+                updateStatus(`Connected: ${state.midiOutput.name}`, true);
+            } else {
+                updateStatus('Device not found', false);
+            }
+        }
+
+        function sendMIDINote(channel, note, velocity, midiChannel = 0, step = null) {
+            if (state.midiOutput && note !== '') {
+                const midiNote = parseNote(note);
+                if (midiNote !== null) {
+                    const status = 0x90 + (midiChannel % 16);
+                    state.midiOutput.send([status, midiNote, velocity]);
+                    
+                    // Store active note
+                    if (!state.activeNotes.has(channel)) {
+                        state.activeNotes.set(channel, new Map());
+                    }
+                    const stepKey = step !== null ? step : state.currentStep;
+                    state.activeNotes.get(channel).set(stepKey, {
+                        midiNote: midiNote,
+                        velocity: velocity,
+                        step: stepKey
+                    });
+                }
+            }
+        }
+
+        function sendMIDINoteOff(channel, note, midiChannel = 0) {
+            if (state.midiOutput && note !== '') {
+                const midiNote = parseNote(note);
+                if (midiNote !== null) {
+                    const status = 0x80 + (midiChannel % 16);
+                    state.midiOutput.send([status, midiNote, 0]);
+                }
+            }
+        }
+
+        function parseNote(noteStr) {
+            if (!noteStr || noteStr.length < 3) return null;
+            // Handle C-4 or C#4 format
+            let noteName, octaveStr;
+            if (noteStr.includes('#')) {
+                noteName = noteStr.substring(0, 2); // C#
+                octaveStr = noteStr.substring(2);
+            } else {
+                noteName = noteStr.substring(0, 1); // C
+                octaveStr = noteStr.substring(1);
+            }
+            // Remove dash if present (C-4 format)
+            octaveStr = octaveStr.replace('-', '');
+            const octave = parseInt(octaveStr);
+            const noteIndex = NOTE_NAMES.indexOf(noteName);
+            if (noteIndex === -1 || isNaN(octave)) return null;
+            return 12 + (octave * 12) + noteIndex; // C0 = 12
+        }
+
+        function formatNote(midiNote) {
+            const octave = Math.floor((midiNote - 12) / 12);
+            const noteIndex = (midiNote - 12) % 12;
+            return NOTE_NAMES[noteIndex] + '-' + octave;
+        }
+
+        // Pattern Editor Rendering
+        function renderPatternEditor() {
+            const header = document.getElementById('patternHeader');
+            const body = document.getElementById('patternBody');
+            
+            header.innerHTML = '';
+            body.innerHTML = '';
+
+            // Create header row
+            const headerRow = document.createElement('tr');
+            const rowHeader = document.createElement('th');
+            rowHeader.className = 'row-number';
+            rowHeader.textContent = '';
+            headerRow.appendChild(rowHeader);
+
+            // Add channel headers
+            for (let ch = 0; ch < state.channels; ch++) {
+                const chHeader = document.createElement('th');
+                chHeader.className = 'channel-header';
+                chHeader.colSpan = 5;
+                chHeader.textContent = `Ch${ch + 1}`;
+                headerRow.appendChild(chHeader);
+            }
+            header.appendChild(headerRow);
+
+            // Create field headers
+            const fieldRow = document.createElement('tr');
+            const fieldHeader = document.createElement('th');
+            fieldHeader.className = 'row-number';
+            fieldHeader.textContent = '';
+            fieldRow.appendChild(fieldHeader);
+
+            for (let ch = 0; ch < state.channels; ch++) {
+                ['Note', 'Ins', 'Vol', 'Eff', 'Par'].forEach(field => {
+                    const th = document.createElement('th');
+                    th.textContent = field;
+                    th.style.fontSize = '10px';
+                    fieldRow.appendChild(th);
+                });
+            }
+            header.appendChild(fieldRow);
+
+            // Ensure pattern exists
+            initPattern(state.currentPattern, state.channels);
+
+            // Create rows
+            for (let step = 0; step < 64; step++) {
+                const row = document.createElement('tr');
+                
+                // Row number
+                const rowNum = document.createElement('td');
+                rowNum.className = 'row-number';
+                rowNum.textContent = String(step).padStart(2, '0');
+                row.appendChild(rowNum);
+
+                // Channel cells
+                for (let ch = 0; ch < state.channels; ch++) {
+                    const stepData = state.patterns[state.currentPattern].channels[ch][step];
+                    
+                    ['note', 'inst', 'vol', 'effect', 'param'].forEach((field, fieldIdx) => {
+                        const cell = document.createElement('td');
+                        cell.className = `cell ${field}-cell`;
+                        cell.dataset.step = step;
+                        cell.dataset.channel = ch;
+                        cell.dataset.field = fieldIdx;
+                        
+                        if (step === state.currentRow) {
+                            cell.classList.add('current-row');
+                        }
+                        if (step === state.currentStep && state.isPlaying) {
+                            cell.classList.add('current-step');
+                        }
+                        
+                        const value = stepData[field] || '';
+                        cell.textContent = value || (field === 'note' ? '...' : '..');
+                        if (!value) cell.classList.add('empty-cell');
+                        
+                        cell.addEventListener('click', () => {
+                            selectCell(ch, step, fieldIdx);
+                        });
+                        
+                        row.appendChild(cell);
+                    });
+                }
+                
+                body.appendChild(row);
+            }
+
+            updateChannelInfo();
+        }
+
+        function selectCell(channel, step, field) {
+            state.currentChannel = channel;
+            state.currentRow = step;
+            state.currentField = field;
+            renderPatternEditor();
+            
+            // Scroll to selected cell
+            const cell = document.querySelector(`[data-channel="${channel}"][data-step="${step}"][data-field="${field}"]`);
+            if (cell) {
+                cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+            }
+        }
+
+        function updateChannelInfo() {
+            const info = document.getElementById('channelInfo');
+            info.innerHTML = '';
+            for (let ch = 0; ch < state.channels; ch++) {
+                const div = document.createElement('div');
+                div.style.marginBottom = '4px';
+                div.textContent = `Ch${ch + 1}: MIDI Ch${((ch % 16) + 1)}`;
+                if (ch === state.currentChannel) {
+                    div.style.color = '#4ecdc4';
+                    div.style.fontWeight = 'bold';
+                }
+                info.appendChild(div);
+            }
+        }
+
+        function renderPatternOrder() {
+            const orderDiv = document.getElementById('patternOrder');
+            orderDiv.innerHTML = '';
+            
+            state.order.forEach((patternIdx, idx) => {
+                const item = document.createElement('div');
+                item.className = 'pattern-order-item';
+                if (idx === state.orderIndex && state.isPlaying) {
+                    item.classList.add('active');
+                }
+                if (patternIdx === state.currentPattern && !state.isPlaying) {
+                    item.style.borderColor = '#4ecdc4';
+                }
+                item.textContent = patternIdx;
+                item.addEventListener('click', () => {
+                    state.currentPattern = patternIdx;
+                    state.orderIndex = idx;
+                    document.getElementById('patternInput').value = patternIdx;
+                    renderPatternEditor();
+                    renderPatternOrder();
+                });
+                orderDiv.appendChild(item);
+            });
+            
+            // Add button to add pattern to order
+            const addBtn = document.createElement('div');
+            addBtn.className = 'pattern-order-item';
+            addBtn.textContent = '+';
+            addBtn.style.cursor = 'pointer';
+            addBtn.addEventListener('click', () => {
+                state.order.push(state.currentPattern);
+                renderPatternOrder();
+            });
+            orderDiv.appendChild(addBtn);
+        }
+
+        // Playback Engine
+        function startPlayback() {
+            if (state.isPlaying) return;
+            state.isPlaying = true;
+            state.currentStep = 0;
+            state.orderIndex = 0;
+            state.tickCounter = 0;
+            state.activeNotes.clear();
+            
+            // Stop all notes
+            if (state.midiOutput) {
+                for (let note = 0; note < 128; note++) {
+                    for (let ch = 0; ch < 16; ch++) {
+                        state.midiOutput.send([0x80 + ch, note, 0]);
+                    }
+                }
+            }
+            
+            playStep();
+        }
+
+        function stopPlayback() {
+            state.isPlaying = false;
+            
+            // Stop all notes
+            if (state.midiOutput) {
+                for (let note = 0; note < 128; note++) {
+                    for (let ch = 0; ch < 16; ch++) {
+                        state.midiOutput.send([0x80 + ch, note, 0]);
+                    }
+                }
+            }
+            
+            state.activeNotes.clear();
+            renderPatternEditor();
+        }
+
+        function playStep() {
+            if (!state.isPlaying) return;
+
+            const patternIdx = state.order[state.orderIndex];
+            initPattern(patternIdx, state.channels);
+            const pattern = state.patterns[patternIdx];
+
+            // Process current step
+            state.currentStep = state.tickCounter % 64;
+            state.currentRow = state.currentStep;
+
+            // Handle notes for each channel
+            for (let ch = 0; ch < pattern.channels.length; ch++) {
+                const stepData = pattern.channels[ch][state.currentStep];
+                const midiChannel = ch % 16;
+                
+                // Stop previous note in this channel if new note is triggered
+                if (stepData.note && stepData.note !== '...') {
+                    if (state.activeNotes.has(ch)) {
+                        // Stop all active notes in this channel
+                        const activeNotes = state.activeNotes.get(ch);
+                        for (const [stepKey, noteInfo] of activeNotes) {
+                            sendMIDINoteOff(ch, formatNote(noteInfo.midiNote), midiChannel);
+                        }
+                        activeNotes.clear();
+                    }
+                    
+                    // Play new note
+                    const velocity = stepData.vol ? parseInt(stepData.vol, 16) : 64;
+                    sendMIDINote(ch, stepData.note, velocity, midiChannel, state.currentStep);
+                }
+                
+                // Handle effects
+                handleEffect(ch, stepData, midiChannel);
+            }
+
+            renderPatternEditor();
+
+            // Advance to next step
+            state.tickCounter++;
+            
+            // Check if we need to move to next pattern
+            if (state.currentStep === 63) {
+                state.orderIndex = (state.orderIndex + 1) % state.order.length;
+            }
+
+            // Calculate next step timing based on speed
+            // Speed determines ticks per row, tempo is BPM
+            const stepTime = (60000 / state.tempo) / state.speed;
+            setTimeout(playStep, stepTime);
+        }
+
+        function handleEffect(channel, stepData, midiChannel) {
+            const effect = stepData.effect.toUpperCase();
+            const param = parseInt(stepData.param || '00', 16);
+            
+            switch (effect) {
+                case '0C': // Volume
+                    if (state.midiOutput) {
+                        state.midiOutput.send([0xB0 + midiChannel, 7, param]);
+                    }
+                    break;
+                case '01': // Portamento Up
+                case '02': // Portamento Down
+                    if (state.midiOutput) {
+                        state.midiOutput.send([0xB0 + midiChannel, 5, param]);
+                    }
+                    break;
+                case '03': // Tone Portamento
+                    if (state.midiOutput) {
+                        state.midiOutput.send([0xB0 + midiChannel, 5, param]);
+                    }
+                    break;
+                case '0F': // Speed/Tempo
+                    state.speed = param || 6;
+                    document.getElementById('speedInput').value = state.speed;
+                    break;
+            }
+        }
+
+        // Keyboard Input
+        function handleKeyInput(key, cell) {
+            const ch = parseInt(cell.dataset.channel);
+            const step = parseInt(cell.dataset.step);
+            const field = parseInt(cell.dataset.field);
+            const stepData = state.patterns[state.currentPattern].channels[ch][step];
+            
+            if (field === 0) { // Note field
+                const current = stepData.note || '';
+                
+                if (key.length === 1 && /[A-G]/.test(key.toUpperCase())) {
+                    // Start note input
+                    stepData.note = key.toUpperCase();
+                    cell.classList.remove('empty-cell');
+                    renderPatternEditor();
+                    selectCell(ch, step, field);
+                } else if (key === '#' && current.length === 1 && /[A-G]/.test(current)) {
+                    // Add sharp
+                    stepData.note = current + '#';
+                    renderPatternEditor();
+                    selectCell(ch, step, field);
+                } else if (key === 'Backspace' || key === 'Delete') {
+                    if (current.length > 0) {
+                        stepData.note = current.slice(0, -1);
+                    } else {
+                        stepData.note = '';
+                        stepData.inst = '';
+                        stepData.vol = '';
+                    }
+                    renderPatternEditor();
+                } else if (/[0-9]/.test(key)) {
+                    // Complete note entry (C-4 or C#4 format)
+                    if (current.length >= 1) {
+                        stepData.note = current + '-' + key;
+                        renderPatternEditor();
+                        selectCell(ch, step + 1, field);
+                    }
+                }
+            } else if (field === 1) { // Instrument
+                if (/[0-9A-F]/.test(key)) {
+                    const current = stepData.inst || '';
+                    if (current.length < 2) {
+                        stepData.inst = (current + key).padStart(2, '0').toUpperCase();
+                        renderPatternEditor();
+                        selectCell(ch, step, field + 1);
+                    }
+                } else if (key === 'Backspace' || key === 'Delete') {
+                    stepData.inst = '';
+                    renderPatternEditor();
+                }
+            } else if (field === 2) { // Volume
+                if (/[0-9A-F]/.test(key)) {
+                    const current = stepData.vol || '';
+                    if (current.length < 2) {
+                        stepData.vol = (current + key).padStart(2, '0').toUpperCase();
+                        renderPatternEditor();
+                        selectCell(ch, step, field + 1);
+                    }
+                } else if (key === 'Backspace' || key === 'Delete') {
+                    stepData.vol = '';
+                    renderPatternEditor();
+                }
+            } else if (field === 3) { // Effect
+                if (/[0-9A-F]/.test(key)) {
+                    const current = stepData.effect || '';
+                    if (current.length < 2) {
+                        stepData.effect = (current + key).padStart(2, '0').toUpperCase();
+                        renderPatternEditor();
+                        selectCell(ch, step, field + 1);
+                    }
+                } else if (key === 'Backspace' || key === 'Delete') {
+                    stepData.effect = '00';
+                    renderPatternEditor();
+                }
+            } else if (field === 4) { // Parameter
+                if (/[0-9A-F]/.test(key)) {
+                    const current = stepData.param || '';
+                    if (current.length < 2) {
+                        stepData.param = (current + key).padStart(2, '0').toUpperCase();
+                        renderPatternEditor();
+                        selectCell(ch, step + 1, 0);
+                    }
+                } else if (key === 'Backspace' || key === 'Delete') {
+                    stepData.param = '00';
+                    renderPatternEditor();
+                }
+            }
+        }
+
+        // Keyboard Navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+
+            switch (e.key) {
+                case ' ': // Space - Play/Stop
+                    e.preventDefault();
+                    if (state.isPlaying) {
+                        stopPlayback();
+                    } else {
+                        startPlayback();
+                    }
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (state.currentRow > 0) {
+                        selectCell(state.currentChannel, state.currentRow - 1, state.currentField);
+                    }
+                    break;
+                case 'ArrowDown':
+                case 'Enter':
+                    e.preventDefault();
+                    if (state.currentRow < 63) {
+                        selectCell(state.currentChannel, state.currentRow + 1, state.currentField);
+                    }
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    if (state.currentField > 0) {
+                        selectCell(state.currentChannel, state.currentRow, state.currentField - 1);
+                    } else if (state.currentChannel > 0) {
+                        selectCell(state.currentChannel - 1, state.currentRow, 4);
+                    }
+                    break;
+                case 'ArrowRight':
+                case 'Tab':
+                    e.preventDefault();
+                    if (state.currentField < 4) {
+                        selectCell(state.currentChannel, state.currentRow, state.currentField + 1);
+                    } else if (state.currentChannel < state.channels - 1) {
+                        selectCell(state.currentChannel + 1, state.currentRow, 0);
+                    }
+                    break;
+                case 'Delete':
+                case 'Backspace':
+                    e.preventDefault();
+                    const cell = document.querySelector(`[data-channel="${state.currentChannel}"][data-step="${state.currentRow}"][data-field="${state.currentField}"]`);
+                    if (cell) {
+                        handleKeyInput(e.key, cell);
+                    }
+                    break;
+                case 'F1':
+                case 'F2':
+                case 'F3':
+                case 'F4':
+                case 'F5':
+                case 'F6':
+                case 'F7':
+                case 'F8':
+                    e.preventDefault();
+                    const patternNum = parseInt(e.key[1]) - 1;
+                    if (patternNum < state.numPatterns) {
+                        state.currentPattern = patternNum;
+                        document.getElementById('patternInput').value = patternNum;
+                        renderPatternEditor();
+                    }
+                    break;
+                default:
+                    // Handle text input
+                    const cell = document.querySelector(`[data-channel="${state.currentChannel}"][data-step="${state.currentRow}"][data-field="${state.currentField}"]`);
+                    if (cell) {
+                        handleKeyInput(e.key, cell);
+                    }
+                    break;
+            }
+        });
+
+        // Copy/Paste
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'c') {
+                    e.preventDefault();
+                    const stepData = state.patterns[state.currentPattern].channels[state.currentChannel][state.currentRow];
+                    state.copyBuffer = {...stepData};
+                } else if (e.key === 'v' && state.copyBuffer) {
+                    e.preventDefault();
+                    const stepData = state.patterns[state.currentPattern].channels[state.currentChannel][state.currentRow];
+                    Object.assign(stepData, state.copyBuffer);
+                    renderPatternEditor();
+                }
+            }
+        });
+
+        // UI Controls
+        function updateStatus(message, connected) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + (connected ? 'connected' : 'disconnected');
+        }
+
+        document.getElementById('playBtn').addEventListener('click', startPlayback);
+        document.getElementById('stopBtn').addEventListener('click', stopPlayback);
+        document.getElementById('connectBtn').addEventListener('click', connectMIDI);
+        
+        document.getElementById('tempoInput').addEventListener('input', (e) => {
+            state.tempo = parseInt(e.target.value) || 125;
+        });
+        
+        document.getElementById('speedInput').addEventListener('input', (e) => {
+            state.speed = parseInt(e.target.value) || 6;
+        });
+        
+        document.getElementById('patternInput').addEventListener('input', (e) => {
+            const patternNum = parseInt(e.target.value) || 0;
+            if (patternNum >= 0) {
+                state.currentPattern = patternNum;
+                if (patternNum >= state.numPatterns) {
+                    state.numPatterns = patternNum + 1;
+                }
+                renderPatternEditor();
+                renderPatternOrder();
+            }
+        });
+
+        // Add channel button
+        const addChannelBtn = document.createElement('button');
+        addChannelBtn.textContent = '+Ch';
+        addChannelBtn.addEventListener('click', () => {
+            state.channels++;
+            initPattern(state.currentPattern, state.channels);
+            renderPatternEditor();
+        });
+        document.querySelector('.header').appendChild(addChannelBtn);
+
+        // Initialize
+        initPattern(0, state.channels);
+        requestMIDIAccess();
+        renderPatternEditor();
+        renderPatternOrder();
+    </script>
+</body>
+</html>
+
