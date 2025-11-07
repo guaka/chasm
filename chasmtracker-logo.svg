@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80" width="400" height="80">
+  <defs>
+    <linearGradient id="chasmGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0066cc;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#4a90e2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0066cc;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="trackerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#888;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fff;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background chasm effect -->
+  <rect x="0" y="0" width="400" height="80" fill="#000"/>
+  
+  <!-- Chasm depth lines -->
+  <path d="M 0 40 L 100 20 L 200 35 L 300 25 L 400 40" 
+        stroke="#0066cc" 
+        stroke-width="2" 
+        fill="none" 
+        opacity="0.3"/>
+  <path d="M 0 50 L 100 30 L 200 45 L 300 35 L 400 50" 
+        stroke="#0066cc" 
+        stroke-width="1.5" 
+        fill="none" 
+        opacity="0.2"/>
+  
+  <!-- Main "CHASM" text with 3D effect -->
+  <text x="20" y="50" 
+        font-family="'Courier New', 'Consolas', monospace" 
+        font-size="42" 
+        font-weight="bold" 
+        fill="url(#chasmGradient)"
+        filter="url(#glow)"
+        letter-spacing="2">CHASM</text>
+  
+  <!-- "TRACKER" text -->
+  <text x="20" y="70" 
+        font-family="'Courier New', 'Consolas', monospace" 
+        font-size="18" 
+        fill="url(#trackerGradient)"
+        letter-spacing="4">TRACKER</text>
+  
+  <!-- Musical note accent -->
+  <g transform="translate(320, 20)">
+    <!-- Note head -->
+    <ellipse cx="0" cy="20" rx="6" ry="8" fill="#4a90e2"/>
+    <ellipse cx="0" cy="20" rx="4" ry="6" fill="#0066cc"/>
+    
+    <!-- Note stem -->
+    <rect x="4" y="0" width="2" height="20" fill="#4a90e2"/>
+    
+    <!-- Note flag -->
+    <path d="M 6 0 Q 12 -4 14 0 Q 12 4 6 0" fill="#4a90e2"/>
+  </g>
+  
+  <!-- Pattern grid accent (tracker style) -->
+  <g transform="translate(350, 45)" opacity="0.4">
+    <rect x="0" y="0" width="3" height="3" fill="#4a90e2"/>
+    <rect x="4" y="0" width="3" height="3" fill="#4a90e2"/>
+    <rect x="8" y="0" width="3" height="3" fill="#4a90e2"/>
+    <rect x="0" y="4" width="3" height="3" fill="#0066cc"/>
+    <rect x="4" y="4" width="3" height="3" fill="#4a90e2"/>
+    <rect x="8" y="4" width="3" height="3" fill="#0066cc"/>
+    <rect x="0" y="8" width="3" height="3" fill="#4a90e2"/>
+    <rect x="4" y="8" width="3" height="3" fill="#0066cc"/>
+    <rect x="8" y="8" width="3" height="3" fill="#4a90e2"/>
+  </g>
+</svg>
+
