@@ -1,0 +1,1934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChasmFX - MIDI Effects Processor with Snapshots</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', 'Consolas', monospace;
+            background: #000;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            background: #1a1a1a;
+            padding: 10px;
+            border-bottom: 2px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            height: 50px;
+            display: flex;
+            align-items: center;
+            margin-right: 10px;
+        }
+
+        .logo svg {
+            height: 100%;
+            width: auto;
+        }
+
+        .header-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header label {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .header input, .header select, .header button {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 5px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .header button {
+            cursor: pointer;
+            min-width: 60px;
+        }
+
+        .header button:hover {
+            background: #3a3a3a;
+        }
+
+        .header button.active {
+            background: #4a4a4a;
+        }
+
+        .header button.recording {
+            background: #cc0000;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #666;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        .status-indicator.connected {
+            background: #0f0;
+            box-shadow: 0 0 5px #0f0;
+        }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .effects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .effect-panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .effect-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .effect-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #444;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #0066cc;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            top: 2px;
+            left: 2px;
+            transition: left 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            left: 28px;
+        }
+
+        .param-group {
+            margin-bottom: 15px;
+        }
+
+        .param-label {
+            display: block;
+            color: #aaa;
+            font-size: 11px;
+            margin-bottom: 5px;
+        }
+
+        .param-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .param-controls input[type="range"] {
+            flex: 1;
+        }
+
+        .param-controls input[type="number"],
+        .param-controls input[type="text"],
+        .param-controls select {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 5px 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            width: 80px;
+        }
+
+        .param-value {
+            color: #4caf50;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .midi-activity {
+            width: 100%;
+            height: 4px;
+            background: #222;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .midi-activity-bar {
+            height: 100%;
+            background: #0f0;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .midi-activity-bar.active {
+            width: 100%;
+            transition: width 0.3s;
+        }
+
+        .note-display {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            min-height: 60px;
+            max-height: 120px;
+            overflow-y: auto;
+            color: #0f0;
+        }
+
+        .note-item {
+            margin: 2px 0;
+        }
+
+        .snapshot-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .snapshot-item {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .snapshot-item.playing {
+            background: #004080;
+            border-color: #0066cc;
+        }
+
+        .snapshot-info {
+            flex: 1;
+        }
+
+        .snapshot-name {
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .snapshot-duration {
+            font-size: 10px;
+            color: #aaa;
+        }
+
+        .snapshot-actions {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .snapshot-actions button {
+            background: #3a3a3a;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 5px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            min-width: 50px;
+        }
+
+        .snapshot-actions button:hover {
+            background: #4a4a4a;
+        }
+
+        .snapshot-actions button.play {
+            background: #0066cc;
+        }
+
+        .snapshot-actions button.play:hover {
+            background: #0088ff;
+        }
+
+        .snapshot-actions button.clear {
+            background: #660000;
+        }
+
+        .snapshot-actions button.clear:hover {
+            background: #880000;
+        }
+
+        .loop-toggle {
+            width: 40px;
+            height: 20px;
+            background: #444;
+            border-radius: 10px;
+            cursor: pointer;
+            position: relative;
+            transition: background 0.3s;
+        }
+
+        .loop-toggle.active {
+            background: #0066cc;
+        }
+
+        .loop-toggle::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            top: 2px;
+            left: 2px;
+            transition: left 0.3s;
+        }
+
+        .loop-toggle.active::after {
+            left: 22px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80" width="400" height="80">
+                    <defs>
+                        <linearGradient id="chasmGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#0066cc;stop-opacity:1" />
+                            <stop offset="50%" style="stop-color:#4a90e2;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#0066cc;stop-opacity:1" />
+                        </linearGradient>
+                        <linearGradient id="trackerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#888;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#fff;stop-opacity:1" />
+                        </linearGradient>
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <rect x="0" y="0" width="400" height="80" fill="#000"/>
+                    <path d="M 0 40 L 100 20 L 200 35 L 300 25 L 400 40" 
+                          stroke="#0066cc" 
+                          stroke-width="2" 
+                          fill="none" 
+                          opacity="0.3"/>
+                    <path d="M 0 50 L 100 30 L 200 45 L 300 35 L 400 50" 
+                          stroke="#0066cc" 
+                          stroke-width="1.5" 
+                          fill="none" 
+                          opacity="0.2"/>
+                    <text x="20" y="50" 
+                          font-family="'Courier New', 'Consolas', monospace" 
+                          font-size="42" 
+                          font-weight="bold" 
+                          fill="url(#chasmGradient)"
+                          filter="url(#glow)"
+                          letter-spacing="2">CHASM</text>
+                    <text x="20" y="70" 
+                          font-family="'Courier New', 'Consolas', monospace" 
+                          font-size="18" 
+                          fill="url(#trackerGradient)"
+                          letter-spacing="4">FX</text>
+                </svg>
+            </div>
+            <div class="header-group">
+                <label>MIDI In:</label>
+                <select id="midiInputSelect">
+                    <option value="">No Input</option>
+                </select>
+                <span class="status-indicator" id="inputStatus"></span>
+            </div>
+            <div class="header-group">
+                <label>MIDI Out:</label>
+                <select id="midiOutputSelect">
+                    <option value="">No Output</option>
+                </select>
+                <span class="status-indicator" id="outputStatus"></span>
+            </div>
+            <div class="header-group">
+                <label>BPM:</label>
+                <input type="number" id="bpmInput" value="120" min="32" max="255" style="width: 60px;">
+            </div>
+            <div class="header-group">
+                <button id="requestMIDIBtn" style="display: none;">Request MIDI Access</button>
+                <button id="refreshBtn">Refresh</button>
+            </div>
+            <div class="header-group">
+                <label>Sync:</label>
+                <select id="syncModeSelect" style="width: 100px;">
+                    <option value="off">Off</option>
+                    <option value="master">Master</option>
+                    <option value="slave">Slave</option>
+                </select>
+                <span id="syncStatus" style="font-size: 10px; color: #888; margin-left: 5px;">-</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="effects-grid">
+                <!-- Snapshot Recorder -->
+                <div class="effect-panel">
+                    <div class="effect-header">
+                        <div class="effect-title">Snapshots</div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Record Mode</label>
+                        <select id="recordMode" style="width: 100%;">
+                            <option value="overwrite">Overwrite</option>
+                            <option value="overdub">Overdub</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <button id="recordBtn" style="width: 100%; padding: 10px; font-size: 14px;">Record Snapshot</button>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label" style="color: #666;">Recording stops after 1 second of silence</label>
+                    </div>
+                    <div class="snapshot-list" id="snapshotList">
+                        <div style="color: #666; text-align: center; padding: 20px;">No snapshots recorded</div>
+                    </div>
+                </div>
+
+                <!-- Delay Effect -->
+                <div class="effect-panel">
+                    <div class="effect-header">
+                        <div class="effect-title">Delay</div>
+                        <div class="toggle-switch" id="delayToggle"></div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Time Mode</label>
+                        <select id="delayTimeMode" style="width: 100%;">
+                            <option value="ms">Milliseconds</option>
+                            <option value="bpm">BPM Sync</option>
+                        </select>
+                    </div>
+                    <div class="param-group" id="delayMsGroup">
+                        <label class="param-label">Delay Time (ms)</label>
+                        <div class="param-controls">
+                            <input type="range" id="delayMs" min="10" max="2000" value="250" step="10">
+                            <span class="param-value" id="delayMsValue">250</span>
+                        </div>
+                    </div>
+                    <div class="param-group" id="delayBpmGroup" style="display: none;">
+                        <label class="param-label">Note Division</label>
+                        <select id="delayBpmDivision" style="width: 100%;">
+                            <option value="1/1">1/1 (Whole)</option>
+                            <option value="1/2">1/2 (Half)</option>
+                            <option value="1/4" selected>1/4 (Quarter)</option>
+                            <option value="1/8">1/8 (Eighth)</option>
+                            <option value="1/16">1/16 (Sixteenth)</option>
+                            <option value="1/32">1/32 (Thirty-second)</option>
+                            <option value="3/8">3/8 (Dotted Quarter)</option>
+                            <option value="3/16">3/16 (Dotted Eighth)</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Feedback (%)</label>
+                        <div class="param-controls">
+                            <input type="range" id="delayFeedback" min="0" max="100" value="50" step="1">
+                            <span class="param-value" id="delayFeedbackValue">50</span>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Velocity Decay (%)</label>
+                        <div class="param-controls">
+                            <input type="range" id="delayVelocityDecay" min="0" max="100" value="20" step="1">
+                            <span class="param-value" id="delayVelocityDecayValue">20</span>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Panning</label>
+                        <select id="delayPanning" style="width: 100%;">
+                            <option value="none">None</option>
+                            <option value="alternating">Alternating (L-R-L-R)</option>
+                            <option value="spread">Spread</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Filtering</label>
+                        <select id="delayFiltering" style="width: 100%;">
+                            <option value="none">None</option>
+                            <option value="lowpass">Lowpass Decay</option>
+                            <option value="highpass">Highpass Decay</option>
+                        </select>
+                    </div>
+                    <div class="midi-activity">
+                        <div class="midi-activity-bar" id="delayActivity"></div>
+                    </div>
+                </div>
+
+                <!-- Arpeggiator -->
+                <div class="effect-panel">
+                    <div class="effect-header">
+                        <div class="effect-title">Arpeggiator</div>
+                        <div class="toggle-switch" id="arpToggle"></div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Rate (Note Division)</label>
+                        <select id="arpRate" style="width: 100%;">
+                            <option value="1/1">1/1 (Whole)</option>
+                            <option value="1/2">1/2 (Half)</option>
+                            <option value="1/4" selected>1/4 (Quarter)</option>
+                            <option value="1/8">1/8 (Eighth)</option>
+                            <option value="1/16">1/16 (Sixteenth)</option>
+                            <option value="1/32">1/32 (Thirty-second)</option>
+                            <option value="1/64">1/64 (Sixty-fourth)</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Pattern</label>
+                        <select id="arpPattern" style="width: 100%;">
+                            <option value="up">Up</option>
+                            <option value="down">Down</option>
+                            <option value="updown" selected>Up/Down</option>
+                            <option value="random">Random</option>
+                            <option value="asplayed">As Played</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Octave Range</label>
+                        <div class="param-controls">
+                            <input type="range" id="arpOctaveRange" min="1" max="4" value="1" step="1">
+                            <span class="param-value" id="arpOctaveRangeValue">1</span>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Hold</label>
+                        <div class="toggle-switch" id="arpHoldToggle"></div>
+                    </div>
+                    <div class="midi-activity">
+                        <div class="midi-activity-bar" id="arpActivity"></div>
+                    </div>
+                </div>
+
+                <!-- Chord Generator -->
+                <div class="effect-panel">
+                    <div class="effect-header">
+                        <div class="effect-title">Chord Generator</div>
+                        <div class="toggle-switch" id="chordToggle"></div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Chord Type</label>
+                        <select id="chordType" style="width: 100%;">
+                            <option value="major">Major</option>
+                            <option value="minor">Minor</option>
+                            <option value="diminished">Diminished</option>
+                            <option value="augmented">Augmented</option>
+                            <option value="sus2">Sus2</option>
+                            <option value="sus4">Sus4</option>
+                            <option value="major7">Major 7th</option>
+                            <option value="minor7">Minor 7th</option>
+                            <option value="dominant7">Dominant 7th</option>
+                            <option value="diminished7">Diminished 7th</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Inversion</label>
+                        <div class="param-controls">
+                            <input type="range" id="chordInversion" min="0" max="2" value="0" step="1">
+                            <span class="param-value" id="chordInversionValue">0</span>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Trigger Mode</label>
+                        <select id="chordTriggerMode" style="width: 100%;">
+                            <option value="onnote">On Note</option>
+                            <option value="always">Always</option>
+                        </select>
+                    </div>
+                    <div class="midi-activity">
+                        <div class="midi-activity-bar" id="chordActivity"></div>
+                    </div>
+                </div>
+
+                <!-- Transpose -->
+                <div class="effect-panel">
+                    <div class="effect-header">
+                        <div class="effect-title">Transpose</div>
+                        <div class="toggle-switch" id="transposeToggle"></div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Semitones</label>
+                        <div class="param-controls">
+                            <input type="range" id="transposeSemitones" min="-12" max="12" value="0" step="1">
+                            <span class="param-value" id="transposeSemitonesValue">0</span>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Mode</label>
+                        <select id="transposeMode" style="width: 100%;">
+                            <option value="global">Global</option>
+                            <option value="perchannel">Per Channel</option>
+                        </select>
+                    </div>
+                    <div class="midi-activity">
+                        <div class="midi-activity-bar" id="transposeActivity"></div>
+                    </div>
+                </div>
+
+                <!-- Velocity Processor -->
+                <div class="effect-panel">
+                    <div class="effect-header">
+                        <div class="effect-title">Velocity Processor</div>
+                        <div class="toggle-switch" id="velocityToggle"></div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Min Velocity</label>
+                        <div class="param-controls">
+                            <input type="range" id="velocityMin" min="1" max="127" value="1" step="1">
+                            <span class="param-value" id="velocityMinValue">1</span>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Max Velocity</label>
+                        <div class="param-controls">
+                            <input type="range" id="velocityMax" min="1" max="127" value="127" step="1">
+                            <span class="param-value" id="velocityMaxValue">127</span>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Random Variation</label>
+                        <div class="param-controls">
+                            <input type="range" id="velocityRandom" min="0" max="50" value="0" step="1">
+                            <span class="param-value" id="velocityRandomValue">0</span>
+                        </div>
+                    </div>
+                    <div class="midi-activity">
+                        <div class="midi-activity-bar" id="velocityActivity"></div>
+                    </div>
+                </div>
+
+                <!-- MIDI Monitor -->
+                <div class="effect-panel">
+                    <div class="effect-header">
+                        <div class="effect-title">MIDI Monitor</div>
+                    </div>
+                    <div class="note-display" id="midiMonitor">
+                        <div style="color: #666;">Waiting for MIDI input...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="midi-synths.js"></script>
+    <script>
+        // State
+        const state = {
+            midiManager: null,
+            midiInput: null,
+            midiOutput: null,
+            bpm: 120,
+            effects: {
+                delay: { enabled: false, queue: [], activeRepeats: new Map() },
+                arp: { enabled: false, heldNotes: [], currentIndex: 0, arpTimer: null, hold: false },
+                chord: { enabled: false },
+                transpose: { enabled: false, semitones: 0 },
+                velocity: { enabled: false, min: 1, max: 127, random: 0 }
+            },
+            activeNotes: new Map(),
+            lastMidiActivity: { input: 0, output: 0 },
+            snapshots: [],
+            recording: {
+                active: false,
+                messages: [],
+                startTime: 0,
+                lastMessageTime: 0,
+                pauseTimer: null
+            },
+            playingSnapshots: new Map(),
+            // Tab sync state
+            syncChannel: null, // BroadcastChannel for tab sync
+            syncMode: 'off', // 'master', 'slave', or 'off'
+            tabId: `${Date.now()}-${Math.random()}`, // Unique tab ID
+            activeTabs: new Map(), // Track other active tabs
+            heartbeatInterval: null, // Interval for sending heartbeat
+            syncCleanupInterval: null // Interval for cleaning up stale tabs
+        };
+
+        // Chord intervals (semitones from root)
+        const chordIntervals = {
+            major: [0, 4, 7],
+            minor: [0, 3, 7],
+            diminished: [0, 3, 6],
+            augmented: [0, 4, 8],
+            sus2: [0, 2, 7],
+            sus4: [0, 5, 7],
+            major7: [0, 4, 7, 11],
+            minor7: [0, 3, 7, 10],
+            dominant7: [0, 4, 7, 10],
+            diminished7: [0, 3, 6, 9]
+        };
+
+        // ===== Tab Sync Functions =====
+        function initSync() {
+            if (typeof BroadcastChannel === 'undefined') {
+                console.warn('BroadcastChannel not supported');
+                return;
+            }
+            
+            state.syncChannel = new BroadcastChannel('chasm-midi-sync');
+            
+            // Listen for sync messages
+            state.syncChannel.onmessage = (event) => {
+                const { type, tabId: otherTabId, bpm } = event.data;
+                
+                // Ignore messages from self
+                if (otherTabId === state.tabId) return;
+                
+                if (type === 'ping') {
+                    // Record this tab as active
+                    state.activeTabs.set(otherTabId, Date.now());
+                    
+                    // Respond with pong
+                    state.syncChannel.postMessage({
+                        type: 'pong',
+                        tabId: state.tabId,
+                        respondingTo: otherTabId,
+                        syncMode: state.syncMode
+                    });
+                } else if (type === 'pong' && event.data.respondingTo === state.tabId) {
+                    // Someone responded to our ping
+                    state.activeTabs.set(otherTabId, Date.now());
+                } else if (type === 'bpm' && state.syncMode === 'slave') {
+                    // Master changed BPM - sync to it
+                    state.bpm = bpm;
+                    document.getElementById('bpmInput').value = state.bpm;
+                }
+            };
+            
+            // Start heartbeat
+            startHeartbeat();
+            
+            // Start cleanup interval
+            state.syncCleanupInterval = setInterval(() => {
+                const now = Date.now();
+                for (const [tabId, lastSeen] of state.activeTabs.entries()) {
+                    if (now - lastSeen > 3000) {
+                        state.activeTabs.delete(tabId);
+                    }
+                }
+                updateSyncStatus();
+            }, 2000);
+        }
+        
+        function startHeartbeat() {
+            if (state.heartbeatInterval) return;
+            
+            state.heartbeatInterval = setInterval(() => {
+                if (state.syncChannel && state.syncMode !== 'off') {
+                    state.syncChannel.postMessage({
+                        type: 'ping',
+                        tabId: state.tabId,
+                        timestamp: Date.now(),
+                        syncMode: state.syncMode
+                    });
+                }
+            }, 1000);
+        }
+        
+        function stopHeartbeat() {
+            if (state.heartbeatInterval) {
+                clearInterval(state.heartbeatInterval);
+                state.heartbeatInterval = null;
+            }
+        }
+        
+        function updateSyncStatus() {
+            const statusEl = document.getElementById('syncStatus');
+            if (!statusEl) return;
+            
+            const activeCount = state.activeTabs.size;
+            if (state.syncMode === 'off') {
+                statusEl.textContent = '-';
+            } else if (state.syncMode === 'master') {
+                statusEl.textContent = activeCount > 0 ? `${activeCount} slave${activeCount !== 1 ? 's' : ''}` : 'no slaves';
+            } else if (state.syncMode === 'slave') {
+                statusEl.textContent = activeCount > 0 ? 'connected' : 'no master';
+            }
+        }
+
+        // Initialize MIDI
+        async function initMIDI() {
+            try {
+                if (!navigator.requestMIDIAccess) {
+                    console.warn('Web MIDI API not supported');
+                    document.getElementById('requestMIDIBtn').style.display = 'none';
+                    return;
+                }
+                
+                state.midiManager = new MidiManager();
+                const success = await state.midiManager.initialize();
+                if (success) {
+                    setTimeout(() => {
+                        updateDeviceLists();
+                        state.midiManager.onStateChange = updateDeviceLists;
+                    }, 100);
+                    document.getElementById('requestMIDIBtn').style.display = 'none';
+                } else {
+                    console.warn('MIDI initialization failed - user may need to grant permission');
+                    document.getElementById('requestMIDIBtn').style.display = 'inline-block';
+                }
+            } catch (error) {
+                console.error('Error initializing MIDI:', error);
+                document.getElementById('requestMIDIBtn').style.display = 'inline-block';
+            }
+        }
+
+        function updateDeviceLists() {
+            const inputSelect = document.getElementById('midiInputSelect');
+            const outputSelect = document.getElementById('midiOutputSelect');
+            
+            const currentInputName = inputSelect.options[inputSelect.selectedIndex]?.textContent;
+            const currentOutputName = outputSelect.options[outputSelect.selectedIndex]?.textContent;
+            const hadInputSelected = currentInputName && currentInputName !== 'No Input';
+            const hadOutputSelected = currentOutputName && currentOutputName !== 'No Output';
+            
+            inputSelect.innerHTML = '<option value="">No Input</option>';
+            outputSelect.innerHTML = '<option value="">No Output</option>';
+            
+            if (state.midiManager && state.midiManager.midiAccess) {
+                const inputs = Array.from(state.midiManager.midiAccess.inputs.values());
+                console.log(`Found ${inputs.length} MIDI input devices`);
+                inputs.forEach((input, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = input.name || `Input ${index + 1}`;
+                    if (input.name === currentInputName) option.selected = true;
+                    inputSelect.appendChild(option);
+                });
+                
+                // Auto-select if only one input device and nothing was previously selected
+                if (inputs.length === 1 && !hadInputSelected) {
+                    inputSelect.value = 0;
+                    connectMIDIInput(0);
+                }
+            } else {
+                console.log('No MIDI access available for inputs');
+            }
+            
+            if (state.midiManager) {
+                state.midiManager.updateDeviceList();
+                const devices = state.midiManager.getDevices();
+                console.log(`Found ${devices.length} MIDI output devices`);
+                devices.forEach((output, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = output.name || `Output ${index + 1}`;
+                    if (output.name === currentOutputName) option.selected = true;
+                    outputSelect.appendChild(option);
+                });
+                
+                // Auto-select if only one output device and nothing was previously selected
+                if (devices.length === 1 && !hadOutputSelected) {
+                    outputSelect.value = 0;
+                    connectMIDIOutput(0);
+                }
+            } else {
+                console.log('No MIDI manager available for outputs');
+            }
+            
+            updateStatusIndicators();
+        }
+
+        function updateStatusIndicators() {
+            const inputStatus = document.getElementById('inputStatus');
+            const outputStatus = document.getElementById('outputStatus');
+            
+            inputStatus.className = 'status-indicator' + (state.midiInput ? ' connected' : '');
+            outputStatus.className = 'status-indicator' + (state.midiOutput ? ' connected' : '');
+        }
+
+        function connectMIDIInput(index) {
+            if (!state.midiManager || !state.midiManager.midiAccess) return;
+            
+            const inputs = Array.from(state.midiManager.midiAccess.inputs.values());
+            if (index >= 0 && index < inputs.length) {
+                if (state.midiInput) {
+                    state.midiInput.onmidimessage = null;
+                }
+                
+                state.midiInput = inputs[index];
+                state.midiInput.onmidimessage = handleMIDIMessage;
+                updateStatusIndicators();
+                saveToLocalStorage();
+            } else {
+                state.midiInput = null;
+                updateStatusIndicators();
+                saveToLocalStorage();
+            }
+        }
+
+        function connectMIDIOutput(index) {
+            if (!state.midiManager) return;
+            
+            const success = state.midiManager.connect(index);
+            if (success) {
+                state.midiOutput = state.midiManager.midiOutput;
+            } else {
+                state.midiOutput = null;
+            }
+            updateStatusIndicators();
+            saveToLocalStorage();
+        }
+
+        function handleMIDIMessage(event) {
+            const [status, data1, data2] = event.data;
+            const messageType = status & 0xF0;
+            const channel = status & 0x0F;
+            const now = performance.now();
+            
+            // Update activity
+            state.lastMidiActivity.input = Date.now();
+            updateMidiActivity('input');
+            updateMidiMonitor(status, data1, data2);
+            
+            // Record snapshot if recording
+            if (state.recording.active) {
+                const timeOffset = now - state.recording.startTime;
+                state.recording.messages.push({
+                    time: timeOffset,
+                    status,
+                    data1,
+                    data2
+                });
+                state.recording.lastMessageTime = now;
+                
+                // Reset pause timer
+                if (state.recording.pauseTimer) {
+                    clearTimeout(state.recording.pauseTimer);
+                }
+                
+                // Check for 1 second pause
+                state.recording.pauseTimer = setTimeout(() => {
+                    stopRecording();
+                }, 1000);
+            }
+            
+            // Process through effect chain
+            processMIDIMessage(status, data1, data2, channel);
+        }
+
+        function processMIDIMessage(status, data1, data2, channel) {
+            let processedStatus = status;
+            let processedData1 = data1;
+            let processedData2 = data2;
+            let processedChannel = channel;
+            
+            if ((status & 0xF0) === 0x90 || (status & 0xF0) === 0x80) {
+                const isNoteOn = (status & 0xF0) === 0x90 && data2 > 0;
+                const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && data2 === 0);
+                const note = data1;
+                const velocity = data2;
+                
+                if (state.effects.arp.enabled && isNoteOff && !state.effects.arp.hold) {
+                    state.effects.arp.heldNotes = state.effects.arp.heldNotes.filter(
+                        n => !(n.note === note && n.channel === channel)
+                    );
+                    sendMIDI(0x80 | channel, note, 0);
+                    return;
+                }
+                
+                if (isNoteOn) {
+                    if (state.effects.chord.enabled) {
+                        const chordNotes = generateChord(note);
+                        chordNotes.forEach(chordNote => {
+                            sendMIDI(0x90 | processedChannel, chordNote, velocity);
+                        });
+                        return;
+                    }
+                    
+                    if (state.effects.transpose.enabled) {
+                        processedData1 = Math.max(0, Math.min(127, note + state.effects.transpose.semitones));
+                    }
+                    
+                    if (state.effects.velocity.enabled) {
+                        let newVelocity = velocity;
+                        if (velocity < state.effects.velocity.min) newVelocity = state.effects.velocity.min;
+                        if (velocity > state.effects.velocity.max) newVelocity = state.effects.velocity.max;
+                        if (state.effects.velocity.random > 0) {
+                            const variation = Math.floor(Math.random() * state.effects.velocity.random * 2) - state.effects.velocity.random;
+                            newVelocity = Math.max(1, Math.min(127, newVelocity + variation));
+                        }
+                        processedData2 = newVelocity;
+                    }
+                    
+                    if (state.effects.arp.enabled) {
+                        handleArpeggiatorNote(note, processedData2, channel);
+                        return;
+                    }
+                    
+                    if (state.effects.delay.enabled) {
+                        handleDelayNote(note, processedData2, channel);
+                    }
+                } else if (isNoteOff) {
+                    if (state.effects.transpose.enabled) {
+                        processedData1 = Math.max(0, Math.min(127, note + state.effects.transpose.semitones));
+                    }
+                    processedStatus = 0x80 | channel;
+                }
+                
+                sendMIDI(processedStatus, processedData1, processedData2);
+            } else {
+                sendMIDI(status, data1, data2);
+            }
+        }
+
+        function sendMIDI(status, data1, data2) {
+            if (!state.midiOutput) return;
+            
+            state.midiOutput.send([status, data1, data2]);
+            state.lastMidiActivity.output = Date.now();
+            updateMidiActivity('output');
+        }
+
+        // Snapshot Functions
+        function startRecording() {
+            const recordMode = document.getElementById('recordMode').value;
+            const targetIndex = state.snapshots.length; // Always create new snapshot
+            
+            state.recording.active = true;
+            state.recording.messages = [];
+            state.recording.startTime = performance.now();
+            state.recording.lastMessageTime = state.recording.startTime;
+            state.recording.targetIndex = targetIndex;
+            
+            // If overdub mode and we're targeting an existing snapshot, start with existing messages
+            if (recordMode === 'overdub' && state.snapshots[targetIndex]) {
+                state.recording.messages = [...state.snapshots[targetIndex].messages];
+            }
+            
+            document.getElementById('recordBtn').textContent = 'Recording...';
+            document.getElementById('recordBtn').classList.add('recording');
+        }
+
+        function stopRecording() {
+            if (!state.recording.active) return;
+            
+            state.recording.active = false;
+            if (state.recording.pauseTimer) {
+                clearTimeout(state.recording.pauseTimer);
+                state.recording.pauseTimer = null;
+            }
+            
+            const recordMode = document.getElementById('recordMode').value;
+            const targetIndex = state.recording.targetIndex;
+            
+            if (state.recording.messages.length > 0) {
+                const duration = state.recording.messages[state.recording.messages.length - 1].time;
+                
+                if (recordMode === 'overwrite' || !state.snapshots[targetIndex]) {
+                    // Create new snapshot or overwrite existing
+                    state.snapshots[targetIndex] = {
+                        name: `Snapshot ${targetIndex + 1}`,
+                        messages: state.recording.messages,
+                        duration: duration,
+                        loop: false
+                    };
+                } else {
+                    // Overdub - merge messages
+                    const existing = state.snapshots[targetIndex];
+                    const merged = [...existing.messages, ...state.recording.messages];
+                    merged.sort((a, b) => a.time - b.time);
+                    state.snapshots[targetIndex] = {
+                        ...existing,
+                        messages: merged,
+                        duration: Math.max(existing.duration, duration)
+                    };
+                }
+                
+                saveToLocalStorage();
+                renderSnapshots();
+            }
+            
+            document.getElementById('recordBtn').textContent = 'Record Snapshot';
+            document.getElementById('recordBtn').classList.remove('recording');
+        }
+
+        function playSnapshot(index, loop = null) {
+            if (index < 0 || index >= state.snapshots.length) return;
+            
+            const snapshot = state.snapshots[index];
+            const shouldLoop = loop !== null ? loop : snapshot.loop;
+            
+            // Stop if already playing
+            if (state.playingSnapshots.has(index)) {
+                stopSnapshot(index);
+            }
+            
+            const playId = { index, loop: shouldLoop, timers: [] };
+            state.playingSnapshots.set(index, playId);
+            
+            function scheduleMessages(startOffset = 0) {
+                snapshot.messages.forEach((message, msgIndex) => {
+                    const delay = message.time - startOffset;
+                    if (delay >= 0) {
+                        const timer = setTimeout(() => {
+                            if (!state.playingSnapshots.has(index)) return;
+                            
+                            // Process message through effects
+                            const channel = message.status & 0x0F;
+                            processMIDIMessage(message.status, message.data1, message.data2, channel);
+                        }, delay);
+                        playId.timers.push(timer);
+                    }
+                });
+                
+                // Schedule loop if enabled
+                if (shouldLoop && snapshot.messages.length > 0) {
+                    const totalDuration = snapshot.messages[snapshot.messages.length - 1].time;
+                    const loopTimer = setTimeout(() => {
+                        if (state.playingSnapshots.has(index)) {
+                            // Clear old timers
+                            playId.timers.forEach(t => clearTimeout(t));
+                            playId.timers = [];
+                            // Schedule next loop
+                            scheduleMessages(0);
+                        }
+                    }, totalDuration - startOffset);
+                    playId.timers.push(loopTimer);
+                } else {
+                    // Schedule stop after last message
+                    if (snapshot.messages.length > 0) {
+                        const totalDuration = snapshot.messages[snapshot.messages.length - 1].time;
+                        const stopTimer = setTimeout(() => {
+                            stopSnapshot(index);
+                        }, totalDuration - startOffset + 100);
+                        playId.timers.push(stopTimer);
+                    }
+                }
+            }
+            
+            scheduleMessages(0);
+            updateSnapshotUI();
+        }
+
+        function stopSnapshot(index) {
+            const playId = state.playingSnapshots.get(index);
+            if (playId && playId.timers) {
+                playId.timers.forEach(timer => clearTimeout(timer));
+            }
+            state.playingSnapshots.delete(index);
+            updateSnapshotUI();
+        }
+
+        function clearSnapshot(index) {
+            state.snapshots.splice(index, 1);
+            stopSnapshot(index);
+            saveToLocalStorage();
+            renderSnapshots();
+        }
+
+        function toggleSnapshotLoop(index) {
+            if (index < 0 || index >= state.snapshots.length) return;
+            state.snapshots[index].loop = !state.snapshots[index].loop;
+            saveToLocalStorage();
+            renderSnapshots();
+        }
+
+        function renderSnapshots() {
+            const list = document.getElementById('snapshotList');
+            list.innerHTML = '';
+            
+            if (state.snapshots.length === 0) {
+                list.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No snapshots recorded</div>';
+                return;
+            }
+            
+            state.snapshots.forEach((snapshot, index) => {
+                const item = document.createElement('div');
+                item.className = 'snapshot-item';
+                if (state.playingSnapshots.has(index)) {
+                    item.classList.add('playing');
+                }
+                
+                const duration = (snapshot.duration / 1000).toFixed(2);
+                
+                item.innerHTML = `
+                    <div class="snapshot-info">
+                        <div class="snapshot-name">${snapshot.name}</div>
+                        <div class="snapshot-duration">${duration}s</div>
+                    </div>
+                    <div class="snapshot-actions">
+                        <div class="loop-toggle ${snapshot.loop ? 'active' : ''}" data-index="${index}" title="Toggle Loop"></div>
+                        <button class="play" data-index="${index}">Play</button>
+                        <button class="clear" data-index="${index}">Clear</button>
+                    </div>
+                `;
+                
+                list.appendChild(item);
+            });
+            
+            // Add event listeners
+            list.querySelectorAll('.play').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index);
+                    playSnapshot(index);
+                });
+            });
+            
+            list.querySelectorAll('.clear').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index);
+                    clearSnapshot(index);
+                });
+            });
+            
+            list.querySelectorAll('.loop-toggle').forEach(toggle => {
+                toggle.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index);
+                    toggleSnapshotLoop(index);
+                });
+            });
+        }
+
+        function updateSnapshotUI() {
+            state.snapshots.forEach((snapshot, index) => {
+                const item = document.querySelector(`.snapshot-item:nth-child(${index + 1})`);
+                if (item) {
+                    if (state.playingSnapshots.has(index)) {
+                        item.classList.add('playing');
+                    } else {
+                        item.classList.remove('playing');
+                    }
+                }
+            });
+        }
+
+        // Delay Effect
+        function handleDelayNote(note, velocity, channel) {
+            const delayTime = getDelayTime();
+            const delayItem = {
+                note,
+                velocity,
+                channel,
+                repeat: 0,
+                panIndex: 0
+            };
+            scheduleDelayedNote(delayItem, delayTime);
+        }
+
+        function scheduleDelayedNote(delayItem, delayTime) {
+            setTimeout(() => {
+                if (!state.effects.delay.enabled) return;
+                
+                const feedback = state.effects.delay.feedback / 100;
+                const velocityDecay = state.effects.delay.velocityDecay / 100;
+                
+                let newVelocity = Math.floor(delayItem.velocity * Math.pow(1 - velocityDecay, delayItem.repeat));
+                newVelocity = Math.max(1, Math.min(127, newVelocity));
+                
+                if (state.effects.delay.panning === 'alternating') {
+                    const panValue = delayItem.panIndex % 2 === 0 ? 0 : 127;
+                    sendMIDI(0xB0 | delayItem.channel, 10, panValue);
+                    delayItem.panIndex++;
+                } else if (state.effects.delay.panning === 'spread') {
+                    const panValue = Math.floor((delayItem.repeat / 8) * 127);
+                    sendMIDI(0xB0 | delayItem.channel, 10, panValue);
+                }
+                
+                if (state.effects.delay.filtering === 'lowpass') {
+                    const cutoff = Math.max(0, 127 - (delayItem.repeat * 10));
+                    sendMIDI(0xB0 | delayItem.channel, 74, cutoff);
+                } else if (state.effects.delay.filtering === 'highpass') {
+                    const cutoff = Math.min(127, delayItem.repeat * 10);
+                    sendMIDI(0xB0 | delayItem.channel, 74, cutoff);
+                }
+                
+                sendMIDI(0x90 | delayItem.channel, delayItem.note, newVelocity);
+                
+                if (feedback > 0 && delayItem.repeat < 10) {
+                    delayItem.repeat++;
+                    delayItem.velocity = newVelocity;
+                    scheduleDelayedNote(delayItem, getDelayTime());
+                }
+                
+                updateMidiActivity('delay');
+            }, delayTime);
+        }
+
+        function getDelayTime() {
+            const timeMode = document.getElementById('delayTimeMode').value;
+            if (timeMode === 'ms') {
+                return parseInt(document.getElementById('delayMs').value);
+            } else {
+                const division = document.getElementById('delayBpmDivision').value;
+                const [numerator, denominator] = division.split('/').map(Number);
+                const beatTime = (60000 / state.bpm);
+                return beatTime * (numerator / denominator);
+            }
+        }
+
+        // Arpeggiator
+        function handleArpeggiatorNote(note, velocity, channel) {
+            if (!state.effects.arp.heldNotes.find(n => n.note === note && n.channel === channel)) {
+                state.effects.arp.heldNotes.push({ note, velocity, channel });
+            }
+            
+            if (!state.effects.arp.arpTimer) {
+                startArpeggiator();
+            }
+        }
+
+        function startArpeggiator() {
+            if (state.effects.arp.arpTimer) return;
+            
+            const rate = getArpRate();
+            state.effects.arp.arpTimer = setInterval(() => {
+                if (!state.effects.arp.enabled) {
+                    stopArpeggiator();
+                    return;
+                }
+                
+                if (state.effects.arp.heldNotes.length === 0 && !state.effects.arp.hold) {
+                    stopArpeggiator();
+                    return;
+                }
+                
+                if (state.effects.arp.heldNotes.length === 0) return;
+                
+                const notes = getArpNotes();
+                if (notes.length === 0) return;
+                
+                if (state.effects.arp.currentNote) {
+                    sendMIDI(0x80 | state.effects.arp.currentNote.channel, state.effects.arp.currentNote.note, 0);
+                }
+                
+                const current = notes[state.effects.arp.currentIndex % notes.length];
+                sendMIDI(0x90 | current.channel, current.note, current.velocity);
+                state.effects.arp.currentNote = current;
+                
+                state.effects.arp.currentIndex++;
+                updateMidiActivity('arp');
+            }, rate);
+        }
+
+        function stopArpeggiator() {
+            if (state.effects.arp.arpTimer) {
+                clearInterval(state.effects.arp.arpTimer);
+                state.effects.arp.arpTimer = null;
+            }
+            
+            if (state.effects.arp.currentNote) {
+                sendMIDI(0x80 | state.effects.arp.currentNote.channel, state.effects.arp.currentNote.note, 0);
+                state.effects.arp.currentNote = null;
+            }
+            
+            state.effects.arp.currentIndex = 0;
+        }
+
+        function getArpNotes() {
+            if (state.effects.arp.heldNotes.length === 0) return [];
+            
+            const pattern = document.getElementById('arpPattern').value;
+            const octaveRange = parseInt(document.getElementById('arpOctaveRange').value);
+            
+            let notes = [...state.effects.arp.heldNotes];
+            
+            if (pattern === 'up') {
+                notes.sort((a, b) => a.note - b.note);
+            } else if (pattern === 'down') {
+                notes.sort((a, b) => b.note - a.note);
+            } else if (pattern === 'updown') {
+                notes.sort((a, b) => a.note - b.note);
+                const down = [...notes].reverse().slice(1);
+                notes = notes.concat(down);
+            } else if (pattern === 'random') {
+                for (let i = notes.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [notes[i], notes[j]] = [notes[j], notes[i]];
+                }
+            }
+            
+            const expandedNotes = [];
+            for (let oct = 0; oct < octaveRange; oct++) {
+                notes.forEach(note => {
+                    const octaveNote = note.note + (oct * 12);
+                    if (octaveNote >= 0 && octaveNote <= 127) {
+                        expandedNotes.push({
+                            note: octaveNote,
+                            velocity: note.velocity,
+                            channel: note.channel
+                        });
+                    }
+                });
+            }
+            
+            return expandedNotes;
+        }
+
+        function getArpRate() {
+            const division = document.getElementById('arpRate').value;
+            const [numerator, denominator] = division.split('/').map(Number);
+            const beatTime = (60000 / state.bpm);
+            return beatTime * (numerator / denominator);
+        }
+
+        // Chord Generator
+        function generateChord(rootNote) {
+            const chordType = document.getElementById('chordType').value;
+            const inversion = parseInt(document.getElementById('chordInversion').value);
+            const intervals = chordIntervals[chordType];
+            
+            let notes = intervals.map(interval => {
+                const note = rootNote + interval;
+                return note >= 0 && note <= 127 ? note : null;
+            }).filter(n => n !== null);
+            
+            if (inversion > 0 && inversion < notes.length) {
+                const inverted = notes.slice(inversion).concat(notes.slice(0, inversion).map(n => n + 12));
+                notes = inverted.filter(n => n >= 0 && n <= 127);
+            }
+            
+            return notes;
+        }
+
+        // MIDI Monitor
+        function updateMidiMonitor(status, data1, data2) {
+            const monitor = document.getElementById('midiMonitor');
+            const messageType = status & 0xF0;
+            const channel = status & 0x0F;
+            
+            let message = '';
+            if (messageType === 0x90) {
+                message = `Note On: Ch${channel + 1} Note ${data1} Vel ${data2}`;
+            } else if (messageType === 0x80) {
+                message = `Note Off: Ch${channel + 1} Note ${data1}`;
+            } else {
+                message = `MIDI: ${status.toString(16)} ${data1} ${data2}`;
+            }
+            
+            const item = document.createElement('div');
+            item.className = 'note-item';
+            item.textContent = message;
+            monitor.insertBefore(item, monitor.firstChild);
+            
+            while (monitor.children.length > 20) {
+                monitor.removeChild(monitor.lastChild);
+            }
+        }
+
+        function updateMidiActivity(effect) {
+            const activityBar = document.getElementById(effect + 'Activity');
+            if (activityBar) {
+                activityBar.classList.add('active');
+                setTimeout(() => {
+                    activityBar.classList.remove('active');
+                }, 100);
+            }
+        }
+
+        // LocalStorage Functions
+        function saveToLocalStorage() {
+            try {
+                const inputSelect = document.getElementById('midiInputSelect');
+                const outputSelect = document.getElementById('midiOutputSelect');
+                const selectedInputIndex = inputSelect.selectedIndex > 0 ? parseInt(inputSelect.value) : -1;
+                const selectedOutputIndex = outputSelect.selectedIndex > 0 ? parseInt(outputSelect.value) : -1;
+                const selectedInputName = inputSelect.selectedIndex > 0 ? inputSelect.options[inputSelect.selectedIndex].textContent : '';
+                const selectedOutputName = outputSelect.selectedIndex > 0 ? outputSelect.options[outputSelect.selectedIndex].textContent : '';
+                
+                const data = {
+                    snapshots: state.snapshots,
+                    effects: {
+                        delay: {
+                            enabled: state.effects.delay.enabled,
+                            feedback: state.effects.delay.feedback,
+                            velocityDecay: state.effects.delay.velocityDecay,
+                            panning: state.effects.delay.panning,
+                            filtering: state.effects.delay.filtering
+                        },
+                        arp: {
+                            enabled: state.effects.arp.enabled,
+                            hold: state.effects.arp.hold
+                        },
+                        chord: {
+                            enabled: state.effects.chord.enabled
+                        },
+                        transpose: {
+                            enabled: state.effects.transpose.enabled,
+                            semitones: state.effects.transpose.semitones
+                        },
+                        velocity: {
+                            enabled: state.effects.velocity.enabled,
+                            min: state.effects.velocity.min,
+                            max: state.effects.velocity.max,
+                            random: state.effects.velocity.random
+                        }
+                    },
+                    bpm: state.bpm,
+                    recordMode: document.getElementById('recordMode').value,
+                    delayTimeMode: document.getElementById('delayTimeMode').value,
+                    delayMs: document.getElementById('delayMs').value,
+                    delayBpmDivision: document.getElementById('delayBpmDivision').value,
+                    arpRate: document.getElementById('arpRate').value,
+                    arpPattern: document.getElementById('arpPattern').value,
+                    arpOctaveRange: document.getElementById('arpOctaveRange').value,
+                    chordType: document.getElementById('chordType').value,
+                    chordInversion: document.getElementById('chordInversion').value,
+                    transposeMode: document.getElementById('transposeMode').value,
+                    midiInput: {
+                        index: selectedInputIndex,
+                        name: selectedInputName
+                    },
+                    midiOutput: {
+                        index: selectedOutputIndex,
+                        name: selectedOutputName
+                    }
+                };
+                localStorage.setItem('midifx1_data', JSON.stringify(data));
+            } catch (error) {
+                console.error('Error saving to localStorage:', error);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('midifx1_data');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    
+                    // Load snapshots
+                    if (data.snapshots) {
+                        state.snapshots = data.snapshots;
+                        renderSnapshots();
+                    }
+                    
+                    // Load effects state
+                    if (data.effects) {
+                        if (data.effects.delay) {
+                            state.effects.delay.enabled = data.effects.delay.enabled || false;
+                            state.effects.delay.feedback = data.effects.delay.feedback || 50;
+                            state.effects.delay.velocityDecay = data.effects.delay.velocityDecay || 20;
+                            state.effects.delay.panning = data.effects.delay.panning || 'none';
+                            state.effects.delay.filtering = data.effects.delay.filtering || 'none';
+                        }
+                        if (data.effects.arp) {
+                            state.effects.arp.enabled = data.effects.arp.enabled || false;
+                            state.effects.arp.hold = data.effects.arp.hold || false;
+                        }
+                        if (data.effects.chord) {
+                            state.effects.chord.enabled = data.effects.chord.enabled || false;
+                        }
+                        if (data.effects.transpose) {
+                            state.effects.transpose.enabled = data.effects.transpose.enabled || false;
+                            state.effects.transpose.semitones = data.effects.transpose.semitones || 0;
+                        }
+                        if (data.effects.velocity) {
+                            state.effects.velocity.enabled = data.effects.velocity.enabled || false;
+                            state.effects.velocity.min = data.effects.velocity.min || 1;
+                            state.effects.velocity.max = data.effects.velocity.max || 127;
+                            state.effects.velocity.random = data.effects.velocity.random || 0;
+                        }
+                    }
+                    
+                    // Load BPM
+                    if (data.bpm) {
+                        state.bpm = data.bpm;
+                        document.getElementById('bpmInput').value = state.bpm;
+                    }
+                    
+                    // Load UI settings
+                    if (data.recordMode) {
+                        document.getElementById('recordMode').value = data.recordMode;
+                    }
+                    if (data.delayTimeMode) {
+                        document.getElementById('delayTimeMode').value = data.delayTimeMode;
+                        document.getElementById('delayMsGroup').style.display = data.delayTimeMode === 'ms' ? 'block' : 'none';
+                        document.getElementById('delayBpmGroup').style.display = data.delayTimeMode === 'bpm' ? 'block' : 'none';
+                    }
+                    if (data.delayMs) {
+                        document.getElementById('delayMs').value = data.delayMs;
+                        document.getElementById('delayMsValue').textContent = data.delayMs;
+                    }
+                    if (data.delayBpmDivision) {
+                        document.getElementById('delayBpmDivision').value = data.delayBpmDivision;
+                    }
+                    if (data.arpRate) {
+                        document.getElementById('arpRate').value = data.arpRate;
+                    }
+                    if (data.arpPattern) {
+                        document.getElementById('arpPattern').value = data.arpPattern;
+                    }
+                    if (data.arpOctaveRange) {
+                        document.getElementById('arpOctaveRange').value = data.arpOctaveRange;
+                        document.getElementById('arpOctaveRangeValue').textContent = data.arpOctaveRange;
+                    }
+                    if (data.chordType) {
+                        document.getElementById('chordType').value = data.chordType;
+                    }
+                    if (data.chordInversion) {
+                        document.getElementById('chordInversion').value = data.chordInversion;
+                        document.getElementById('chordInversionValue').textContent = data.chordInversion;
+                    }
+                    if (data.transposeMode) {
+                        document.getElementById('transposeMode').value = data.transposeMode;
+                    }
+                    
+                    // Update UI to reflect loaded state
+                    updateUIFromState();
+                    
+                    // Restore MIDI device connections after devices are loaded
+                    if (data.midiInput || data.midiOutput) {
+                        // Wait a bit for devices to be enumerated, then restore connections
+                        setTimeout(() => {
+                            restoreMIDIConnections(data.midiInput, data.midiOutput);
+                        }, 200);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading from localStorage:', error);
+            }
+        }
+
+        function restoreMIDIConnections(savedInput, savedOutput) {
+            if (savedInput && savedInput.name) {
+                const inputSelect = document.getElementById('midiInputSelect');
+                // Find device by name
+                for (let i = 0; i < inputSelect.options.length; i++) {
+                    if (inputSelect.options[i].textContent === savedInput.name) {
+                        inputSelect.selectedIndex = i;
+                        const index = parseInt(inputSelect.value);
+                        if (!isNaN(index)) {
+                            connectMIDIInput(index);
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            if (savedOutput && savedOutput.name) {
+                const outputSelect = document.getElementById('midiOutputSelect');
+                // Find device by name
+                for (let i = 0; i < outputSelect.options.length; i++) {
+                    if (outputSelect.options[i].textContent === savedOutput.name) {
+                        outputSelect.selectedIndex = i;
+                        const index = parseInt(outputSelect.value);
+                        if (!isNaN(index)) {
+                            connectMIDIOutput(index);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        function updateUIFromState() {
+            // Update toggle switches
+            document.getElementById('delayToggle').classList.toggle('active', state.effects.delay.enabled);
+            document.getElementById('arpToggle').classList.toggle('active', state.effects.arp.enabled);
+            document.getElementById('chordToggle').classList.toggle('active', state.effects.chord.enabled);
+            document.getElementById('transposeToggle').classList.toggle('active', state.effects.transpose.enabled);
+            document.getElementById('velocityToggle').classList.toggle('active', state.effects.velocity.enabled);
+            document.getElementById('arpHoldToggle').classList.toggle('active', state.effects.arp.hold);
+            
+            // Update parameter displays
+            document.getElementById('delayFeedbackValue').textContent = state.effects.delay.feedback;
+            document.getElementById('delayVelocityDecayValue').textContent = state.effects.delay.velocityDecay;
+            document.getElementById('transposeSemitonesValue').textContent = state.effects.transpose.semitones;
+            document.getElementById('velocityMinValue').textContent = state.effects.velocity.min;
+            document.getElementById('velocityMaxValue').textContent = state.effects.velocity.max;
+            document.getElementById('velocityRandomValue').textContent = state.effects.velocity.random;
+        }
+
+        // Keyboard shortcuts for snapshots (1-9, 0 for 10th, etc.)
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+            
+            const key = e.key;
+            let index = -1;
+            
+            if (key >= '1' && key <= '9') {
+                index = parseInt(key) - 1;
+            } else if (key === '0') {
+                index = 9;
+            }
+            
+            if (index >= 0 && index < state.snapshots.length) {
+                if (state.playingSnapshots.has(index)) {
+                    stopSnapshot(index);
+                } else {
+                    playSnapshot(index);
+                }
+            }
+        });
+
+        // Event Listeners
+        document.getElementById('midiInputSelect').addEventListener('change', (e) => {
+            const index = parseInt(e.target.value);
+            connectMIDIInput(isNaN(index) ? -1 : index);
+        });
+
+        document.getElementById('midiOutputSelect').addEventListener('change', (e) => {
+            const index = parseInt(e.target.value);
+            connectMIDIOutput(isNaN(index) ? -1 : index);
+        });
+
+        document.getElementById('requestMIDIBtn').addEventListener('click', async () => {
+            await initMIDI();
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', async () => {
+            if (state.midiManager) {
+                await state.midiManager.initialize();
+            }
+            updateDeviceLists();
+        });
+
+        document.getElementById('bpmInput').addEventListener('input', (e) => {
+            state.bpm = parseInt(e.target.value) || 120;
+            saveToLocalStorage();
+            
+            // Broadcast BPM change if master
+            if (state.syncMode === 'master' && state.syncChannel) {
+                state.syncChannel.postMessage({
+                    type: 'bpm',
+                    tabId: state.tabId,
+                    bpm: state.bpm
+                });
+            }
+        });
+        
+        // Sync mode selector
+        document.getElementById('syncModeSelect').addEventListener('change', (e) => {
+            state.syncMode = e.target.value;
+            
+            if (state.syncMode === 'off') {
+                // Stop heartbeat if was syncing
+                stopHeartbeat();
+            } else {
+                // Start heartbeat if not already running
+                if (!state.syncChannel) {
+                    initSync();
+                } else {
+                    startHeartbeat();
+                }
+            }
+            
+            updateSyncStatus();
+        });
+
+        document.getElementById('recordMode').addEventListener('change', () => {
+            saveToLocalStorage();
+        });
+
+        document.getElementById('recordBtn').addEventListener('click', () => {
+            if (state.recording.active) {
+                // Clicking while recording stops and creates snapshot
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        // Delay controls
+        document.getElementById('delayToggle').addEventListener('click', () => {
+            state.effects.delay.enabled = !state.effects.delay.enabled;
+            document.getElementById('delayToggle').classList.toggle('active', state.effects.delay.enabled);
+            saveToLocalStorage();
+        });
+
+        document.getElementById('delayTimeMode').addEventListener('change', (e) => {
+            document.getElementById('delayMsGroup').style.display = e.target.value === 'ms' ? 'block' : 'none';
+            document.getElementById('delayBpmGroup').style.display = e.target.value === 'bpm' ? 'block' : 'none';
+            saveToLocalStorage();
+        });
+
+        document.getElementById('delayMs').addEventListener('input', (e) => {
+            document.getElementById('delayMsValue').textContent = e.target.value;
+            saveToLocalStorage();
+        });
+
+        document.getElementById('delayBpmDivision').addEventListener('change', () => {
+            saveToLocalStorage();
+        });
+
+        document.getElementById('delayFeedback').addEventListener('input', (e) => {
+            state.effects.delay.feedback = parseInt(e.target.value);
+            document.getElementById('delayFeedbackValue').textContent = e.target.value;
+            saveToLocalStorage();
+        });
+
+        document.getElementById('delayVelocityDecay').addEventListener('input', (e) => {
+            state.effects.delay.velocityDecay = parseInt(e.target.value);
+            document.getElementById('delayVelocityDecayValue').textContent = e.target.value;
+            saveToLocalStorage();
+        });
+
+        document.getElementById('delayPanning').addEventListener('change', (e) => {
+            state.effects.delay.panning = e.target.value;
+            saveToLocalStorage();
+        });
+
+        document.getElementById('delayFiltering').addEventListener('change', (e) => {
+            state.effects.delay.filtering = e.target.value;
+            saveToLocalStorage();
+        });
+
+        // Arpeggiator controls
+        document.getElementById('arpToggle').addEventListener('click', () => {
+            state.effects.arp.enabled = !state.effects.arp.enabled;
+            document.getElementById('arpToggle').classList.toggle('active', state.effects.arp.enabled);
+            if (!state.effects.arp.enabled) {
+                stopArpeggiator();
+                state.effects.arp.heldNotes = [];
+            }
+            saveToLocalStorage();
+        });
+
+        document.getElementById('arpHoldToggle').addEventListener('click', () => {
+            state.effects.arp.hold = !state.effects.arp.hold;
+            document.getElementById('arpHoldToggle').classList.toggle('active', state.effects.arp.hold);
+            saveToLocalStorage();
+        });
+
+        document.getElementById('arpRate').addEventListener('change', () => {
+            saveToLocalStorage();
+        });
+
+        document.getElementById('arpPattern').addEventListener('change', () => {
+            saveToLocalStorage();
+        });
+
+        document.getElementById('arpOctaveRange').addEventListener('input', (e) => {
+            document.getElementById('arpOctaveRangeValue').textContent = e.target.value;
+            saveToLocalStorage();
+        });
+
+        // Chord controls
+        document.getElementById('chordToggle').addEventListener('click', () => {
+            state.effects.chord.enabled = !state.effects.chord.enabled;
+            document.getElementById('chordToggle').classList.toggle('active', state.effects.chord.enabled);
+            saveToLocalStorage();
+        });
+
+        document.getElementById('chordType').addEventListener('change', () => {
+            saveToLocalStorage();
+        });
+
+        document.getElementById('chordInversion').addEventListener('input', (e) => {
+            document.getElementById('chordInversionValue').textContent = e.target.value;
+            saveToLocalStorage();
+        });
+
+        // Transpose controls
+        document.getElementById('transposeToggle').addEventListener('click', () => {
+            state.effects.transpose.enabled = !state.effects.transpose.enabled;
+            document.getElementById('transposeToggle').classList.toggle('active', state.effects.transpose.enabled);
+            saveToLocalStorage();
+        });
+
+        document.getElementById('transposeSemitones').addEventListener('input', (e) => {
+            state.effects.transpose.semitones = parseInt(e.target.value);
+            document.getElementById('transposeSemitonesValue').textContent = e.target.value;
+            saveToLocalStorage();
+        });
+
+        document.getElementById('transposeMode').addEventListener('change', () => {
+            saveToLocalStorage();
+        });
+
+        // Velocity controls
+        document.getElementById('velocityToggle').addEventListener('click', () => {
+            state.effects.velocity.enabled = !state.effects.velocity.enabled;
+            document.getElementById('velocityToggle').classList.toggle('active', state.effects.velocity.enabled);
+            saveToLocalStorage();
+        });
+
+        document.getElementById('velocityMin').addEventListener('input', (e) => {
+            state.effects.velocity.min = parseInt(e.target.value);
+            document.getElementById('velocityMinValue').textContent = e.target.value;
+            saveToLocalStorage();
+        });
+
+        document.getElementById('velocityMax').addEventListener('input', (e) => {
+            state.effects.velocity.max = parseInt(e.target.value);
+            document.getElementById('velocityMaxValue').textContent = e.target.value;
+            saveToLocalStorage();
+        });
+
+        document.getElementById('velocityRandom').addEventListener('input', (e) => {
+            state.effects.velocity.random = parseInt(e.target.value);
+            document.getElementById('velocityRandomValue').textContent = e.target.value;
+            saveToLocalStorage();
+        });
+
+        // Initialize
+        loadFromLocalStorage();
+        initMIDI();
+        updateDeviceLists();
+        renderSnapshots();
+        
+        // Initialize sync
+        initSync();
+    </script>
+</body>
+</html>
+
