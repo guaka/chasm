@@ -1,0 +1,4 @@
+- some basic patterns (amen break?)
+- midi.guaka.org
+- link back to github project from all the html pages
+- https://strudel.cc/learn/input-output/
