@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChasmTracker - Web MIDI Tracker</title>
+    <title>miditr5 - ChasmTracker</title>
     <style>
         * {
             margin: 0;
@@ -249,7 +249,7 @@
         }
 
         .sidebar {
-            width: 200px;
+            width: 280px;
             background: #1a1a1a;
             border-left: 2px solid #333;
             padding: 10px;
@@ -307,6 +307,98 @@
             border: 1px solid #444;
             margin: 2px;
         }
+
+        .keyboard-mapping {
+            margin-top: 8px;
+            background: #0a0a0a;
+            padding: 6px 4px;
+            border-radius: 6px;
+            border: 1px solid #222;
+        }
+
+        .keyboard-row {
+            margin-bottom: 3px;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .keyboard-row:nth-child(1) {
+            padding-left: 14px;
+        }
+
+        .keyboard-row:nth-child(2) {
+            padding-left: 6px;
+        }
+
+        .keyboard-row:nth-child(3) {
+            padding-left: 18px;
+        }
+
+        .keyboard-row:nth-child(4) {
+            padding-left: 10px;
+        }
+
+        .keyboard-spacer {
+            display: inline-block;
+            width: 18px;
+            height: 22px;
+        }
+
+        .keyboard-group-spacer {
+            display: inline-block;
+            width: 12px;
+            height: 22px;
+        }
+
+        .key-note-pair {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 22px;
+            height: 22px;
+            padding: 3px 4px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            transition: all 0.08s ease;
+            position: relative;
+        }
+
+        .key-note-pair.pressed {
+            background: #0af;
+            border-color: #0ff;
+            box-shadow: 0 0 12px rgba(0, 170, 255, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            transform: translateY(1px);
+        }
+
+        .key-note-pair .key {
+            color: #fff;
+            font-weight: bold;
+            font-size: 10px;
+            line-height: 1.2;
+            margin-bottom: 1px;
+        }
+
+        .key-note-pair.pressed .key {
+            color: #000;
+            font-weight: 900;
+        }
+
+        .key-note-pair .note {
+            color: #999;
+            font-size: 7px;
+            line-height: 1;
+            font-weight: normal;
+        }
+
+        .key-note-pair.pressed .note {
+            color: #000;
+            font-weight: 600;
+        }
+
 
         .main-content {
             display: flex;
@@ -666,7 +758,6 @@
                 <div class="sidebar-section help">
                     <div class="sidebar-title">Shortcuts</div>
                     <div><span class="help-key">Space</span> Play/Stop</div>
-                    <div><span class="help-key">S</span> Stop</div>
                     <div><span class="help-key">↑↓←→</span> Navigate (uses step size)</div>
                     <div><span class="help-key">Enter</span> Step down (uses step size)</div>
                     <div><span class="help-key">Tab</span> Next channel</div>
@@ -676,7 +767,55 @@
                     <div><span class="help-key">Ctrl+C/V</span> Copy/Paste</div>
                     <div><span class="help-key">Ctrl+1-8</span> Switch pattern</div>
                     <div><span class="help-key">Ctrl+←→</span> Prev/Next pattern</div>
-                    <div><span class="help-key">QWERTY</span> Note entry</div>
+                    <div class="keyboard-mapping">
+                        <div class="keyboard-row">
+                            <span class="key-note-pair" data-key="2"><span class="key">2</span><span class="note">C#</span></span>
+                            <span class="key-note-pair" data-key="3"><span class="key">3</span><span class="note">D#</span></span>
+                            <span class="keyboard-group-spacer"></span>
+                            <span class="keyboard-group-spacer"></span>
+                            <span class="key-note-pair" data-key="5"><span class="key">5</span><span class="note">F#</span></span>
+                            <span class="key-note-pair" data-key="6"><span class="key">6</span><span class="note">G#</span></span>
+                            <span class="key-note-pair" data-key="7"><span class="key">7</span><span class="note">A#</span></span>
+                            <span class="keyboard-group-spacer"></span>
+                            <span class="keyboard-group-spacer"></span>
+                            <span class="keyboard-group-spacer"></span>
+                            <span class="keyboard-group-spacer"></span>
+                            <span class="keyboard-group-spacer"></span>
+                            <span class="keyboard-group-spacer"></span>
+                            <span class="keyboard-group-spacer"></span>
+                            <span class="key-note-pair" data-key="9"><span class="key">9</span><span class="note">C#</span></span>
+                            <span class="key-note-pair" data-key="0"><span class="key">0</span><span class="note">D#</span></span>
+                        </div>
+                        <div class="keyboard-row">
+                            <span class="key-note-pair" data-key="q"><span class="key">Q</span><span class="note">C</span></span>
+                            <span class="key-note-pair" data-key="w"><span class="key">W</span><span class="note">D</span></span>
+                            <span class="key-note-pair" data-key="e"><span class="key">E</span><span class="note">E</span></span>
+                            <span class="key-note-pair" data-key="r"><span class="key">R</span><span class="note">F</span></span>
+                            <span class="key-note-pair" data-key="t"><span class="key">T</span><span class="note">G</span></span>
+                            <span class="key-note-pair" data-key="y"><span class="key">Y</span><span class="note">A</span></span>
+                            <span class="key-note-pair" data-key="u"><span class="key">U</span><span class="note">B</span></span>
+                            <span class="key-note-pair" data-key="i"><span class="key">I</span><span class="note">C</span></span>
+                            <span class="key-note-pair" data-key="o"><span class="key">O</span><span class="note">D</span></span>
+                            <span class="key-note-pair" data-key="p"><span class="key">P</span><span class="note">E</span></span>
+                        </div>
+                        <div class="keyboard-row">
+                            <span class="key-note-pair" data-key="s"><span class="key">S</span><span class="note">C#</span></span>
+                            <span class="key-note-pair" data-key="d"><span class="key">D</span><span class="note">D#</span></span>
+                            <span class="keyboard-spacer"></span>
+                            <span class="key-note-pair" data-key="g"><span class="key">G</span><span class="note">F#</span></span>
+                            <span class="key-note-pair" data-key="h"><span class="key">H</span><span class="note">G#</span></span>
+                            <span class="key-note-pair" data-key="j"><span class="key">J</span><span class="note">A#</span></span>
+                        </div>
+                        <div class="keyboard-row">
+                            <span class="key-note-pair" data-key="z"><span class="key">Z</span><span class="note">C</span></span>
+                            <span class="key-note-pair" data-key="x"><span class="key">X</span><span class="note">D</span></span>
+                            <span class="key-note-pair" data-key="c"><span class="key">C</span><span class="note">E</span></span>
+                            <span class="key-note-pair" data-key="v"><span class="key">V</span><span class="note">F</span></span>
+                            <span class="key-note-pair" data-key="b"><span class="key">B</span><span class="note">G</span></span>
+                            <span class="key-note-pair" data-key="n"><span class="key">N</span><span class="note">A</span></span>
+                            <span class="key-note-pair" data-key="m"><span class="key">M</span><span class="note">B</span></span>
+                        </div>
+                    </div>
                     <div><span class="help-key">0-9</span> Set octave</div>
                     <div><span class="help-key">/</span> <span class="help-key">*</span> Decrease/Increase Octave</div>
                     <div><span class="help-key">Alt+1-9</span> Set step size</div>
@@ -3196,19 +3335,30 @@
             if (e.key === 'Shift') {
                 state.shiftKeyHeld = true;
             }
+            // Highlight the key
+            highlightKey(e.key);
+            highlightModifierKeys(e);
         });
         
         document.addEventListener('keyup', (e) => {
             if (e.key === 'Shift') {
                 state.shiftKeyHeld = false;
             }
+            // Unhighlight the key
+            unhighlightKey(e.key);
+            unhighlightModifierKeys(e);
         });
 
         document.addEventListener('keydown', (e) => {
             // Don't intercept if user is typing in header inputs
-            if (e.target.tagName === 'INPUT' && (e.target.id === 'bpmInput' || e.target.id === 'patternInput' || e.target.id === 'octaveInput' || e.target.id === 'patternLengthInput' || e.target.id === 'stepSizeInput')) {
+            const isHeaderInput = e.target.tagName === 'INPUT' && (e.target.id === 'bpmInput' || e.target.id === 'patternInput' || e.target.id === 'octaveInput' || e.target.id === 'patternLengthInput' || e.target.id === 'stepSizeInput');
+            if (isHeaderInput) {
                 return;
             }
+            
+            // Highlight keys (even when typing in cell inputs, but not header inputs)
+            highlightKey(e.key);
+            highlightModifierKeys(e);
 
             const isCellInput = e.target.tagName === 'INPUT' && e.target.closest('td.cell');
             const key = e.key.toLowerCase();
@@ -3946,6 +4096,93 @@
                 savePatternsToStorage();
             }
         });
+
+        // Keyboard highlighting functions
+        function highlightKey(key) {
+            // Normalize key for matching
+            const normalizedKey = key.toLowerCase();
+            const code = key; // Keep original for code matching
+            
+            // Handle special cases
+            let matchKey = normalizedKey;
+            if (key === ' ') {
+                matchKey = ' ';
+            } else if (key.startsWith('Arrow')) {
+                matchKey = key; // Keep ArrowUp, ArrowDown, etc. as-is
+            } else if (key === 'Meta') {
+                matchKey = 'Control'; // Meta key (Cmd on Mac) should highlight Ctrl
+            }
+            
+            // Find all matching keys (by data-key or data-key-alt)
+            const allKeys = document.querySelectorAll('.key-note-pair[data-key], .modifier-key[data-key]');
+            allKeys.forEach(el => {
+                const dataKey = el.getAttribute('data-key');
+                const dataKeyAlt = el.getAttribute('data-key-alt');
+                
+                if (dataKey && (dataKey.toLowerCase() === matchKey || dataKey === code || (matchKey === 'control' && dataKey === 'Control'))) {
+                    el.classList.add('pressed');
+                } else if (dataKeyAlt && (dataKeyAlt.toLowerCase() === matchKey || dataKeyAlt === code)) {
+                    el.classList.add('pressed');
+                }
+            });
+        }
+
+        function unhighlightKey(key) {
+            const normalizedKey = key.toLowerCase();
+            const code = key;
+            
+            // Handle special cases
+            let matchKey = normalizedKey;
+            if (key === ' ') {
+                matchKey = ' ';
+            } else if (key.startsWith('Arrow')) {
+                matchKey = key; // Keep ArrowUp, ArrowDown, etc. as-is
+            } else if (key === 'Meta') {
+                matchKey = 'Control'; // Meta key (Cmd on Mac) should unhighlight Ctrl
+            }
+            
+            const allKeys = document.querySelectorAll('.key-note-pair[data-key], .modifier-key[data-key]');
+            allKeys.forEach(el => {
+                const dataKey = el.getAttribute('data-key');
+                const dataKeyAlt = el.getAttribute('data-key-alt');
+                
+                if (dataKey && (dataKey.toLowerCase() === matchKey || dataKey === code || (matchKey === 'control' && dataKey === 'Control'))) {
+                    el.classList.remove('pressed');
+                } else if (dataKeyAlt && (dataKeyAlt.toLowerCase() === matchKey || dataKeyAlt === code)) {
+                    el.classList.remove('pressed');
+                }
+            });
+        }
+
+        function highlightModifierKeys(e) {
+            if (e.ctrlKey || e.metaKey) {
+                const ctrlKey = document.querySelector('.modifier-key[data-key="Control"], .modifier-key[data-key="Meta"]');
+                if (ctrlKey) ctrlKey.classList.add('pressed');
+            }
+            if (e.altKey) {
+                const altKey = document.querySelector('.modifier-key[data-key="Alt"]');
+                if (altKey) altKey.classList.add('pressed');
+            }
+            if (e.shiftKey) {
+                const shiftKey = document.querySelector('.modifier-key[data-key="Shift"]');
+                if (shiftKey) shiftKey.classList.add('pressed');
+            }
+        }
+
+        function unhighlightModifierKeys(e) {
+            if (!e.ctrlKey && !e.metaKey) {
+                const ctrlKey = document.querySelector('.modifier-key[data-key="Control"], .modifier-key[data-key="Meta"]');
+                if (ctrlKey) ctrlKey.classList.remove('pressed');
+            }
+            if (!e.altKey) {
+                const altKey = document.querySelector('.modifier-key[data-key="Alt"]');
+                if (altKey) altKey.classList.remove('pressed');
+            }
+            if (!e.shiftKey) {
+                const shiftKey = document.querySelector('.modifier-key[data-key="Shift"]');
+                if (shiftKey) shiftKey.classList.remove('pressed');
+            }
+        }
 
         // Initialize
         // Initialize step size input
