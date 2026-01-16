@@ -1749,6 +1749,25 @@
 
         function loadPatternsFromStorage() {
             try {
+                // Load BPM and patternLength from localStorage first (as defaults)
+                const savedBpm = localStorage.getItem('tracker3_bpm');
+                if (savedBpm) {
+                    const bpm = parseInt(savedBpm);
+                    if (!isNaN(bpm) && bpm >= 32 && bpm <= 255) {
+                        state.bpm = bpm;
+                        document.getElementById('bpmInput').value = state.bpm;
+                    }
+                }
+                
+                const savedPatternLength = localStorage.getItem('tracker3_patternLength');
+                if (savedPatternLength) {
+                    const patternLength = parseInt(savedPatternLength);
+                    if (!isNaN(patternLength) && patternLength >= 1 && patternLength <= 256) {
+                        state.patternLength = patternLength;
+                        document.getElementById('patternLengthInput').value = state.patternLength;
+                    }
+                }
+                
                 const saved = localStorage.getItem('tracker3_patterns');
                 if (saved) {
                     const patternData = JSON.parse(saved);
@@ -1769,6 +1788,7 @@
                         state.currentPattern = patternData.currentPattern || 0;
                         // Load track count (default to 16 if not present, max 64)
                         state.channels = Math.max(Math.min(patternData.channels || 16, 64), 16);
+                        // Pattern data can override localStorage values
                         if (patternData.patternLength) {
                             state.patternLength = patternData.patternLength;
                             document.getElementById('patternLengthInput').value = state.patternLength;
@@ -2540,6 +2560,8 @@
                 }
                 
                 // Check if cell is playing
+                // Highlight the step shown in the "Step:" display (currentStep after increment)
+                // When display shows "Step: 03", highlight row 03
                 if (state.isPlaying && row === state.currentStep) {
                     cell.classList.add('playing');
                 } else {
@@ -2866,9 +2888,6 @@
                 }
             }
 
-            // Update visual
-            updateActiveCell();
-
             // Advance step
             state.currentStep++;
             const currentPatternLength = getCurrentPatternLength();
@@ -2920,6 +2939,9 @@
                 }
             }
 
+            // Update visual (highlight the step shown in the display)
+            updateActiveCell();
+            
             document.getElementById('currentStep').textContent = state.currentStep;
             const bpmDisplay = document.getElementById('bpmDisplay');
             if (bpmDisplay) {
@@ -2962,8 +2984,16 @@
                 } else if (type === 'play' && state.syncMode === 'slave') {
                     // Master started playback - sync to it
                     state.syncStartTime = timestamp;
-                    state.bpm = bpm || state.bpm;
-                    document.getElementById('bpmInput').value = state.bpm;
+                    if (bpm) {
+                        state.bpm = bpm;
+                        document.getElementById('bpmInput').value = state.bpm;
+                        // Save BPM to localStorage
+                        try {
+                            localStorage.setItem('tracker3_bpm', bpm.toString());
+                        } catch (error) {
+                            console.error('Error saving BPM to localStorage:', error);
+                        }
+                    }
                     if (!state.isPlaying) {
                         startPlaybackInternal(true); // true = skip sync broadcast
                     }
@@ -2979,6 +3009,12 @@
                     const bpmDisplay = document.getElementById('bpmDisplay');
                     if (bpmDisplay) {
                         bpmDisplay.textContent = state.bpm;
+                    }
+                    // Save BPM to localStorage
+                    try {
+                        localStorage.setItem('tracker3_bpm', bpm.toString());
+                    } catch (error) {
+                        console.error('Error saving BPM to localStorage:', error);
                     }
                     // If playing, restart timing with new BPM
                     if (state.isPlaying) {
@@ -3070,6 +3106,11 @@
                 const firstEntry = state.order[0];
                 state.currentPattern = typeof firstEntry === 'number' ? firstEntry : firstEntry.pattern;
             }
+            
+            // Update visual to highlight row 0 and display current step
+            updateActiveCell();
+            document.getElementById('currentStep').textContent = state.currentStep;
+            
             const now = performance.now();
             state.lastTickTime = now;
             state.lastMidiClockTime = now;
@@ -4026,6 +4067,16 @@
                 if (pattern) {
                     resizePattern(state.currentPattern, length);
                     
+                    // Update default pattern length
+                    state.patternLength = length;
+                    
+                    // Save pattern length to localStorage
+                    try {
+                        localStorage.setItem('tracker3_patternLength', length.toString());
+                    } catch (error) {
+                        console.error('Error saving pattern length to localStorage:', error);
+                    }
+                    
                     // If current step is beyond new length, reset to 0
                     if (state.currentStep >= length) {
                         state.currentStep = 0;
@@ -4063,6 +4114,13 @@
                 startPlayback();
             } else {
                 state.bpm = newBpm;
+            }
+            
+            // Save BPM to localStorage
+            try {
+                localStorage.setItem('tracker3_bpm', newBpm.toString());
+            } catch (error) {
+                console.error('Error saving BPM to localStorage:', error);
             }
             
             // Broadcast BPM change if master
