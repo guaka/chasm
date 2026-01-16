@@ -995,6 +995,15 @@
             }
         }
 
+        // Resize all patterns to current patternLength
+        function resizeAllPatterns() {
+            for (let i = 0; i < state.patterns.length; i++) {
+                if (state.patterns[i]) {
+                    resizePattern(i, state.patternLength);
+                }
+            }
+        }
+
         // Get current pattern's length
         function getCurrentPatternLength() {
             const pattern = state.patterns[state.currentPattern];
@@ -1037,8 +1046,7 @@
                 }
                 return true;
             } else {
-                console.warn('MIDI not available');
-                updateMidiDeviceList(); // Update UI to show no devices
+                updateMidiDeviceList(); // Update UI to show error message
                 return false;
             }
         }
@@ -1052,6 +1060,18 @@
             select.innerHTML = '<option value="">No device</option>';
             
             if (!state.midiManager) {
+                return;
+            }
+            
+            // Check if there's an error message to display
+            const errorMessage = state.midiManager.getErrorMessage();
+            if (errorMessage) {
+                const errorOption = document.createElement('option');
+                errorOption.value = '';
+                errorOption.textContent = errorMessage;
+                errorOption.disabled = true;
+                errorOption.style.color = '#ff6666';
+                select.appendChild(errorOption);
                 return;
             }
             
