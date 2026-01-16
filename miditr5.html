@@ -943,10 +943,9 @@
                 for (let row = 0; row < pattern.length; row++) {
                     channel.push({
                         note: '',
-                        inst: '',
                         vol: '',
-                        effect: '',
-                        param: ''
+                        fxCmd: '',
+                        fxVal: ''
                     });
                 }
                 pattern.channels.push(channel);
@@ -2643,7 +2642,8 @@
             // Auto-advance: move by step size (like Schism Tracker)
             const newRow = state.activeCell.row + state.stepSize;
             moveCell(newRow, state.activeCell.channel, 'note');
-            focusField(newRow, state.activeCell.channel, 'note');
+            // Use the clamped row value from state.activeCell after moveCell
+            focusField(state.activeCell.row, state.activeCell.channel, 'note');
             savePatternsToStorage();
         }
 
