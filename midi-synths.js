@@ -14,6 +14,24 @@ class MidiManager {
         this.midiOutput = null;
         this.devices = [];
         this.onStateChange = null;
+        this.errorMessage = null;
+        this.isSupported = false;
+    }
+
+    /**
+     * Check if Web MIDI API is supported
+     * @returns {boolean}
+     */
+    isWebMIDISupported() {
+        return typeof navigator !== 'undefined' && typeof navigator.requestMIDIAccess === 'function';
+    }
+
+    /**
+     * Get the last error message
+     * @returns {string|null}
+     */
+    getErrorMessage() {
+        return this.errorMessage;
     }
 
     /**
@@ -21,10 +39,16 @@ class MidiManager {
      * @returns {Promise<boolean>} True if successful, false otherwise
      */
     async initialize() {
+        this.errorMessage = null;
+        this.isSupported = false;
+        
         try {
-            if (!navigator.requestMIDIAccess) {
-                throw new Error('Web MIDI API not supported');
+            if (!this.isWebMIDISupported()) {
+                this.errorMessage = 'Web MIDI API not supported in this browser. Please use Chrome, Edge, or Opera.';
+                this.isSupported = false;
+                return false;
             }
+            this.isSupported = true;
             this.midiAccess = await navigator.requestMIDIAccess();
             this.updateDeviceList();
             this.midiAccess.onstatechange = () => {
@@ -35,6 +59,8 @@ class MidiManager {
             };
             return true;
         } catch (error) {
+            this.errorMessage = error.message || 'MIDI access denied. Please check browser permissions.';
+            this.isSupported = false;
             console.error('MIDI access denied:', error);
             return false;
         }

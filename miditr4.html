@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChasmTracker - Web MIDI Tracker</title>
+    <title>miditr4 - ChasmTracker</title>
     <style>
         * {
             margin: 0;
@@ -898,8 +898,7 @@
                 }
                 return true;
             } else {
-                console.warn('MIDI not available');
-                updateMidiDeviceList(); // Update UI to show no devices
+                updateMidiDeviceList(); // Update UI to show error message
                 return false;
             }
         }
@@ -913,6 +912,18 @@
             select.innerHTML = '<option value="">No device</option>';
             
             if (!state.midiManager) {
+                return;
+            }
+            
+            // Check if there's an error message to display
+            const errorMessage = state.midiManager.getErrorMessage();
+            if (errorMessage) {
+                const errorOption = document.createElement('option');
+                errorOption.value = '';
+                errorOption.textContent = errorMessage;
+                errorOption.disabled = true;
+                errorOption.style.color = '#ff6666';
+                select.appendChild(errorOption);
                 return;
             }
             

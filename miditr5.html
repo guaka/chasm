@@ -281,8 +281,15 @@
         }
 
         .pattern-order-item.active {
-            background: #4a4a4a;
-            border-color: #666;
+            background: #004080;
+            border-color: #0066cc;
+            color: #fff;
+        }
+
+        .pattern-order-item.queued {
+            background: #404000;
+            border-color: #808000;
+            color: #fff;
         }
 
 
@@ -600,6 +607,11 @@
             background: #004080;
             border-color: #0066cc;
         }
+
+        .pattern-quick-btn.queued {
+            background: #404000;
+            border-color: #808000;
+        }
     </style>
 </head>
 <body>
@@ -710,6 +722,7 @@
             <div class="header-group">
                 <label>Length</label>
                 <input type="number" id="patternLengthInput" value="64" min="1" max="256" style="width: 60px;">
+                <button id="duplicatePatternBtn" style="font-size: 10px; min-width: auto; padding: 2px 6px;">[duplicate]</button>
             </div>
             <div class="header-group">
                 <label>Step</label>
@@ -765,8 +778,6 @@
                     <div><span class="help-key">.</span> Delete current field</div>
                     <div><span class="help-key">§</span> Note off (==)</div>
                     <div><span class="help-key">Ctrl+C/V</span> Copy/Paste</div>
-                    <div><span class="help-key">Ctrl+1-8</span> Switch pattern</div>
-                    <div><span class="help-key">Ctrl+←→</span> Prev/Next pattern</div>
                     <div class="keyboard-mapping">
                         <div class="keyboard-row">
                             <span class="key-note-pair" data-key="2"><span class="key">2</span><span class="note">C#</span></span>
@@ -816,9 +827,9 @@
                             <span class="key-note-pair" data-key="m"><span class="key">M</span><span class="note">B</span></span>
                         </div>
                     </div>
-                    <div><span class="help-key">0-9</span> Set octave</div>
+                    <div><span class="help-key">0,2,3,5-9</span> Set octave</div>
                     <div><span class="help-key">/</span> <span class="help-key">*</span> Decrease/Increase Octave</div>
-                    <div><span class="help-key">Alt+1-9</span> Set step size</div>
+                    <div><span class="help-key">1</span> <span class="help-key">4</span> Decrease/Increase step</div>
                 </div>
             </div>
         </div>
@@ -847,12 +858,33 @@
         </div>
     </div>
 
+    <!-- Channel Settings Modal -->
+    <div id="channelSettingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Channel Settings - Ch<span id="channelSettingsTrackName">1</span></div>
+                <button class="close" onclick="closeChannelSettingsModal()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <div class="param-group">
+                    <label>Synth/Device:</label>
+                    <input type="text" id="channelDeviceInput" placeholder="Enter synth/device name" style="width: 100%; background: #2a2a2a; border: 1px solid #444; color: #fff; padding: 8px; font-family: 'Courier New', monospace;">
+                </div>
+                <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="applyChannelSettings()" style="padding: 8px 16px; cursor: pointer; background: #2a2a2a; border: 1px solid #444; color: #fff; font-family: 'Courier New', monospace;">Apply</button>
+                    <button onclick="closeChannelSettingsModal()" style="padding: 8px 16px; cursor: pointer; background: #2a2a2a; border: 1px solid #444; color: #fff; font-family: 'Courier New', monospace;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="midi-synths.js"></script>
     <script>
         // State management
         const state = {
             patterns: [],
             currentPattern: 0,
+            queuedPattern: null, // Pattern to switch to when current pattern ends
             currentStep: 0,
             isPlaying: false,
             bpm: 125,
@@ -891,6 +923,7 @@
             trackMidiChannels: [], // Map track index to MIDI channel (0-15)
             midiProgramChanges: {}, // Map MIDI channel (0-15) to program number (0-127)
             trackNames: [], // Track display names (e.g., "1", "2", "4b", "4c")
+            trackDevices: [], // Map track index to device name (synth/drum machine)
             mutedTracks: [], // Array of muted track indices
             soloedTracks: [], // Array of soloed track indices
             // Tab sync state
@@ -1007,6 +1040,50 @@
         function getCurrentPatternLength() {
             const pattern = state.patterns[state.currentPattern];
             return pattern && pattern.length ? pattern.length : state.patternLength;
+        }
+
+        // Duplicate pattern: double the length and copy rows
+        function duplicatePattern() {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern) return;
+            
+            const currentLength = pattern.length || state.patternLength;
+            const newLength = Math.min(currentLength * 2, 256); // Cap at 256
+            
+            if (newLength === currentLength) {
+                alert('Pattern is already at maximum length (256)');
+                return;
+            }
+            
+            // Duplicate each channel
+            for (let ch = 0; ch < pattern.channels.length; ch++) {
+                const channel = pattern.channels[ch];
+                if (!channel) continue;
+                
+                // Copy the existing rows
+                for (let row = 0; row < currentLength; row++) {
+                    const sourceStep = channel[row];
+                    const duplicateStep = {
+                        note: sourceStep.note || '',
+                        vol: sourceStep.vol || '',
+                        fxCmd: sourceStep.fxCmd || '',
+                        fxVal: sourceStep.fxVal || ''
+                    };
+                    channel.push(duplicateStep);
+                }
+            }
+            
+            // Update pattern length
+            pattern.length = newLength;
+            
+            // Update UI
+            document.getElementById('patternLengthInput').value = newLength;
+            state.patternLength = newLength;
+            
+            // Save and render
+            savePatternsToStorage();
+            renderPattern();
+            updateActiveCell();
         }
 
         // Create empty step
@@ -1524,6 +1601,81 @@
             closeProgramChangeModal();
         }
 
+        // Channel Settings Modal Functions
+        let channelSettingsModalTrack = null;
+        let channelSettingsModalKeyHandler = null;
+
+        function openChannelSettingsModal(trackIndex) {
+            channelSettingsModalTrack = trackIndex;
+            const trackName = state.trackNames[trackIndex] || String(trackIndex + 1);
+            const deviceName = state.trackDevices[trackIndex] || '';
+            
+            // Update modal title
+            document.getElementById('channelSettingsTrackName').textContent = trackName;
+            
+            // Set device name in text input
+            const deviceInput = document.getElementById('channelDeviceInput');
+            deviceInput.value = deviceName;
+            
+            // Show modal
+            const modal = document.getElementById('channelSettingsModal');
+            modal.style.display = 'block';
+            
+            // Remove old handler if it exists
+            if (channelSettingsModalKeyHandler) {
+                modal.removeEventListener('keydown', channelSettingsModalKeyHandler, true);
+            }
+            
+            // Create new keyboard handler
+            channelSettingsModalKeyHandler = (e) => {
+                e.stopPropagation();
+                
+                if (e.key === 'Enter' && e.target.id === 'channelDeviceInput') {
+                    e.preventDefault();
+                    applyChannelSettings();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeChannelSettingsModal();
+                }
+            };
+            
+            modal.addEventListener('keydown', channelSettingsModalKeyHandler, true);
+            
+            // Focus the device input
+            setTimeout(() => {
+                deviceInput.focus();
+                deviceInput.select();
+            }, 100);
+        }
+
+        function closeChannelSettingsModal() {
+            const modal = document.getElementById('channelSettingsModal');
+            modal.style.display = 'none';
+            if (channelSettingsModalKeyHandler) {
+                modal.removeEventListener('keydown', channelSettingsModalKeyHandler, true);
+                channelSettingsModalKeyHandler = null;
+            }
+            channelSettingsModalTrack = null;
+        }
+
+        function applyChannelSettings() {
+            if (channelSettingsModalTrack === null) return;
+            
+            const trackIndex = channelSettingsModalTrack;
+            const deviceInput = document.getElementById('channelDeviceInput');
+            
+            const deviceName = deviceInput.value.trim();
+            
+            // Store device assignment
+            state.trackDevices[trackIndex] = deviceName;
+            
+            savePatternsToStorage();
+            closeChannelSettingsModal();
+            
+            const displayName = deviceName || 'None';
+            showToast(`Ch${state.trackNames[trackIndex] || (trackIndex + 1)}: ${displayName}`);
+        }
+
         // Add track for current MIDI channel
         function addTrackForCurrentChannel() {
             // Limit to maximum 64 tracks
@@ -1704,6 +1856,7 @@
             // Remove from state arrays
             state.trackNames.splice(trackIndex, 1);
             state.trackMidiChannels.splice(trackIndex, 1);
+            state.trackDevices.splice(trackIndex, 1);
             state.channels--;
             
             // Adjust active cell if needed
@@ -1736,6 +1889,7 @@
                     trackMidiChannels: state.trackMidiChannels,
                     midiProgramChanges: state.midiProgramChanges,
                     trackNames: state.trackNames,
+                    trackDevices: state.trackDevices,
                     currentOctave: state.currentOctave,
                     mutedTracks: state.mutedTracks,
                     soloedTracks: state.soloedTracks
@@ -1744,6 +1898,17 @@
             } catch (error) {
                 console.error('Error saving patterns:', error);
             }
+        }
+
+        // Debounced save to prevent performance issues during rapid edits
+        let saveTimeout = null;
+        function debouncedSave() {
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
+            }
+            saveTimeout = setTimeout(() => {
+                savePatternsToStorage();
+            }, 300); // Save after 300ms of inactivity
         }
 
         function loadPatternsFromStorage() {
@@ -1787,6 +1952,15 @@
                         state.currentPattern = patternData.currentPattern || 0;
                         // Load track count (default to 16 if not present, max 64)
                         state.channels = Math.max(Math.min(patternData.channels || 16, 64), 16);
+                        
+                        // Also check for standalone currentPattern in localStorage (more recent)
+                        const savedCurrentPattern = localStorage.getItem('tracker3_currentPattern');
+                        if (savedCurrentPattern !== null) {
+                            const currentPatternIndex = parseInt(savedCurrentPattern);
+                            if (!isNaN(currentPatternIndex) && currentPatternIndex >= 0 && currentPatternIndex < state.patterns.length) {
+                                state.currentPattern = currentPatternIndex;
+                            }
+                        }
                         // Pattern data can override localStorage values
                         if (patternData.patternLength) {
                             state.patternLength = patternData.patternLength;
@@ -1812,6 +1986,9 @@
                         }
                         if (patternData.trackNames) {
                             state.trackNames = patternData.trackNames;
+                        }
+                        if (patternData.trackDevices) {
+                            state.trackDevices = patternData.trackDevices;
                         }
                         if (patternData.currentOctave !== undefined) {
                             state.currentOctave = patternData.currentOctave;
@@ -1861,8 +2038,8 @@
                                 state.trackNames[ch] = String(ch + 1);
                             }
                         }
-                        // Resize all patterns to current patternLength
-                        resizeAllPatterns();
+                        // Don't resize patterns - they already have their own lengths stored
+                        // resizeAllPatterns(); // REMOVED: This was overriding individual pattern lengths
                         return true;
                     }
                 }
@@ -2036,6 +2213,12 @@
                         }
                     }
                     savePatternsToStorage();
+                });
+                
+                // Right-click (or Ctrl+click on Mac) to open channel settings
+                th.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    openChannelSettingsModal(ch);
                 });
                 
                 headerRow.appendChild(th);
@@ -2236,7 +2419,7 @@
                 }
             }
             
-            savePatternsToStorage(); // Auto-save on edit
+            debouncedSave(); // Auto-save on edit (debounced to prevent lag)
         }
 
         // Handle keyboard navigation in cells
@@ -2413,7 +2596,10 @@
             } else if (e.key === 'Delete' || e.key === 'Backspace') {
                 if (e.target.value === '') {
                     e.preventDefault();
-                    clearCell(row, channel);
+                    // If there's a selection, delete it; otherwise clear single cell
+                    if (!deleteSelection()) {
+                        clearCell(row, channel);
+                    }
                 }
             } else if (e.key === '.') {
                 // Dot key to delete current field
@@ -2542,7 +2728,7 @@
         }
 
         // Update active cell highlighting
-        function updateActiveCell() {
+        function updateActiveCell(skipScroll = false) {
             document.querySelectorAll('td.cell').forEach(cell => {
                 cell.classList.remove('active', 'selected');
                 const row = parseInt(cell.dataset.row);
@@ -2568,10 +2754,12 @@
                 }
             });
 
-            // Scroll to active cell
-            const activeCell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
-            if (activeCell) {
-                activeCell.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+            // Scroll to active cell (skip if called from scroll handler)
+            if (!skipScroll) {
+                const activeCell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
+                if (activeCell) {
+                    activeCell.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+                }
             }
         }
 
@@ -2586,7 +2774,7 @@
                 const newRow = Math.min(currentPatternLength - 1, row + state.stepSize);
                 moveCell(newRow, channel, state.activeCell.field);
                 focusField(newRow, channel, state.activeCell.field);
-                savePatternsToStorage();
+                debouncedSave();
             }
         }
 
@@ -2644,7 +2832,7 @@
             moveCell(newRow, state.activeCell.channel, 'note');
             // Use the clamped row value from state.activeCell after moveCell
             focusField(state.activeCell.row, state.activeCell.channel, 'note');
-            savePatternsToStorage();
+            debouncedSave();
         }
 
         // Enter hex value in current field
@@ -2895,47 +3083,97 @@
                 state.currentStep = 0;
                 
                 if (state.playbackMode === 'pattern') {
-                    // Pattern mode: loop current pattern
-                    // No pattern change needed
+                    // Pattern mode: check if there's a queued pattern
+                    if (state.queuedPattern !== null) {
+                        state.currentPattern = state.queuedPattern;
+                        state.queuedPattern = null; // Clear the queue
+                        document.getElementById('patternInput').value = state.currentPattern;
+                        // Update pattern length input to show current pattern's length
+                        const pattern = state.patterns[state.currentPattern];
+                        if (pattern && pattern.length) {
+                            document.getElementById('patternLengthInput').value = pattern.length;
+                        }
+                        renderPattern();
+                        updatePatternOrder(); // Update colors
+                        updatePatternQuickSwitch(); // Update colors
+                        console.log(`Switched to queued pattern ${state.currentPattern}`);
+                    }
                 } else {
-                    // Song mode: advance to next pattern in order (with repeat support)
-                    const orderEntry = state.order[state.currentOrderIndex];
-                    if (orderEntry) {
-                        const patternIndex = typeof orderEntry === 'number' ? orderEntry : orderEntry.pattern;
-                        const repeat = typeof orderEntry === 'number' ? 1 : (orderEntry.repeat || 1);
-                        
-                        state.currentOrderRepeat++;
-                        if (state.currentOrderRepeat >= repeat) {
-                            // Move to next order entry
-                            state.currentOrderIndex++;
-                            state.currentOrderRepeat = 0;
-                            
-                            if (state.currentOrderIndex >= state.order.length) {
-                                // Loop back to first pattern in order
-                                state.currentOrderIndex = 0;
+                    // Song mode: check if there's a queued pattern first
+                    if (state.queuedPattern !== null) {
+                        // Find the queued pattern in the order list
+                        let foundIndex = -1;
+                        for (let i = 0; i < state.order.length; i++) {
+                            const orderEntry = state.order[i];
+                            const patternIndex = typeof orderEntry === 'number' ? orderEntry : orderEntry.pattern;
+                            if (patternIndex === state.queuedPattern) {
+                                foundIndex = i;
+                                break;
                             }
                         }
                         
-                        // Get the pattern from current order entry
-                        const currentOrderEntry = state.order[state.currentOrderIndex];
-                        const currentPattern = typeof currentOrderEntry === 'number' ? currentOrderEntry : currentOrderEntry.pattern;
-                        state.currentPattern = currentPattern;
+                        if (foundIndex >= 0) {
+                            // Jump to the queued pattern's position in the order
+                            state.currentOrderIndex = foundIndex;
+                            state.currentOrderRepeat = 0;
+                            state.currentPattern = state.queuedPattern;
+                            console.log(`Jumped to queued pattern ${state.queuedPattern} at order index ${foundIndex}`);
+                        } else {
+                            // Pattern not in order, just switch to it (fallback)
+                            state.currentPattern = state.queuedPattern;
+                            console.log(`Switched to queued pattern ${state.queuedPattern} (not in order list)`);
+                        }
+                        
+                        state.queuedPattern = null; // Clear the queue
+                        document.getElementById('patternInput').value = state.currentPattern;
+                        // Update pattern length input to show current pattern's length
+                        const pattern = state.patterns[state.currentPattern];
+                        if (pattern && pattern.length) {
+                            document.getElementById('patternLengthInput').value = pattern.length;
+                        }
+                        renderPattern();
+                        updatePatternOrder(); // Update colors
+                        updatePatternQuickSwitch(); // Update colors
                     } else {
-                        // Fallback: just advance to next pattern
-                        state.currentOrderIndex = (state.currentOrderIndex + 1) % state.order.length;
-                        const nextEntry = state.order[state.currentOrderIndex];
-                        state.currentPattern = typeof nextEntry === 'number' ? nextEntry : nextEntry.pattern;
-                        state.currentOrderRepeat = 0;
+                        // No queued pattern: advance to next pattern in order (with repeat support)
+                        const orderEntry = state.order[state.currentOrderIndex];
+                        if (orderEntry) {
+                            const patternIndex = typeof orderEntry === 'number' ? orderEntry : orderEntry.pattern;
+                            const repeat = typeof orderEntry === 'number' ? 1 : (orderEntry.repeat || 1);
+                            
+                            state.currentOrderRepeat++;
+                            if (state.currentOrderRepeat >= repeat) {
+                                // Move to next order entry
+                                state.currentOrderIndex++;
+                                state.currentOrderRepeat = 0;
+                                
+                                if (state.currentOrderIndex >= state.order.length) {
+                                    // Loop back to first pattern in order
+                                    state.currentOrderIndex = 0;
+                                }
+                            }
+                            
+                            // Get the pattern from current order entry
+                            const currentOrderEntry = state.order[state.currentOrderIndex];
+                            const currentPattern = typeof currentOrderEntry === 'number' ? currentOrderEntry : currentOrderEntry.pattern;
+                            state.currentPattern = currentPattern;
+                        } else {
+                            // Fallback: just advance to next pattern
+                            state.currentOrderIndex = (state.currentOrderIndex + 1) % state.order.length;
+                            const nextEntry = state.order[state.currentOrderIndex];
+                            state.currentPattern = typeof nextEntry === 'number' ? nextEntry : nextEntry.pattern;
+                            state.currentOrderRepeat = 0;
+                        }
+                        
+                        document.getElementById('patternInput').value = state.currentPattern;
+                        // Update pattern length input to show current pattern's length
+                        const pattern = state.patterns[state.currentPattern];
+                        if (pattern && pattern.length) {
+                            document.getElementById('patternLengthInput').value = pattern.length;
+                        }
+                        renderPattern();
+                        updatePatternOrder();
                     }
-                    
-                    document.getElementById('patternInput').value = state.currentPattern;
-                    // Update pattern length input to show current pattern's length
-                    const pattern = state.patterns[state.currentPattern];
-                    if (pattern && pattern.length) {
-                        document.getElementById('patternLengthInput').value = pattern.length;
-                    }
-                    renderPattern();
-                    updatePatternOrder();
                 }
             }
 
@@ -3101,10 +3339,27 @@
             state.currentStep = 0;
             // Initialize order tracking for song mode
             if (state.playbackMode === 'song' && state.order.length > 0) {
-                state.currentOrderIndex = 0;
-                state.currentOrderRepeat = 0;
-                const firstEntry = state.order[0];
-                state.currentPattern = typeof firstEntry === 'number' ? firstEntry : firstEntry.pattern;
+                // Find the current pattern in the order list and start from there
+                let foundIndex = -1;
+                for (let i = 0; i < state.order.length; i++) {
+                    const orderEntry = state.order[i];
+                    const patternIndex = typeof orderEntry === 'number' ? orderEntry : orderEntry.pattern;
+                    if (patternIndex === state.currentPattern) {
+                        foundIndex = i;
+                        break;
+                    }
+                }
+                
+                // If current pattern is in the order, start from there; otherwise start from beginning
+                if (foundIndex >= 0) {
+                    state.currentOrderIndex = foundIndex;
+                    state.currentOrderRepeat = 0;
+                } else {
+                    state.currentOrderIndex = 0;
+                    state.currentOrderRepeat = 0;
+                    const firstEntry = state.order[0];
+                    state.currentPattern = typeof firstEntry === 'number' ? firstEntry : firstEntry.pattern;
+                }
             }
             
             // Update visual to highlight row 0 and display current step
@@ -3188,27 +3443,6 @@
             state.channelRepetition = {};
             state.channelArpeggio = {};
             
-            // Send comprehensive MIDI stop messages
-            if (state.midiManager && state.midiManager.midiOutput) {
-                try {
-                    state.midiManager.midiOutput.send([0xFF]);
-                } catch (e) {}
-                
-                for (let ch = 0; ch < 16; ch++) {
-                    state.midiManager.midiOutput.send([0xB0 + ch, 120, 0]);
-                    state.midiManager.midiOutput.send([0xB0 + ch, 120, 127]);
-                    state.midiManager.midiOutput.send([0xB0 + ch, 123, 0]);
-                    state.midiManager.midiOutput.send([0xB0 + ch, 123, 127]);
-                    state.midiManager.midiOutput.send([0xB0 + ch, 121, 0]);
-                    
-                    for (let note = 0; note < 128; note++) {
-                        state.midiManager.midiOutput.send([0x80 + ch, note, 0]);
-                        state.midiManager.midiOutput.send([0x80 + ch, note, 64]);
-                        state.midiManager.midiOutput.send([0x80 + ch, note, 127]);
-                    }
-                }
-            }
-            
             document.getElementById('currentStep').textContent = state.currentStep;
             const bpmDisplay = document.getElementById('bpmDisplay');
             if (bpmDisplay) {
@@ -3243,6 +3477,18 @@
             stopPlaybackInternal();
         }
 
+        // Panic function: send all notes off on all channels
+        function panicAllNotesOff() {
+            if (!state.midiManager || !state.midiManager.midiOutput) return;
+            
+            // Send note off for all 128 notes on all 16 channels
+            for (let ch = 0; ch < 16; ch++) {
+                for (let note = 0; note < 128; note++) {
+                    state.midiManager.midiOutput.send([0x80 + ch, note, 0]);
+                }
+            }
+        }
+
 
         // Update pattern order display
         function updatePatternOrder() {
@@ -3258,11 +3504,14 @@
                 if (patternIndex === state.currentPattern) {
                     item.classList.add('active');
                 }
+                if (patternIndex === state.queuedPattern) {
+                    item.classList.add('queued');
+                }
                 
                 // Display pattern number with repeat count (like Schism Tracker)
                 const displayText = repeat > 1 ? `${patternIndex}x${repeat}` : String(patternIndex);
                 item.textContent = displayText;
-                item.title = `Pattern ${patternIndex}${repeat > 1 ? ` (repeat ${repeat}x)` : ''}`;
+                item.title = `Pattern ${patternIndex}${repeat > 1 ? ` (repeat ${repeat}x)` : ''} (click to queue, double-click for immediate)`;
                 
                 // Left click: select pattern
                 item.addEventListener('click', (e) => {
@@ -3278,7 +3527,39 @@
                             }
                         }
                     } else {
+                        if (state.isPlaying) {
+                            // Queue the pattern to switch when current ends
+                            state.queuedPattern = patternIndex;
+                            console.log(`Pattern ${patternIndex} queued`);
+                            updatePatternOrder(); // Update colors
+                        } else {
+                            // Not playing, switch immediately
+                            state.currentPattern = patternIndex;
+                            document.getElementById('patternInput').value = patternIndex;
+                            // Update pattern length input to show current pattern's length
+                            const pattern = state.patterns[patternIndex];
+                            if (pattern && pattern.length) {
+                                document.getElementById('patternLengthInput').value = pattern.length;
+                            }
+                            renderPattern();
+                            updatePatternOrder();
+                            savePatternsToStorage();
+                            // Save current pattern to localStorage
+                            try {
+                                localStorage.setItem('tracker3_currentPattern', patternIndex.toString());
+                            } catch (error) {
+                                console.error('Error saving current pattern to localStorage:', error);
+                            }
+                        }
+                    }
+                });
+                
+                // Double click: switch immediately even during playback
+                item.addEventListener('dblclick', (e) => {
+                    if (!e.shiftKey) {
                         state.currentPattern = patternIndex;
+                        state.queuedPattern = null; // Clear any queued pattern
+                        state.currentStep = 0; // Reset to beginning of new pattern
                         document.getElementById('patternInput').value = patternIndex;
                         // Update pattern length input to show current pattern's length
                         const pattern = state.patterns[patternIndex];
@@ -3288,6 +3569,12 @@
                         renderPattern();
                         updatePatternOrder();
                         savePatternsToStorage();
+                        // Save current pattern to localStorage
+                        try {
+                            localStorage.setItem('tracker3_currentPattern', patternIndex.toString());
+                        } catch (error) {
+                            console.error('Error saving current pattern to localStorage:', error);
+                        }
                     }
                 });
                 
@@ -3310,14 +3597,63 @@
                 if (i === state.currentPattern) {
                     btn.classList.add('active');
                 }
-                btn.title = `Pattern ${i} (Ctrl+${i + 1})`;
+                if (i === state.queuedPattern) {
+                    btn.classList.add('queued');
+                }
+                btn.title = `Pattern ${i} (click to queue, double-click for immediate)`;
+                
+                // Single click: queue pattern
                 btn.addEventListener('click', () => {
                     if (i < state.patterns.length) {
+                        if (state.isPlaying) {
+                            // Queue the pattern to switch when current ends
+                            state.queuedPattern = i;
+                            console.log(`Pattern ${i} queued`);
+                            updatePatternQuickSwitch(); // Update colors
+                            updatePatternOrder(); // Update colors
+                        } else {
+                            // Not playing, switch immediately
+                            state.currentPattern = i;
+                            document.getElementById('patternInput').value = i;
+                            // Update pattern length input to show current pattern's length
+                            const pattern = state.patterns[i];
+                            if (pattern && pattern.length) {
+                                document.getElementById('patternLengthInput').value = pattern.length;
+                            }
+                            renderPattern();
+                            updatePatternOrder();
+                            savePatternsToStorage();
+                            // Save current pattern to localStorage
+                            try {
+                                localStorage.setItem('tracker3_currentPattern', i.toString());
+                            } catch (error) {
+                                console.error('Error saving current pattern to localStorage:', error);
+                            }
+                        }
+                    }
+                });
+                
+                // Double click: switch immediately even during playback
+                btn.addEventListener('dblclick', () => {
+                    if (i < state.patterns.length) {
                         state.currentPattern = i;
+                        state.queuedPattern = null; // Clear any queued pattern
+                        state.currentStep = 0; // Reset to beginning of new pattern
                         document.getElementById('patternInput').value = i;
+                        // Update pattern length input to show current pattern's length
+                        const pattern = state.patterns[i];
+                        if (pattern && pattern.length) {
+                            document.getElementById('patternLengthInput').value = pattern.length;
+                        }
                         renderPattern();
                         updatePatternOrder();
                         savePatternsToStorage();
+                        // Save current pattern to localStorage
+                        try {
+                            localStorage.setItem('tracker3_currentPattern', i.toString());
+                        } catch (error) {
+                            console.error('Error saving current pattern to localStorage:', error);
+                        }
                     }
                 });
                 quickSwitch.appendChild(btn);
@@ -3468,8 +3804,8 @@
                 }
             }
 
-            // Number keys for octave selection
-            if (key >= '0' && key <= '9' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            // Number keys for octave selection (excluding 1 and 4, which are used for step size)
+            if (key >= '0' && key <= '9' && key !== '1' && key !== '4' && !e.ctrlKey && !e.altKey && !e.metaKey) {
                 if (state.activeCell.field === 'note' || !isCellInput) {
                     e.preventDefault();
                     const octave = parseInt(key);
@@ -3502,6 +3838,7 @@
             if (e.key === 'Escape') {
                 const instrumentModal = document.getElementById('instrumentModal');
                 const programModal = document.getElementById('programChangeModal');
+                const channelSettingsModal = document.getElementById('channelSettingsModal');
                 if (instrumentModal && instrumentModal.style.display === 'block') {
                     e.preventDefault();
                     closeInstrumentModal();
@@ -3510,6 +3847,11 @@
                 if (programModal && programModal.style.display === 'block') {
                     e.preventDefault();
                     closeProgramChangeModal();
+                    return;
+                }
+                if (channelSettingsModal && channelSettingsModal.style.display === 'block') {
+                    e.preventDefault();
+                    closeChannelSettingsModal();
                     return;
                 }
             }
@@ -3635,16 +3977,22 @@
                 }
             }
 
-            // Alt+[number] to set step size
-            if (e.altKey && !e.ctrlKey && !e.metaKey && key >= '0' && key <= '9') {
-                e.preventDefault();
-                const stepSize = parseInt(key);
-                if (stepSize >= 1 && stepSize <= 64) {
-                    state.stepSize = stepSize;
-                    document.getElementById('stepSizeInput').value = stepSize;
+            // [1] to decrease step size, [4] to increase step size
+            if ((key === '1' || key === '4') && !e.altKey && !e.ctrlKey && !e.metaKey) {
+                if (state.activeCell.field === 'note' || !isCellInput) {
+                    e.preventDefault();
+                    if (key === '1') {
+                        // Decrease step size (minimum 1)
+                        state.stepSize = Math.max(1, state.stepSize - 1);
+                    } else if (key === '4') {
+                        // Increase step size (maximum 64)
+                        state.stepSize = Math.min(64, state.stepSize + 1);
+                    }
+                    document.getElementById('stepSizeInput').value = state.stepSize;
                     savePatternsToStorage();
+                    showToast(`Step: ${state.stepSize}`);
+                    return;
                 }
-                return;
             }
 
             // Alt+Q to increase pitch by one semitone, Alt+A to decrease
@@ -3806,7 +4154,10 @@
             } else if (e.key === 'Delete' || e.key === 'Backspace') {
                 if (!isCellInput || e.target.value === '') {
                     e.preventDefault();
-                    clearCell(state.activeCell.row, state.activeCell.channel);
+                    // If there's a selection, delete it; otherwise clear single cell
+                    if (!deleteSelection()) {
+                        clearCell(state.activeCell.row, state.activeCell.channel);
+                    }
                 }
                 return;
             } else if (e.ctrlKey && key === 'c') {
@@ -3904,41 +4255,6 @@
                     }
                 }
                 return;
-            } else if (e.ctrlKey && key >= '1' && key <= '8') {
-                // Ctrl+1-8 for pattern switching (browser-friendly alternative to F1-F8)
-                e.preventDefault();
-                const num = parseInt(key) - 1;
-                if (num >= 0 && num < state.patterns.length) {
-                    state.currentPattern = num;
-                    document.getElementById('patternInput').value = state.currentPattern;
-                    renderPattern();
-                    updatePatternOrder();
-                }
-                return;
-            } else if (e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-                // Ctrl+Left/Right for previous/next pattern
-                e.preventDefault();
-                const currentIndex = state.order.indexOf(state.currentPattern);
-                if (e.key === 'ArrowLeft') {
-                    // Previous pattern in order
-                    if (currentIndex > 0) {
-                        state.currentPattern = state.order[currentIndex - 1];
-                    } else {
-                        state.currentPattern = state.order[state.order.length - 1];
-                    }
-                } else {
-                    // Next pattern in order
-                    if (currentIndex < state.order.length - 1) {
-                        state.currentPattern = state.order[currentIndex + 1];
-                    } else {
-                        state.currentPattern = state.order[0];
-                    }
-                }
-                document.getElementById('patternInput').value = state.currentPattern;
-                renderPattern();
-                updatePatternOrder();
-                updatePatternQuickSwitch();
-                return;
             }
         });
 
@@ -4034,9 +4350,42 @@
             }
         }
 
+        function deleteSelection() {
+            // Check if there's a selection
+            if (state.selectionStart && state.selectionEnd) {
+                const pattern = state.patterns[state.currentPattern];
+                const startRow = Math.min(state.selectionStart.row, state.selectionEnd.row);
+                const endRow = Math.max(state.selectionStart.row, state.selectionEnd.row);
+                const startCh = Math.min(state.selectionStart.channel, state.selectionEnd.channel);
+                const endCh = Math.max(state.selectionStart.channel, state.selectionEnd.channel);
+                
+                // Clear all cells in the selection
+                for (let ch = startCh; ch <= endCh; ch++) {
+                    if (pattern.channels[ch]) {
+                        for (let row = startRow; row <= endRow; row++) {
+                            if (pattern.channels[ch][row]) {
+                                pattern.channels[ch][row] = createEmptyStep();
+                            }
+                        }
+                    }
+                }
+                
+                // Clear the selection
+                state.selectionStart = null;
+                state.selectionEnd = null;
+                
+                renderPattern();
+                updateActiveCell();
+                debouncedSave();
+                return true;
+            }
+            return false;
+        }
+
         // Event listeners
         document.getElementById('playBtn').addEventListener('click', startPlayback);
         document.getElementById('stopBtn').addEventListener('click', stopPlayback);
+        document.getElementById('stopBtn').addEventListener('dblclick', panicAllNotesOff);
         document.getElementById('addPatternBtn').addEventListener('click', addPattern);
         document.getElementById('addPatternCopyBtn').addEventListener('click', addPatternCopy);
         
@@ -4094,6 +4443,8 @@
             }
         });
         
+        document.getElementById('duplicatePatternBtn').addEventListener('click', duplicatePattern);
+        
         // Play mode selector
         document.getElementById('playModeSelect').addEventListener('change', (e) => {
             state.playbackMode = e.target.value;
@@ -4102,6 +4453,117 @@
         
         // MIDI device selector
         document.getElementById('midiDeviceSelect').addEventListener('change', onMidiDeviceChange);
+
+        // Pattern editor scroll handler - move cursor if it would leave visible area
+        const editorWrapper = document.querySelector('.editor-wrapper');
+        const patternContainer = document.querySelector('.pattern-editor-container');
+        
+        // Function to handle both horizontal and vertical scrolling
+        function handleScroll() {
+                // Get the current active cell element
+                const activeCell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
+                if (!activeCell) return;
+                
+                let rowChanged = false;
+                let channelChanged = false;
+                
+                // Check vertical scrolling (using editorWrapper)
+                if (editorWrapper) {
+                    const wrapperRect = editorWrapper.getBoundingClientRect();
+                    const activeCellRect = activeCell.getBoundingClientRect();
+                    const wrapperTop = wrapperRect.top;
+                    const wrapperBottom = wrapperRect.bottom;
+                    
+                    if (activeCellRect.bottom > wrapperBottom) {
+                        // Cursor is below visible area - move it up
+                        // Find the last fully visible row
+                        const rows = document.querySelectorAll('td.cell[data-channel="0"]');
+                        for (let i = rows.length - 1; i >= 0; i--) {
+                            const row = rows[i];
+                            const rowRect = row.getBoundingClientRect();
+                            if (rowRect.bottom <= wrapperBottom && rowRect.top >= wrapperTop) {
+                                const newRow = parseInt(row.getAttribute('data-row'));
+                                if (newRow !== state.activeCell.row) {
+                                    state.activeCell.row = newRow;
+                                    rowChanged = true;
+                                }
+                                break;
+                            }
+                        }
+                    } else if (activeCellRect.top < wrapperTop) {
+                        // Cursor is above visible area - move it down
+                        // Find the first fully visible row
+                        const rows = document.querySelectorAll('td.cell[data-channel="0"]');
+                        for (let i = 0; i < rows.length; i++) {
+                            const row = rows[i];
+                            const rowRect = row.getBoundingClientRect();
+                            if (rowRect.top >= wrapperTop && rowRect.bottom <= wrapperBottom) {
+                                const newRow = parseInt(row.getAttribute('data-row'));
+                                if (newRow !== state.activeCell.row) {
+                                    state.activeCell.row = newRow;
+                                    rowChanged = true;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // Check horizontal scrolling (using patternContainer)
+                if (patternContainer) {
+                    const containerRect = patternContainer.getBoundingClientRect();
+                    const containerLeft = containerRect.left;
+                    const containerRight = containerRect.right;
+                    const activeCellRect = activeCell.getBoundingClientRect();
+                
+                if (activeCellRect.right > containerRight) {
+                    // Cursor is to the right of visible area - move it left
+                    // Find the last fully visible channel
+                    const cells = document.querySelectorAll(`td.cell[data-row="${state.activeCell.row}"]`);
+                    for (let i = cells.length - 1; i >= 0; i--) {
+                        const cell = cells[i];
+                        const cellRect = cell.getBoundingClientRect();
+                        if (cellRect.right <= containerRight && cellRect.left >= containerLeft) {
+                            const newChannel = parseInt(cell.getAttribute('data-channel'));
+                            if (newChannel !== state.activeCell.channel) {
+                                state.activeCell.channel = newChannel;
+                                channelChanged = true;
+                            }
+                            break;
+                        }
+                    }
+                } else if (activeCellRect.left < containerLeft) {
+                    // Cursor is to the left of visible area - move it right
+                    // Find the first fully visible channel
+                    const cells = document.querySelectorAll(`td.cell[data-row="${state.activeCell.row}"]`);
+                    for (let i = 0; i < cells.length; i++) {
+                        const cell = cells[i];
+                        const cellRect = cell.getBoundingClientRect();
+                        if (cellRect.left >= containerLeft && cellRect.right <= containerRight) {
+                            const newChannel = parseInt(cell.getAttribute('data-channel'));
+                            if (newChannel !== state.activeCell.channel) {
+                                state.activeCell.channel = newChannel;
+                                channelChanged = true;
+                            }
+                            break;
+                        }
+                    }
+                }
+                }
+                
+                // Update active cell if row or channel changed
+                if (rowChanged || channelChanged) {
+                    updateActiveCell(true); // Skip scrollIntoView
+                }
+        }
+        
+        // Attach scroll handler to both containers
+        if (editorWrapper) {
+            editorWrapper.addEventListener('scroll', handleScroll);
+        }
+        if (patternContainer) {
+            patternContainer.addEventListener('scroll', handleScroll);
+        }
 
         document.getElementById('bpmInput').addEventListener('input', (e) => {
             const newBpm = parseInt(e.target.value) || 125;
@@ -4162,7 +4624,10 @@
         document.getElementById('patternInput').addEventListener('input', (e) => {
             const patternIndex = parseInt(e.target.value) || 0;
             if (patternIndex >= 0 && patternIndex < state.patterns.length) {
+                // Typing a pattern number switches immediately (for quick navigation)
                 state.currentPattern = patternIndex;
+                state.queuedPattern = null; // Clear any queued pattern
+                state.currentStep = 0; // Reset to beginning of new pattern
                 // Update pattern length input to show current pattern's length
                 const pattern = state.patterns[patternIndex];
                 if (pattern && pattern.length) {
@@ -4172,6 +4637,12 @@
                 updatePatternOrder();
                 updatePatternQuickSwitch();
                 savePatternsToStorage();
+                // Save current pattern to localStorage
+                try {
+                    localStorage.setItem('tracker3_currentPattern', patternIndex.toString());
+                } catch (error) {
+                    console.error('Error saving current pattern to localStorage:', error);
+                }
             }
         });
 
@@ -4339,6 +4810,16 @@
         
         // Initialize sync
         initSync();
+        
+        // Warn before leaving the page (back button, close tab, reload, etc.)
+        window.addEventListener('beforeunload', (e) => {
+            // Always warn to prevent accidental data loss
+            e.preventDefault();
+            // Chrome requires returnValue to be set
+            e.returnValue = '';
+            // Some browsers show this custom message (though most modern browsers ignore it)
+            return 'You have unsaved tracker data. Are you sure you want to leave?';
+        });
     </script>
 </body>
 </html>
