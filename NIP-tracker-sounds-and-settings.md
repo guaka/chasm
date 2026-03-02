@@ -10,6 +10,8 @@ This NIP defines Nostr event kinds and content schemas for sharing **tracker sou
 |--------|-------------------|-------------|
 | 31900  | Tracker Sound Pack | Instrument/synth and drum kit definitions (params, drum maps). |
 | 31901  | Tracker Track Settings | Per-channel and global FX, track names, instrument assignments, mute/solo. |
+| 30303  | Tracker Song       | Full song: pattern grid, order, and optional FX (cooperative sharing). |
+| 30304  | Tracker Delta      | Incremental cell edits (pattern, channel, row, note/vol/fx) for low-latency collaboration. |
 
 ---
 
@@ -129,12 +131,67 @@ All fields except `v` are optional. Clients should apply defaults for missing va
 
 ---
 
-## Querying
+## Kind 30303: Tracker Song
+
+Used to publish a full tracker song (pattern grid + order + settings) for cooperative sharing. Content is JSON.
+
+### Tags
+
+- `["d", "<identifier>"]` — Unique identifier for this song (replaceable by same pubkey). For collaborative rooms, use `d: <room_id>-<short_pubkey>` so each author's updates are replaceable.
+- `["r", "<room_id>"]` — Optional. Collaborative room id. When present, this event is part of the room's stream. Clients subscribe with `#r: [room_id]` and publish 30303 with the same `r` tag to push updates. Last-write-wins by `created_at` among events with the same `r`.
+- `["name", "<title>"]` — Optional. Song/project title.
+- `["t", "noistracker"]` — Optional. Discovery tag for noistracker clients.
+- `["a", "31900:<pubkey>:<d>"]` / `["a", "31901:<pubkey>:<d>"]` — Optional. Reference to sound pack or track settings.
+
+### Content (JSON)
+
+Same shape as the pattern data in ChasmTracker/audio0: `patterns` (array of `{ channels, length }`), `order`, `currentPattern`, `channels`, `patternLength`, `bpm`, `playbackMode`, `stepSize`, `trackNames`, `trackDevices`, `trackInstruments`, `currentOctave`, `mutedTracks`, `soloedTracks`. Optional `channelFxSettings` and `globalFx` for one-shot load.
+
+**Packed steps (IT-inspired):** Each step in `patterns[].channels[channel][row]` may be stored in a compact form to reduce payload size. Use short keys and omit empty fields: `n` (note), `v` (vol), `fx` (fxCmd), `fv` (fxVal). Only include keys that have a non-empty value. Receivers must accept both full form (`note`, `vol`, `fxCmd`, `fxVal`) and packed form (`n`, `v`, `fx`, `fv`) and treat missing fields as empty. Example: `{"n":"D#6","v":"20"}` instead of `{"note":"D#6","vol":"20","fxCmd":"","fxVal":""}`.
+
+- **v** (integer): Schema version (e.g. 1). Clients must ignore unknown `v`.
+- Recommended caps for relay compatibility: 16 channels, 64 rows per pattern, 32 patterns (events may be large). Some relays impose a message size limit (e.g. 256KB); if the full song exceeds it, clients should publish a trimmed payload (e.g. fewer patterns or rows) using the same schema so receivers can still apply it.
+
+---
+
+## Kind 30304: Tracker Delta
+
+Used to publish incremental cell edits for cooperative editing with low latency. Content is JSON.
+
+### Tags
+
+- Same as Kind 30303: `["d", "<identifier>"]`, `["r", "<room_id>"]`, `["t", "noistracker"]` (optional).
+
+### Content (JSON)
+
+```json
+{
+  "v": 1,
+  "changes": [
+    { "p": 0, "c": 2, "r": 4, "n": "C#4", "v": "40", "fx": "F", "fv": "80" }
+  ]
+}
+```
+
+- **v** (integer): Schema version.
+- **changes** (array): Each entry: **p** (pattern index), **c** (channel), **r** (row), **n** (note), **v** (vol hex), **fx** (fxCmd), **fv** (fxVal). Omit fields that are unchanged. Clients apply each change to the local pattern grid.
+
+---
+
+## Querying and relay compatibility
 
 - **Sound packs**: `{"kinds": [31900], "authors": [...]}` or filter by `#d` tag.
 - **Track settings**: `{"kinds": [31901], "authors": [...]}` or by `#a` to a specific sound pack.
+- **Tracker songs**: `{"kinds": [30303], "authors": [...]}` or filter by `#t` tag (e.g. `t: "noistracker"`). For collaborative rooms, subscribe with `#r: [room_id]` to receive all participants' updates for that room.
+
+Some relays reject subscription filters that use tag-based keys (e.g. `#t`, `#r`) and respond with `NOTICE: could not parse command`. For compatibility:
+
+- Use **minimal filters**: only `kinds` and `limit` in the REQ (e.g. `{"kinds": [30303], "limit": 100}` and optionally one filter per kind).
+- Filter by `t` / `r` **client-side** in the `onevent` handler (e.g. keep only events where a tag `r` equals the room id, or tag `t` equals `"noistracker"`).
+- The **nostrlib.js** helper (used by noistracker and nostr-debug) provides `minimalFiltersRoom()`, `minimalFiltersTracker()`, and helpers like `eventTag(ev, 'r')`, `eventHasTag(ev, 't', 'noistracker')` for this.
 
 ---
+
 
 ## Compatibility
 

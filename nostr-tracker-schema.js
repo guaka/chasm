@@ -7,10 +7,14 @@
 // --- Kind constants ---
 const NOSTR_TRACKER_KIND_SOUND_PACK = 31900;
 const NOSTR_TRACKER_KIND_TRACK_SETTINGS = 31901;
+const NOSTR_TRACKER_KIND_SONG = 30303;
+const NOSTR_TRACKER_KIND_DELTA = 30304;
 
 // --- Schema version ---
 const SOUND_PACK_SCHEMA_VERSION = 1;
 const TRACK_SETTINGS_SCHEMA_VERSION = 1;
+const TRACKER_SONG_SCHEMA_VERSION = 1;
+const TRACKER_DELTA_SCHEMA_VERSION = 1;
 
 // --- Sound pack (Kind 31900) content structure ---
 /**
@@ -212,16 +216,282 @@ function applyTrackSettingsContent(content, state) {
   }
 }
 
+// --- Step packing (IT-inspired: short keys, omit empty) ---
+const STEP_EMPTY = { note: '', vol: '', fxCmd: '', fxVal: '' };
+
+/**
+ * Pack a step for storage: short keys (n,v,fx,fv), omit empty fields. Reduces payload size.
+ * @param {{ note?: string, vol?: string, fxCmd?: string, fxVal?: string }} step
+ * @returns {{ n?: string, v?: string, fx?: string, fv?: string }}
+ */
+function packStep(step) {
+  if (!step) return {};
+  const out = {};
+  const n = (step.note !== undefined && step.note !== null) ? String(step.note) : (step.n != null ? String(step.n) : '');
+  const v = (step.vol !== undefined && step.vol !== null) ? String(step.vol) : (step.v != null ? String(step.v) : '');
+  const fx = (step.fxCmd !== undefined && step.fxCmd !== null) ? String(step.fxCmd) : (step.fx != null ? String(step.fx) : '');
+  const fv = (step.fxVal !== undefined && step.fxVal !== null) ? String(step.fxVal) : (step.fv != null ? String(step.fv) : '');
+  if (n) out.n = n;
+  if (v) out.v = v;
+  if (fx) out.fx = fx;
+  if (fv) out.fv = fv;
+  return out;
+}
+
+/**
+ * Unpack a step to full form (note, vol, fxCmd, fxVal). Accepts both short (n,v,fx,fv) and long keys.
+ * @param {{ n?: string, note?: string, v?: string, vol?: string, fx?: string, fxCmd?: string, fv?: string, fxVal?: string }} packed
+ * @returns {{ note: string, vol: string, fxCmd: string, fxVal: string }}
+ */
+function unpackStep(packed) {
+  if (!packed) return { ...STEP_EMPTY };
+  return {
+    note: (packed.n != null ? packed.n : packed.note != null ? packed.note : ''),
+    vol: (packed.v != null ? packed.v : packed.vol != null ? packed.vol : ''),
+    fxCmd: (packed.fx != null ? packed.fx : packed.fxCmd != null ? packed.fxCmd : ''),
+    fxVal: (packed.fv != null ? packed.fv : packed.fxVal != null ? packed.fxVal : '')
+  };
+}
+
+/**
+ * Pack a pattern's channels for storage (each step packed).
+ */
+function packPattern(pattern) {
+  if (!pattern || !pattern.channels) return { channels: [], length: pattern?.length ?? 64 };
+  return {
+    channels: pattern.channels.map((ch) => Array.isArray(ch) ? ch.map(packStep) : []),
+    length: pattern.length ?? 64
+  };
+}
+
+/**
+ * Unpack pattern from storage (each step unpacked to full form).
+ */
+function unpackPattern(packed) {
+  if (!packed || !packed.channels) return { channels: [], length: 64 };
+  return {
+    channels: packed.channels.map((ch) => Array.isArray(ch) ? ch.map(unpackStep) : []),
+    length: packed.length ?? 64
+  };
+}
+
+// --- Kind 30303: Tracker Song (build + apply) ---
+/**
+ * @param {Object} state - audio0-style state (patterns, order, trackNames, etc.)
+ * @returns {Object} Song content JSON for kind 30303 (patterns packed: short keys, omit empty)
+ */
+function buildSongContent(state) {
+  const patterns = (state.patterns || []).map(packPattern);
+  const payload = {
+    v: TRACKER_SONG_SCHEMA_VERSION,
+    patterns,
+    order: state.order,
+    currentPattern: state.currentPattern ?? 0,
+    channels: state.channels,
+    patternLength: state.patternLength,
+    bpm: state.bpm,
+    playbackMode: state.playbackMode,
+    stepSize: state.stepSize,
+    trackNames: state.trackNames ? [...state.trackNames] : [],
+    trackDevices: state.trackDevices ? [...state.trackDevices] : [],
+    trackInstruments: state.trackInstruments ? { ...state.trackInstruments } : {},
+    currentOctave: state.currentOctave,
+    mutedTracks: state.mutedTracks ? [...state.mutedTracks] : [],
+    soloedTracks: state.soloedTracks ? [...state.soloedTracks] : []
+  };
+  if (state.channelFxSettings && Object.keys(state.channelFxSettings).length) {
+    payload.channelFxSettings = {};
+    for (const k of Object.keys(state.channelFxSettings)) {
+      payload.channelFxSettings[k] = { ...state.channelFxSettings[k] };
+    }
+  }
+  if (state.globalFx) payload.globalFx = { ...state.globalFx };
+  return payload;
+}
+
+/** Max content size for relays that limit event size (e.g. 256KB total, leave room for tags/sig). */
+const TRACKER_SONG_MAX_CONTENT_BYTES = 240000;
+
+/**
+ * Build song content that fits within maxBytes (relay message limit). Trims patterns and rows if needed.
+ * @param {Object} state - audio0-style state
+ * @param {number} [maxBytes] - default TRACKER_SONG_MAX_CONTENT_BYTES
+ * @returns {Object} Content for kind 30303
+ */
+function buildSongContentForRelay(state, maxBytes) {
+  const max = maxBytes != null ? maxBytes : TRACKER_SONG_MAX_CONTENT_BYTES;
+  let content = buildSongContent(state);
+  if (JSON.stringify(content).length <= max) return content;
+  const patternLength = state.patternLength || 64;
+  for (const maxPatterns of [16, 8, 4]) {
+    for (const maxRows of [64, 32, 16]) {
+      const patterns = (state.patterns || []).slice(0, maxPatterns).map((p) => {
+        const ch = (p.channels || []).map((channel) =>
+          Array.isArray(channel) ? channel.slice(0, maxRows).map(packStep) : []
+        );
+        return { channels: ch, length: Math.min(p.length || patternLength, maxRows) };
+      });
+      const order = (state.order || []).filter((e) => {
+        const idx = typeof e === 'number' ? e : e.pattern;
+        return idx < maxPatterns;
+      });
+      if (order.length === 0 && state.order && state.order.length) order.push(0);
+      content = {
+        v: TRACKER_SONG_SCHEMA_VERSION,
+        patterns,
+        order: order.length ? order : state.order,
+        currentPattern: Math.min(state.currentPattern ?? 0, maxPatterns - 1),
+        channels: state.channels,
+        patternLength: Math.min(patternLength, maxRows),
+        bpm: state.bpm,
+        playbackMode: state.playbackMode,
+        stepSize: state.stepSize,
+        trackNames: state.trackNames ? [...state.trackNames] : [],
+        trackDevices: state.trackDevices ? [...state.trackDevices] : [],
+        trackInstruments: state.trackInstruments ? { ...state.trackInstruments } : {},
+        currentOctave: state.currentOctave,
+        mutedTracks: state.mutedTracks ? [...state.mutedTracks] : [],
+        soloedTracks: state.soloedTracks ? [...state.soloedTracks] : []
+      };
+      if (state.channelFxSettings && Object.keys(state.channelFxSettings).length) {
+        content.channelFxSettings = {};
+        for (const k of Object.keys(state.channelFxSettings)) {
+          content.channelFxSettings[k] = { ...state.channelFxSettings[k] };
+        }
+      }
+      if (state.globalFx) content.globalFx = { ...state.globalFx };
+      if (JSON.stringify(content).length <= max) return content;
+    }
+  }
+  return content;
+}
+
+/**
+ * @param {Object} content - Parsed 30303 event content
+ * @param {Object} state - Mutable tracker state
+ */
+function applySongContent(content, state) {
+  if (!content || content.v !== TRACKER_SONG_SCHEMA_VERSION) return;
+  if (Array.isArray(content.patterns) && content.patterns.length) {
+    state.patterns = content.patterns.map(unpackPattern);
+  }
+  if (Array.isArray(content.order) && content.order.length) {
+    state.order = content.order;
+  }
+  if (content.currentPattern != null) state.currentPattern = Math.max(0, content.currentPattern);
+  if (content.channels != null) state.channels = Math.max(1, Math.min(256, content.channels));
+  if (content.patternLength != null) state.patternLength = Math.max(1, Math.min(256, content.patternLength));
+  if (content.bpm != null) state.bpm = Math.max(32, Math.min(255, content.bpm));
+  if (content.playbackMode != null) state.playbackMode = content.playbackMode;
+  if (content.stepSize != null) state.stepSize = content.stepSize;
+  if (content.trackNames && content.trackNames.length) state.trackNames = [...content.trackNames];
+  if (content.trackDevices && content.trackDevices.length) state.trackDevices = [...content.trackDevices];
+  if (content.trackInstruments && typeof content.trackInstruments === 'object') {
+    state.trackInstruments = { ...content.trackInstruments };
+  }
+  if (content.currentOctave != null) state.currentOctave = Math.max(0, Math.min(9, content.currentOctave));
+  if (content.mutedTracks) state.mutedTracks = [...content.mutedTracks];
+  if (content.soloedTracks) state.soloedTracks = [...content.soloedTracks];
+  if (content.channelFxSettings && typeof content.channelFxSettings === 'object') {
+    state.channelFxSettings = {};
+    for (const k of Object.keys(content.channelFxSettings)) {
+      const ch = parseInt(k, 10);
+      if (!isNaN(ch)) state.channelFxSettings[ch] = { ...content.channelFxSettings[k] };
+    }
+  }
+  if (content.globalFx && typeof content.globalFx === 'object') {
+    Object.assign(state.globalFx, content.globalFx);
+  }
+}
+
+// --- Kind 30304: Tracker delta (cell edits) ---
+/**
+ * @typedef {Object} DeltaChange
+ * @property {number} p pattern index
+ * @property {number} c channel
+ * @property {number} r row
+ * @property {string} [n] note
+ * @property {string} [v] vol (hex)
+ * @property {string} [fx] fxCmd
+ * @property {string} [fv] fxVal
+ */
+
+/**
+ * @param {DeltaChange[]} changes
+ * @returns {Object} Content for kind 30304
+ */
+function buildDeltaContent(changes) {
+  if (!Array.isArray(changes) || changes.length === 0) return null;
+  return {
+    v: TRACKER_DELTA_SCHEMA_VERSION,
+    changes: changes.map(({ p, c, r, n, v, fx, fv }) => {
+      const out = { p, c, r };
+      if (n !== undefined) out.n = n;
+      if (v !== undefined) out.v = v;
+      if (fx !== undefined) out.fx = fx;
+      if (fv !== undefined) out.fv = fv;
+      return out;
+    })
+  };
+}
+
+/**
+ * @param {Object} content - Parsed 30304 event content
+ * @param {Object} state - Mutable tracker state
+ */
+function applyDeltaContent(content, state) {
+  if (!content || content.v !== TRACKER_DELTA_SCHEMA_VERSION || !Array.isArray(content.changes)) return;
+  const patterns = state.patterns;
+  for (const ch of content.changes) {
+    const p = ch.p;
+    const c = ch.c;
+    const r = ch.r;
+    if (p < 0 || p >= patterns.length) continue;
+    const pattern = patterns[p];
+    if (!pattern.channels) pattern.channels = [];
+    if (!pattern.channels[c]) {
+      pattern.channels[c] = [];
+      for (let i = 0; i < (state.patternLength || 64); i++) {
+        pattern.channels[c].push({ note: '', vol: '', fxCmd: '', fxVal: '' });
+      }
+    }
+    const row = pattern.channels[c][r];
+    if (!row) {
+      pattern.channels[c][r] = { note: '', vol: '', fxCmd: '', fxVal: '' };
+    }
+    const cell = pattern.channels[c][r];
+    const full = unpackStep(ch);
+    cell.note = full.note;
+    cell.vol = full.vol;
+    cell.fxCmd = full.fxCmd;
+    cell.fxVal = full.fxVal;
+  }
+}
+
 // --- Export for use in audio0 or other clients ---
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     NOSTR_TRACKER_KIND_SOUND_PACK,
     NOSTR_TRACKER_KIND_TRACK_SETTINGS,
+    NOSTR_TRACKER_KIND_SONG,
+    NOSTR_TRACKER_KIND_DELTA,
     SOUND_PACK_SCHEMA_VERSION,
     TRACK_SETTINGS_SCHEMA_VERSION,
+    TRACKER_SONG_SCHEMA_VERSION,
+    TRACKER_DELTA_SCHEMA_VERSION,
     buildSoundPackContent,
     buildTrackSettingsContent,
+    packStep,
+    unpackStep,
+    packPattern,
+    unpackPattern,
+    buildSongContent,
+    buildSongContentForRelay,
+    TRACKER_SONG_MAX_CONTENT_BYTES,
+    buildDeltaContent,
     parseSoundPackContent,
-    applyTrackSettingsContent
+    applyTrackSettingsContent,
+    applySongContent,
+    applyDeltaContent
   };
 }

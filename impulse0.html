@@ -70,6 +70,7 @@
         .note-table th { background: #1a1a20; color: #555; position: sticky; top: 0; }
         .note-table td { color: #888; }
         .toast { position: fixed; bottom: 16px; right: 16px; background: #2a2a30; border: 1px solid #555; color: #e0e0e0; padding: 8px 14px; font-size: 11px; border-radius: 3px; z-index: 100; display: none; }
+        kbd { background: #2a2a30; border: 1px solid #444; border-radius: 2px; padding: 1px 5px; font-family: inherit; font-size: 10px; color: #c0c0e0; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -139,12 +140,29 @@
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const FX = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const IT_FILES = [
-    'a.it','pretty.it','nothing.it','dreamt.it','babylon.it','viva.it','bubbles.it','stormy.it',
-    '1fuzzy.it','3Fuzzy.it','4Buzz.it','6fuck.it','8bloxy.it','9sick.it','bom.it','krash.it',
-    'noname.it','Module1.it','amershit.it','moizena.it','byeceq.it','papdag.it','fVacuum.it',
-    'borrycal.it','coincook.it','eImproNight.it','bwcuie.it','vadzhak.it','doggiego.it',
-    '3MetroM.it','syak.it','ewsimul.it','8bloxy.it','ronk.it','CYMALLY.IT','zz3Fuzzy.it',
-    'vaz111.it','synthe4.it','1-2sleepy.it','gBomb.IT','Ebomb.it','biofield.it'
+    '1-2sleepy.it','1EekWack.it','1fuzzy.it','2IdLike.it','3Fuzzy.it','3MetroM.it',
+    '4Buzz.it','4digginup.it','4LifeBan.it','5Ameracs.it','5EekWack.it','5noisy2.it',
+    '6fuck.it','6Gazzzz.it','6LoveIn.it','7LeftAln.it','8bloxy.it','8DyEver.it',
+    '8Nothing.it','9KasMo.it','9sick.it','a.it','aHomesick.it','alisan.it',
+    'amershit.it','babylon.it','bborl.it','befatrnd.it','biofield.it','bitoshir.it',
+    'bleazik.it','blyerz.it','Bmetro.it','bom.it','borrycal.it','bortyar.it',
+    'bourface.it','boywondr.it','bubbles.it','bubla-l-.it','bvbiet.it','bwcuie.it',
+    'byeceq.it','cDigginUp.it','CHRIS31B.IT','cl.it','coincook.it','Cquorny.it',
+    'crap.it','crappy.it','CYMALLY.IT','cZoxyMorn.it','DAFDOESD.IT','dais.it',
+    'dDigginUp.it','dioranje.it','doggiego.it','dreamt.it','drrt.it','Dzoxy.it',
+    'Ebomb.it','eImproNight.it','eonsformidi.it','eonsforn.it','ewsimul.it','extrnois.it',
+    'fatcase.it','fffuk.it','fVacuum.it','gBomb.IT','ghirw.it','gindust.it',
+    'HELLONE.IT','huty.it','indisqru.it','inside2.it','jattery.it','JEFF93.IT',
+    'jer222.it','kill.it','konjing.it','kowcoew.it','krash.it','lastloop.it',
+    'Module1.it','moizena.it','NEW FUCK.IT','NEWELE.IT','nice384.it','nicebiet.it',
+    'noname.it','nothing.it','ntry.it','nwase.it','obdistan.it','pannn.it',
+    'papdag.it','PARIJS.IT','pinpon.it','pretty.it','quakce.it','qwioe341.it',
+    'ronguit.it','ronk.it','ronnnn.it','ronsamb.it','rontest.it','roqwreo.it',
+    'seisreq.it','shinterf.it','shite.it','skinnyan.it','stormy.it','syak.it',
+    'synthe4.it','synthe5.it','TEST.IT','tineke.it','TOOEARLY.IT','trainish.it',
+    'TROPPORK.IT','trying.it','tskatska.it','turtlet.it','vadzhak.it','vagnoi.it',
+    'vaz111.it','virus!.it','viva!!!.it','viva.it','walta.it','weetikvl.it',
+    'whistle.it','yronne.it','zz3Fuzzy.it'
 ];
 
 function noteStr(n) {
@@ -867,6 +885,165 @@ document.getElementById('smpPreview').onclick = () => {
 
 buildFileList();
 if (!loadFromStorage()) toast('Open an .it file or click one from the sidebar');
+
+// ── Keyboard Shortcuts (Schism/IT style) ──────────────────────
+function switchTab(panel) {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    const tab = document.querySelector('.tab[data-panel="' + panel + '"]');
+    if (tab) tab.classList.add('active');
+    document.getElementById(panel).classList.add('active');
+    if (panel === 'samplePanel') renderSample();
+    if (panel === 'instrumentPanel') renderInstrument();
+}
+
+function loadFileByIndex(idx) {
+    if (idx < 0 || idx >= IT_FILES.length) return;
+    const base = window.location.href.replace(/\/[^/]*$/, '/');
+    const url = base + 'itfiles/' + encodeURIComponent(IT_FILES[idx]);
+    toast('Loading ' + IT_FILES[idx] + '...');
+    fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+        .then(loadModule).catch(err => toast('Failed: ' + IT_FILES[idx] + ' (' + err.message + ')'));
+}
+
+function currentFileIndex() {
+    if (!state.mod) return -1;
+    return IT_FILES.findIndex(f => state.mod.songName && f.toLowerCase().includes(state.mod.songName.trim().toLowerCase().slice(0, 8)));
+}
+
+const HELP_HTML = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;align-items:center;justify-content:center" id="helpOverlay" onclick="this.remove()">' +
+    '<div style="background:#1a1a1e;border:1px solid #444;padding:20px 28px;max-width:520px;font-size:11px;line-height:1.8;color:#c0c0c0;border-radius:4px" onclick="event.stopPropagation()">' +
+    '<div style="font-size:13px;color:#e0e0e0;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:6px">Keyboard Shortcuts</div>' +
+    '<div style="display:grid;grid-template-columns:auto 1fr;gap:2px 14px">' +
+    '<kbd>F1</kbd><span>This help</span>' +
+    '<kbd>F5</kbd><span>Play from current position</span>' +
+    '<kbd>F8</kbd><span>Stop</span>' +
+    '<kbd>Ctrl+F5</kbd><span>Play from start</span>' +
+    '<kbd>F2</kbd><span>Pattern editor</span>' +
+    '<kbd>F3</kbd><span>Sample editor</span>' +
+    '<kbd>F4</kbd><span>Instrument editor</span>' +
+    '<kbd>F9</kbd><span>Previous order</span>' +
+    '<kbd>F10</kbd><span>Next order</span>' +
+    '<kbd>F11</kbd><span>Previous file in list</span>' +
+    '<kbd>F12</kbd><span>Next file in list</span>' +
+    '<kbd>Ctrl+O</kbd><span>Open .it file</span>' +
+    '<kbd>Ctrl+L</kbd><span>Toggle file list sidebar</span>' +
+    '<kbd>+/-</kbd><span>Next/prev order (pattern view)</span>' +
+    '<kbd>[ / ]</kbd><span>Next/prev sample</span>' +
+    '<kbd>Ctrl+↑/↓</kbd><span>Change tempo ±1</span>' +
+    '<kbd>Ctrl+←/→</kbd><span>Change speed ±1</span>' +
+    '</div>' +
+    '<div style="color:#666;margin-top:12px;font-size:10px">Press Esc or click outside to close</div>' +
+    '</div></div>';
+
+document.addEventListener('keydown', (e) => {
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    const ctrl = e.ctrlKey || e.metaKey;
+
+    switch (e.key) {
+    case 'F1':
+        e.preventDefault();
+        if (document.getElementById('helpOverlay')) document.getElementById('helpOverlay').remove();
+        else document.body.insertAdjacentHTML('beforeend', HELP_HTML);
+        break;
+    case 'Escape':
+        { const h = document.getElementById('helpOverlay'); if (h) { h.remove(); e.preventDefault(); } }
+        break;
+    case 'F2': e.preventDefault(); switchTab('patternPanel'); break;
+    case 'F3': e.preventDefault(); switchTab('samplePanel'); break;
+    case 'F4': e.preventDefault(); switchTab('instrumentPanel'); break;
+
+    case 'F5':
+        e.preventDefault();
+        if (!state.mod) break;
+        if (ctrl) { state.ordIdx = 0; state.row = 0; }
+        initAudio().then(() => {
+            state.mod.samples.forEach(s => { s._abuf = null; });
+            state.playing = true;
+            state.tick = state.speed - 1;
+            state.schedTime = state.ctx.currentTime;
+            state.lastDisplayRow = -1; state.lastDisplayOrd = -1;
+            state.displayRow = state.row; state.displayOrd = state.ordIdx;
+            loop();
+        });
+        break;
+    case 'F8':
+        e.preventDefault();
+        stopPlayback(); updateUI();
+        break;
+
+    case 'F9':
+        e.preventDefault();
+        if (!state.mod) break;
+        state.ordIdx = Math.max(0, state.ordIdx - 1);
+        state.row = 0;
+        document.getElementById('inputOrder').value = state.ordIdx;
+        updateUI();
+        break;
+    case 'F10':
+        e.preventDefault();
+        if (!state.mod) break;
+        state.ordIdx = Math.min(state.mod.orders.length - 1, state.ordIdx + 1);
+        state.row = 0;
+        document.getElementById('inputOrder').value = state.ordIdx;
+        updateUI();
+        break;
+
+    case 'F11': e.preventDefault(); { const ci = currentFileIndex(); loadFileByIndex(Math.max(0, ci - 1)); } break;
+    case 'F12': e.preventDefault(); { const ci = currentFileIndex(); loadFileByIndex(ci + 1 < IT_FILES.length ? ci + 1 : 0); } break;
+
+    case '+': case '=':
+        if (!ctrl && state.mod) {
+            state.ordIdx = Math.min(state.mod.orders.length - 1, state.ordIdx + 1);
+            state.row = 0; document.getElementById('inputOrder').value = state.ordIdx; updateUI();
+        }
+        break;
+    case '-':
+        if (!ctrl && state.mod) {
+            state.ordIdx = Math.max(0, state.ordIdx - 1);
+            state.row = 0; document.getElementById('inputOrder').value = state.ordIdx; updateUI();
+        }
+        break;
+    case '[':
+        if (state.mod) {
+            state.selectedSmp = Math.max(0, state.selectedSmp - 1);
+            buildSampleList();
+        }
+        break;
+    case ']':
+        if (state.mod) {
+            state.selectedSmp = Math.min(state.mod.samples.length - 1, state.selectedSmp + 1);
+            buildSampleList();
+        }
+        break;
+
+    case 'o':
+        if (ctrl) { e.preventDefault(); document.getElementById('fileInput').click(); }
+        break;
+    case 'l':
+        if (ctrl) {
+            e.preventDefault();
+            const fl = document.getElementById('fileListPanel');
+            fl.style.display = fl.style.display === 'none' ? '' : 'none';
+        }
+        break;
+
+    case 'ArrowUp':
+        if (ctrl) { e.preventDefault(); state.tempo = Math.min(255, state.tempo + 1); document.getElementById('inputTempo').value = state.tempo; }
+        break;
+    case 'ArrowDown':
+        if (ctrl) { e.preventDefault(); state.tempo = Math.max(32, state.tempo - 1); document.getElementById('inputTempo').value = state.tempo; }
+        break;
+    case 'ArrowRight':
+        if (ctrl) { e.preventDefault(); state.speed = Math.min(255, state.speed + 1); document.getElementById('inputSpeed').value = state.speed; }
+        break;
+    case 'ArrowLeft':
+        if (ctrl) { e.preventDefault(); state.speed = Math.max(1, state.speed - 1); document.getElementById('inputSpeed').value = state.speed; }
+        break;
+    }
+});
 </script>
 </body>
 </html>

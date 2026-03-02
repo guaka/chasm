@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nostr tracker debug</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', Consolas, monospace;
+            background: #0a0a0a;
+            color: #ddd;
+            padding: 12px;
+            font-size: 12px;
+        }
+        h1 { font-size: 14px; margin-bottom: 8px; color: #888; }
+        .meta {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .meta span { color: #666; }
+        .meta #status { color: #6a6; }
+        .meta #status.error { color: #c66; }
+        button {
+            padding: 4px 10px;
+            font-size: 11px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        button:hover { background: #333; }
+        #events {
+            border: 1px solid #333;
+            background: #111;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .event {
+            border-bottom: 1px solid #222;
+            padding: 8px 10px;
+            break-inside: avoid;
+        }
+        .event:hover { background: #1a1a1a; }
+        .event-header {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 14px;
+            margin-bottom: 4px;
+        }
+        .kind { color: #8af; font-weight: bold; }
+        .kind-31900 { color: #8af; }
+        .kind-31901 { color: #8cf; }
+        .kind-30303 { color: #8f8; }
+        .kind-30304 { color: #fa8; }
+        .id { color: #666; font-size: 11px; word-break: break-all; }
+        .pubkey { color: #a88; }
+        .time { color: #6a6; }
+        .tags { color: #888; font-size: 11px; margin-top: 4px; }
+        .tags span { margin-right: 8px; }
+        .content-preview {
+            margin-top: 6px;
+            padding: 6px;
+            background: #0d0d0d;
+            border-left: 2px solid #333;
+            max-height: 120px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 11px;
+            color: #999;
+        }
+        .content-full {
+            max-height: none;
+        }
+        .content-len { color: #555; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <h1>Nostr tracker debug — relay.nomadwiki.org</h1>
+    <div class="meta">
+        <span id="status">Connecting…</span>
+        <button type="button" id="btnRefresh">Refresh</button>
+        <button type="button" id="btnClear">Clear list</button>
+        <span>Kinds: 30303 (song), 30304 (delta)</span>
+    </div>
+    <p style="color:#666; font-size:11px; margin-bottom:10px;">Events appear when noistracker has a key (Generate or Import nsec), is in a room (type name + Enter), and publishes. Joining a room sends one event; editing sends more. Click Refresh after using noistracker.</p>
+    <div class="rooms-section" style="margin-bottom:12px;">
+        <div style="font-size:11px; color:#888; margin-bottom:4px;">Rooms (from events)</div>
+        <div id="roomsList" style="border:1px solid #333; background:#111; padding:6px; max-height:100px; overflow-y:auto; font-size:11px;"></div>
+    </div>
+    <div style="font-size:11px; color:#888; margin-bottom:4px;">Events</div>
+    <div id="events"></div>
+
+    <script src="nostrlib.js"></script>
+    <script type="module">
+        const RELAY = NostrLib.NOISTRACKER_RELAY;
+        const KINDS = NostrLib.TRACKER_KINDS;
+
+        let pool = null;
+        let subs = [];
+        const eventsEl = document.getElementById('events');
+        const statusEl = document.getElementById('status');
+
+        function setStatus(msg, isError = false) {
+            statusEl.textContent = msg;
+            statusEl.classList.toggle('error', isError);
+        }
+
+        function kindLabel(kind) {
+            const map = { 31900: 'pack', 31901: 'settings', 30303: 'song', 30304: 'delta' };
+            return map[kind] || String(kind);
+        }
+
+        function shortId(id) {
+            if (!id || id.length < 16) return id;
+            return id.slice(0, 8) + '…' + id.slice(-8);
+        }
+
+        function shortPubkey(pk) {
+            if (!pk || pk.length < 16) return pk;
+            return pk.slice(0, 8) + '…';
+        }
+
+        function formatTime(ts) {
+            const d = new Date(ts * 1000);
+            return d.toISOString().replace('T', ' ').slice(0, 19);
+        }
+
+        function renderEvent(ev) {
+            const div = document.createElement('div');
+            div.className = 'event';
+            const tagsStr = (ev.tags || []).map(t => t.join(':')).join(' ');
+            let contentPreview = ev.content || '';
+            const isJson = contentPreview.startsWith('{') || contentPreview.startsWith('[');
+            if (contentPreview.length > 500) {
+                contentPreview = contentPreview.slice(0, 500) + '\n… (' + ev.content.length + ' chars)';
+            }
+            if (isJson) {
+                try {
+                    const parsed = JSON.parse(ev.content);
+                    contentPreview = JSON.stringify(parsed, null, 2).slice(0, 800);
+                    if ((parsed.changes && parsed.changes.length) || (parsed.patterns && parsed.patterns.length)) {
+                        contentPreview += '\n… (truncated)';
+                    }
+                } catch (_) {}
+            }
+            div.innerHTML = `
+                <div class="event-header">
+                    <span class="kind kind-${ev.kind}">${ev.kind} ${kindLabel(ev.kind)}</span>
+                    <span class="time">${formatTime(ev.created_at)}</span>
+                    <span class="pubkey" title="${ev.pubkey}">${shortPubkey(ev.pubkey)}</span>
+                    <span class="content-len">${(ev.content || '').length} chars</span>
+                </div>
+                <div class="id" title="${ev.id}">${shortId(ev.id)}</div>
+                <div class="tags">${tagsStr || '-'}</div>
+                <div class="content-preview" title="content">${escapeHtml(contentPreview) || '-'}</div>
+            `;
+            return div;
+        }
+
+        function escapeHtml(s) {
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        const eventList = [];
+        const roomIds = new Set();
+        const roomsListEl = document.getElementById('roomsList');
+
+        function updateRoomsList() {
+            if (!roomsListEl) return;
+            const sorted = [...roomIds].sort();
+            if (sorted.length === 0) {
+                roomsListEl.innerHTML = '<span style="color:#555;">No rooms yet</span>';
+            } else {
+                roomsListEl.innerHTML = sorted.map((id) => '<div style="padding:2px 0;">' + escapeHtml(id) + '</div>').join('');
+            }
+        }
+
+        function addEvent(ev) {
+            if (NostrLib.eventHasTag(ev, 't', NostrLib.NOISTRACKER_TAG)) {
+                NostrLib.eventTagValues(ev, 'r').forEach((id) => roomIds.add(id));
+                updateRoomsList();
+            }
+            eventList.unshift(ev);
+            const node = renderEvent(ev);
+            eventsEl.insertBefore(node, eventsEl.firstChild);
+        }
+
+        function subscribe() {
+            if (!pool) return;
+            NostrLib.unsubMany(subs);
+            subs = [];
+            setStatus('Subscribed');
+            const filters = NostrLib.minimalFiltersRoom(100);
+            let eoseCount = 0;
+            const onEose = () => { eoseCount++; if (eoseCount >= filters.length) setStatus('Connected (eose)'); };
+            subs = NostrLib.subscribeMany(pool, [RELAY], filters, { onevent: (ev) => addEvent(ev), eose: onEose });
+        }
+
+        async function connect() {
+            try {
+                const nt = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2/+esm');
+                pool = new nt.SimplePool();
+                await pool.ensureRelay(RELAY);
+                setStatus('Connected');
+                subscribe();
+            } catch (e) {
+                setStatus('Error: ' + (e.message || 'connect failed'), true);
+            }
+        }
+
+        document.getElementById('btnRefresh').addEventListener('click', () => {
+            subscribe();
+        });
+
+        document.getElementById('btnClear').addEventListener('click', () => {
+            eventList.length = 0;
+            roomIds.clear();
+            updateRoomsList();
+            eventsEl.innerHTML = '';
+        });
+
+        connect();
+    </script>
+</body>
+</html>
