@@ -209,11 +209,11 @@ function parseIT(buf) {
         const vol    = dv.getUint8(o + 0x13);
         const name   = readStr(dv, o + 0x14, 26);
         const cvt    = dv.getUint8(o + 0x20);
-        const length = dv.getUint32(o + 0x22, true);
-        const loopStart = dv.getUint32(o + 0x26, true);
-        const loopEnd   = dv.getUint32(o + 0x2A, true);
-        const c5speed   = dv.getUint32(o + 0x2E, true) || 8363;
-        const dataOff   = dv.getUint32(o + 0x38, true);
+        const length    = dv.getUint32(o + 0x30, true);
+        const loopStart = dv.getUint32(o + 0x34, true);
+        const loopEnd   = dv.getUint32(o + 0x38, true);
+        const c5speed   = dv.getUint32(o + 0x3C, true) || 8363;
+        const dataOff   = dv.getUint32(o + 0x48, true);
         const bits16     = !!(sFlags & 2);
         const compressed = !!(sFlags & 8);
         const loop       = !!(sFlags & 16);
@@ -274,53 +274,80 @@ function readRaw(dv, off, len, b16, signed) {
     const avail = Math.min(len, Math.floor((bLen - off) / (b16 ? 2 : 1)));
     if (avail <= 0) return null;
     const out = new Float32Array(avail);
-    if (b16) { for (let i = 0; i < avail; i++) { const p = off + i * 2; if (p + 1 >= bLen) break; out[i] = Math.max(-1, Math.min(1, dv.getInt16(p, true) / 32768)); } }
-    else { for (let i = 0; i < avail; i++) { const p = off + i; if (p >= bLen) break; let r = dv.getUint8(p); if (signed) r = r > 127 ? r - 256 : r; else r -= 128; out[i] = Math.max(-1, Math.min(1, r / 128)); } }
+    if (b16) {
+        if (signed) { for (let i = 0; i < avail; i++) { const p = off + i * 2; if (p + 1 >= bLen) break; out[i] = dv.getInt16(p, true) / 32768; } }
+        else { for (let i = 0; i < avail; i++) { const p = off + i * 2; if (p + 1 >= bLen) break; out[i] = (dv.getUint16(p, true) - 32768) / 32768; } }
+    } else {
+        if (signed) { for (let i = 0; i < avail; i++) { const p = off + i; if (p >= bLen) break; let r = dv.getUint8(p); out[i] = (r > 127 ? r - 256 : r) / 128; } }
+        else { for (let i = 0; i < avail; i++) { const p = off + i; if (p >= bLen) break; out[i] = (dv.getUint8(p) - 128) / 128; } }
+    }
     return out;
 }
 
+// Ported from Schism Tracker fmt/compression.c (it_decompress8 / it_decompress16)
 function decompressIT(dv, dataOff, length, b16) {
     const BLOCK = b16 ? 0x4000 : 0x8000;
-    const out = new Int32Array(length);
-    let pos = 0, fp = dataOff;
-    while (pos < length) {
-        if (fp + 2 > dv.buffer.byteLength) break;
-        const bLen = dv.getUint16(fp, true); fp += 2;
-        if (!bLen) { pos += BLOCK; continue; }
-        const actual = Math.min(bLen, dv.buffer.byteLength - fp);
-        if (actual <= 0) break;
-        const bs = new Uint8Array(dv.buffer, fp, actual); fp += bLen;
-        const dec = itDecompBlock(bs, Math.min(BLOCK, length - pos), b16);
-        if (dec) { let prev = 0; for (let i = 0; i < dec.length && pos < length; i++) { prev += dec[i]; out[pos++] = prev; } }
-    }
-    const f = new Float32Array(length);
-    const sc = b16 ? 1 / 32768 : 1 / 128;
-    const mx = b16 ? 32767 : 127, mn = b16 ? -32768 : -128;
-    for (let i = 0; i < length; i++) f[i] = Math.max(-1, Math.min(1, Math.max(mn, Math.min(mx, out[i])) * sc));
-    return f;
-}
+    const maxW = b16 ? 17 : 9;
+    const topBit = b16 ? 0x10000 : 0x100;
+    const norm = b16 ? 32768 : 128;
+    const out = new Float32Array(length);
+    let outPos = 0, fp = dataOff;
 
-function itDecompBlock(bs, num, b16) {
-    const out = [], n = b16 ? 16 : 8;
-    let bw = b16 ? 17 : 9, bp = 0;
-    const bits = (cnt) => { let v = 0; for (let i = 0; i < cnt; i++) { const bi = bp >> 3; if (bi >= bs.length) return -1; v |= ((bs[bi] >> (bp & 7)) & 1) << i; bp++; } return v; };
-    while (out.length < num) {
-        if (bw <= 6) {
-            const v = bits(bw); if (v < 0) break;
-            if (v === (1 << (bw - 1))) { const nw = bits(b16 ? 4 : 3); if (nw >= 0) bw = nw + 1; continue; }
-            let d = v; if (d >= (1 << (bw - 1))) d -= (1 << bw); out.push(d);
-        } else if (bw <= n) {
-            const v = bits(bw); if (v < 0) break;
-            const base = b16 ? 0x1000 : 0x40, lim = b16 ? 0x10110 : 0x8B;
-            if (v >= base && v < lim) { bw = v - base + 1; continue; }
-            let d = v; if (d >= (1 << (bw - 1))) d -= (1 << bw); out.push(d);
-        } else {
-            const v = bits(bw); if (v < 0) break;
-            if (v & (1 << (bw - 1))) { bw = (v & 0xFF) + 1; continue; }
-            let d = v; if (d >= (1 << (bw - 1))) d -= (1 << bw); out.push(d);
+    while (outPos < length) {
+        if (fp + 2 > dv.buffer.byteLength) break;
+        const blockBytes = dv.getUint16(fp, true); fp += 2;
+        const blockEnd = Math.min(fp + blockBytes, dv.buffer.byteLength);
+        if (!blockBytes) { outPos += BLOCK; continue; }
+        const blkLen = Math.min(BLOCK, length - outPos);
+        let sPos = fp, bBuf = 0, bNum = 0;
+        function rb(n) {
+            let val = 0, i = n;
+            while (i--) {
+                if (!bNum) { if (sPos >= blockEnd) return -1; bBuf = dv.getUint8(sPos++); bNum = 8; }
+                val >>>= 1;
+                val |= (bBuf & 1) << 31;
+                bBuf >>>= 1;
+                bNum--;
+            }
+            return val >>> (32 - n);
         }
+        let width = maxW, d1 = 0, blkPos = 0;
+        while (blkPos < blkLen) {
+            if (width > maxW) break;
+            const value = rb(width);
+            if (value < 0) break;
+            if (width < 7) {
+                if (value === (1 << (width - 1))) {
+                    const nv = rb(b16 ? 4 : 3); if (nv < 0) break;
+                    const nw = nv + 1;
+                    width = (nw < width) ? nw : nw + 1;
+                    continue;
+                }
+            } else if (width < maxW) {
+                const border = ((b16 ? 0xFFFF : 0xFF) >>> (maxW - width)) - (b16 ? 8 : 4);
+                if (value > border && value <= border + (b16 ? 16 : 8)) {
+                    const nw = value - border;
+                    width = (nw < width) ? nw : nw + 1;
+                    continue;
+                }
+            } else {
+                if (value & topBit) { width = (value + 1) & 0xFF; continue; }
+            }
+            let v;
+            if (b16) {
+                if (width < 16) { v = (value << (16 - width)) << 16 >> 16 >> (16 - width); }
+                else v = value << 16 >> 16;
+            } else {
+                if (width < 8) { v = (value << (8 - width)) << 24 >> 24 >> (8 - width); }
+                else v = value << 24 >> 24;
+            }
+            d1 = b16 ? (d1 + v) << 16 >> 16 : (d1 + v) << 24 >> 24;
+            out[outPos++] = d1 / norm;
+            blkPos++;
+        }
+        fp += blockBytes;
     }
-    return out.length ? out : null;
+    return out;
 }
 
 function unpackPat(pd, numRows) {
@@ -347,7 +374,8 @@ function unpackPat(pd, numRows) {
 const state = {
     mod: null, ctx: null, master: null,
     playing: false, ordIdx: 0, row: 0, tick: 0, speed: 6, tempo: 125,
-    nextTick: 0, animId: null,
+    schedTime: 0, animId: null,
+    displayRow: 0, displayOrd: 0, lastDisplayRow: -1, lastDisplayOrd: -1,
     channels: new Array(64).fill(null).map(() => ({ src: null, gain: null, note: -1, inst: 0, vol: 64, period: 0, active: false })),
     selectedSmp: 0, selectedIns: 0,
     toastId: null
@@ -367,7 +395,16 @@ function sampleForNote(mod, instNum, note) {
     return null;
 }
 
-function triggerNote(ch, note, instNum) {
+function buildAudioBuffer(smp) {
+    if (smp._abuf) return smp._abuf;
+    if (!smp.data || !smp.data.length) return null;
+    const ab = state.ctx.createBuffer(1, smp.data.length, smp.c5speed || 44100);
+    ab.getChannelData(0).set(smp.data);
+    smp._abuf = ab;
+    return ab;
+}
+
+function triggerNote(ch, note, instNum, when) {
     const mod = state.mod;
     if (!mod || !state.ctx || !state.master) return;
     const chn = state.channels[ch];
@@ -377,30 +414,27 @@ function triggerNote(ch, note, instNum) {
     const res = sampleForNote(mod, instNum, note);
     if (!res || !res.smp || !res.smp.data) return;
     const smp = res.smp;
-    const buf = smp.data;
-    if (!buf || !buf.length) return;
+    const ab = buildAudioBuffer(smp);
+    if (!ab) return;
     try {
-        const ab = state.ctx.createBuffer(1, buf.length, state.ctx.sampleRate);
-        ab.getChannelData(0).set(buf);
         const src = state.ctx.createBufferSource();
         src.buffer = ab;
         if (smp.loop && smp.loopEnd > smp.loopStart) {
             src.loop = true;
-            src.loopStart = smp.loopStart / smp.c5speed;
-            src.loopEnd = smp.loopEnd / smp.c5speed;
+            src.loopStart = smp.loopStart / (smp.c5speed || 44100);
+            src.loopEnd = smp.loopEnd / (smp.c5speed || 44100);
         }
         const g = state.ctx.createGain();
         const vol = chn.vol / 64;
         g.gain.value = vol * (mod.globalVol / 128) * (mod.mixVol / 128);
         src.connect(g); g.connect(state.master);
-        const rate = smp.c5speed / state.ctx.sampleRate * Math.pow(2, (note - 60) / 12);
-        src.playbackRate.value = rate;
-        src.start();
+        src.playbackRate.value = Math.pow(2, (note - 60) / 12);
+        src.start(when || 0);
         chn.src = src; chn.gain = g; chn.note = note; chn.inst = instNum; chn.active = true;
     } catch (e) { console.warn('triggerNote', e); }
 }
 
-function processRow() {
+function processRow(when) {
     const mod = state.mod;
     if (!mod) return;
     let patIdx = mod.orders[state.ordIdx];
@@ -414,23 +448,22 @@ function processRow() {
         const cell = rowData[ch];
         if (cell.vol != null && cell.vol <= 64) state.channels[ch].vol = cell.vol;
         if (cell.note != null && cell.inst != null && cell.inst > 0) {
-            triggerNote(ch, cell.note, cell.inst);
+            triggerNote(ch, cell.note, cell.inst, when);
         } else if (cell.note != null && cell.note <= 119) {
             const inst = state.channels[ch].inst || 1;
-            triggerNote(ch, cell.note, inst);
+            triggerNote(ch, cell.note, inst, when);
         } else if (cell.note === 255 || cell.note === 254) {
-            triggerNote(ch, cell.note, 0);
+            triggerNote(ch, cell.note, 0, when);
         }
         if (cell.inst > 0) state.channels[ch].inst = cell.inst;
-        if (cell.eff === 1) state.speed = cell.param || state.speed;
-        if (cell.eff === 2) newOrd = cell.param;
-        if (cell.eff === 3) newRow = cell.param;
-        if (cell.eff === 20 && cell.param) state.tempo = cell.param;
-        if (cell.eff === 13) {
+        if (cell.eff === 1) state.speed = cell.param || state.speed; // Axx
+        if (cell.eff === 2) newOrd = cell.param; // Bxx
+        if (cell.eff === 3) newRow = cell.param; // Cxx
+        if (cell.eff === 20 && cell.param) state.tempo = cell.param; // Txx
+        if (cell.eff === 13) { // Mxx
             const chn = state.channels[ch];
             if (chn.gain) {
-                const v = (cell.param || 0) / 64;
-                chn.gain.gain.setValueAtTime(v * (mod.globalVol / 128) * (mod.mixVol / 128), state.ctx.currentTime);
+                chn.gain.gain.setValueAtTime((cell.param / 64) * (mod.globalVol / 128) * (mod.mixVol / 128), when || state.ctx.currentTime);
                 chn.vol = cell.param;
             }
         }
@@ -441,18 +474,34 @@ function processRow() {
     if (state.row >= pat.rows) { state.row = 0; state.ordIdx++; if (state.ordIdx >= mod.orders.length) state.ordIdx = 0; }
 }
 
-function processTick() {
+function scheduler() {
     if (!state.mod || !state.playing) return;
-    const now = performance.now() / 1000;
-    if (!state.nextTick) state.nextTick = now;
-    if (now < state.nextTick) return;
-    state.nextTick += tickLen();
-    if (now - state.nextTick > 0.5) state.nextTick = now;
-    state.tick++;
-    if (state.tick >= state.speed) { state.tick = 0; processRow(); updateUI(); }
+    const LOOKAHEAD = 0.1;
+    while (state.schedTime < state.ctx.currentTime + LOOKAHEAD) {
+        state.tick++;
+        if (state.tick >= state.speed) {
+            state.tick = 0;
+            const rowBefore = state.row, ordBefore = state.ordIdx;
+            processRow(state.schedTime);
+            state.displayRow = rowBefore;
+            state.displayOrd = ordBefore;
+        }
+        state.schedTime += tickLen();
+        if (!state.playing) break;
+    }
 }
 
-function loop() { processTick(); state.animId = requestAnimationFrame(loop); }
+function loop() {
+    scheduler();
+    if (state.displayRow !== state.lastDisplayRow || state.displayOrd !== state.lastDisplayOrd) {
+        state.lastDisplayRow = state.displayRow;
+        state.lastDisplayOrd = state.displayOrd;
+        state.row = state.displayRow;
+        state.ordIdx = state.displayOrd;
+        updateUI();
+    }
+    if (state.playing) state.animId = requestAnimationFrame(loop);
+}
 
 // ── Audio Init ─────────────────────────────────────────────────
 function initAudio() {
@@ -465,7 +514,7 @@ function initAudio() {
 }
 
 // ── UI ─────────────────────────────────────────────────────────
-function loadModule(buf) {
+function loadModule(buf, skipSave) {
     const mod = parseIT(buf);
     if (!mod) { toast('Not a valid IT file'); return; }
     stopPlayback();
@@ -480,10 +529,39 @@ function loadModule(buf) {
     state.selectedSmp = 0; state.selectedIns = 0;
     buildSampleList(); buildInstrumentList(); updateUI();
     toast('Loaded: ' + (mod.songName || 'module') + ' (' + mod.samples.length + ' samples, ' + mod.patterns.length + ' patterns)');
+    if (!skipSave) saveToStorage(buf);
+}
+
+function saveToStorage(buf) {
+    try {
+        const bytes = new Uint8Array(buf);
+        const CHUNK = 8192;
+        let b64 = '';
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+            b64 += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+        }
+        b64 = btoa(b64);
+        localStorage.setItem('impulse0_file', b64);
+        localStorage.setItem('impulse0_name', state.mod ? state.mod.songName : '');
+    } catch (e) { console.warn('localStorage save failed (file too large?):', e); }
+}
+
+function loadFromStorage() {
+    try {
+        const b64 = localStorage.getItem('impulse0_file');
+        if (!b64) return false;
+        const bin = atob(b64);
+        const buf = new ArrayBuffer(bin.length);
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i);
+        loadModule(buf, true);
+        return true;
+    } catch (e) { console.warn('localStorage load failed:', e); return false; }
 }
 
 function stopPlayback() {
     state.playing = false;
+    if (state.animId) { cancelAnimationFrame(state.animId); state.animId = null; }
     state.channels.forEach(c => { if (c.src) try { c.src.stop(); } catch (_) {} c.src = null; c.active = false; });
 }
 
@@ -589,14 +667,28 @@ function drawWaveform(smp) {
     if (!smp.data || !smp.data.length) { ctx.fillStyle = '#444'; ctx.font = '12px monospace'; ctx.fillText('No sample data', 10, h / 2); return; }
     const data = smp.data;
     const len = data.length;
-    ctx.strokeStyle = '#5080c0';
-    ctx.beginPath();
-    for (let x = 0; x < w; x++) {
-        const idx = Math.floor(x / w * len);
-        const y = (1 - data[idx]) / 2 * h;
-        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    const samplesPerPx = len / w;
+    ctx.fillStyle = '#5080c0';
+    if (samplesPerPx > 2) {
+        for (let x = 0; x < w; x++) {
+            const s0 = Math.floor(x / w * len);
+            const s1 = Math.min(Math.floor((x + 1) / w * len), len);
+            let mn = 1, mx = -1;
+            for (let j = s0; j < s1; j++) { if (data[j] < mn) mn = data[j]; if (data[j] > mx) mx = data[j]; }
+            const y0 = (1 - mx) / 2 * h;
+            const y1 = (1 - mn) / 2 * h;
+            ctx.fillRect(x, y0, 1, Math.max(1, y1 - y0));
+        }
+    } else {
+        ctx.strokeStyle = '#5080c0';
+        ctx.beginPath();
+        for (let x = 0; x < w; x++) {
+            const idx = Math.floor(x / w * len);
+            const y = (1 - data[idx]) / 2 * h;
+            if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
     }
-    ctx.stroke();
     if (smp.loop && smp.loopEnd > smp.loopStart) {
         const lsX = smp.loopStart / len * w;
         const leX = smp.loopEnd / len * w;
@@ -731,8 +823,13 @@ document.getElementById('fileInput').onchange = (e) => {
 document.getElementById('btnPlay').onclick = () => {
     if (!state.mod) return;
     initAudio().then(() => {
-        state.playing = true; state.tick = 0; state.nextTick = 0;
-        if (!state.animId) loop();
+        state.mod.samples.forEach(s => { s._abuf = null; });
+        state.playing = true;
+        state.tick = state.speed - 1;
+        state.schedTime = state.ctx.currentTime;
+        state.lastDisplayRow = -1; state.lastDisplayOrd = -1;
+        state.displayRow = state.row; state.displayOrd = state.ordIdx;
+        loop();
     });
 };
 
@@ -751,21 +848,25 @@ document.getElementById('smpPreview').onclick = () => {
     initAudio().then(() => {
         const smp = state.mod.samples[state.selectedSmp];
         if (!smp || !smp.data) { toast('No sample data'); return; }
-        const buf = smp.data;
-        const ab = state.ctx.createBuffer(1, buf.length, state.ctx.sampleRate);
-        ab.getChannelData(0).set(buf);
+        const rate = smp.c5speed || 22050;
+        const ab = state.ctx.createBuffer(1, smp.data.length, rate);
+        ab.getChannelData(0).set(smp.data);
         const src = state.ctx.createBufferSource();
         src.buffer = ab;
-        if (smp.loop && smp.loopEnd > smp.loopStart) { src.loop = true; src.loopStart = smp.loopStart / smp.c5speed; src.loopEnd = smp.loopEnd / smp.c5speed; }
+        if (smp.loop && smp.loopEnd > smp.loopStart) {
+            src.loop = true; src.loopStart = smp.loopStart / rate; src.loopEnd = smp.loopEnd / rate;
+        }
         const g = state.ctx.createGain(); g.gain.value = 0.5;
         src.connect(g); g.connect(state.master);
-        src.playbackRate.value = smp.c5speed / state.ctx.sampleRate;
         src.start();
-        setTimeout(() => { try { src.stop(); } catch (_) {} }, 3000);
+        if (state.previewSrc) try { state.previewSrc.stop(); } catch (_) {}
+        state.previewSrc = src;
+        if (!smp.loop) setTimeout(() => { try { src.stop(); } catch (_) {} }, 5000);
     });
 };
 
 buildFileList();
+if (!loadFromStorage()) toast('Open an .it file or click one from the sidebar');
 </script>
 </body>
 </html>
