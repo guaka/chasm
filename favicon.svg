@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#00ddff"/>
+      <stop offset="1" stop-color="#0066cc"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="4" fill="#111"/>
+  <!-- Chasm walls -->
+  <polygon fill="#222" points="0,0 14,4 14,28 0,32"/>
+  <polygon fill="#222" points="32,0 18,4 18,28 32,32"/>
+  <!-- Chasm glow -->
+  <rect x="14" y="0" width="4" height="32" fill="url(#g)" opacity=".6"/>
+  <rect x="15" y="0" width="2" height="32" fill="#00aaff"/>
+  <!-- Tracker rows -->
+  <rect x="14" y="7" width="4" height="1" fill="#00ddff" opacity=".8"/>
+  <rect x="14" y="11" width="4" height="1" fill="#00ddff" opacity=".5"/>
+  <rect x="14" y="15" width="4" height="1" fill="#00ddff" opacity=".8"/>
+  <rect x="14" y="19" width="4" height="1" fill="#00ddff" opacity=".5"/>
+  <rect x="14" y="23" width="4" height="1" fill="#00ddff" opacity=".8"/>
+</svg>
