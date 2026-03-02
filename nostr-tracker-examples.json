@@ -1,0 +1,79 @@
+{
+  "sound_pack_31900": {
+    "v": 1,
+    "name": "Chasm Default",
+    "synthOrder": ["sine", "triangle", "saw", "square", "pluck", "sub", "pad", "noise", "303", "606", "808", "909"],
+    "synths": {
+      "sine": {
+        "id": "sine",
+        "name": "Sine Lead",
+        "abbr": "SIN",
+        "category": "synth",
+        "waveType": "sine",
+        "attack": 0.01,
+        "decay": 0.1,
+        "sustain": 0.7,
+        "release": 0.3,
+        "filterFreq": 4000,
+        "filterQ": 2,
+        "volume": 0.5
+      },
+      "808": {
+        "id": "808",
+        "name": "TR-808",
+        "abbr": "808",
+        "category": "drums",
+        "engine": "808",
+        "is808": true,
+        "volume": 0.6
+      }
+    },
+    "drumMaps": {
+      "808": {
+        "36": "kick",
+        "38": "snare",
+        "42": "hihat",
+        "46": "openHihat",
+        "49": "cymbal",
+        "39": "clap"
+      }
+    }
+  },
+  "track_settings_31901": {
+    "v": 1,
+    "bpm": 125,
+    "channels": 16,
+    "patternLength": 64,
+    "playbackMode": "song",
+    "stepSize": 1,
+    "currentOctave": 4,
+    "trackNames": ["1", "2", "Kick", "Snare", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"],
+    "trackInstruments": {
+      "0": "sine",
+      "1": "saw",
+      "2": "808",
+      "3": "808"
+    },
+    "mutedTracks": [],
+    "soloedTracks": [],
+    "channelFxSettings": {
+      "0": {
+        "filter": 255,
+        "resonance": 0,
+        "delaySend": 255,
+        "reverbSend": 255,
+        "distortion": 0,
+        "flangerMix": 0,
+        "flangerRate": 30
+      }
+    },
+    "globalFx": {
+      "delayTime": 0.3,
+      "delayFeedback": 0.3,
+      "reverbAmount": 0.3,
+      "phaserMix": 0,
+      "phaserRate": 0.5,
+      "phaserDepth": 0.7
+    }
+  }
+}
