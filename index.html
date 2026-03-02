@@ -6,245 +6,99 @@
     <title>Chasm - Web MIDI Tracker</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Courier New', 'Consolas', monospace;
-            background: #000;
-            color: #fff;
-            padding: 20px;
-            line-height: 1.4;
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-        .header {
-            margin-bottom: 12px;
-            text-align: center;
-        }
-        .logo {
-            height: 32px;
-            margin-bottom: 4px;
-            display: inline-block;
-        }
-        .logo img {
-            height: 100%;
-            width: auto;
-        }
-        h1 {
-            font-size: 22px;
-            margin-bottom: 2px;
-            color: #fff;
-        }
-        .subtitle {
-            color: #666;
-            font-size: 11px;
-            margin-bottom: 8px;
-        }
-        .section {
-            margin-bottom: 24px;
-        }
-        .section h2 {
-            color: #0af;
-            margin-bottom: 12px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 6px;
-            font-size: 20px;
-        }
-        .link-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-            gap: 12px;
-        }
-        .link-card {
-            background: #1a1a1a;
-            border: 1px solid #333;
-            padding: 12px;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-        }
-        .link-card:hover {
-            border-color: #0af;
-            background: #222;
-            transform: translateY(-2px);
-        }
-        .link-card a {
-            color: #0af;
-            text-decoration: none;
-            font-size: 16px;
-            font-weight: bold;
-            display: block;
-            margin-bottom: 6px;
-        }
-        .link-card a:hover {
-            color: #0ff;
-        }
-        .description {
-            color: #999;
-            font-size: 12px;
-            line-height: 1.4;
-        }
-        .footer {
-            margin-top: 32px;
-            padding-top: 16px;
-            border-top: 1px solid #333;
-            text-align: center;
-            color: #666;
-            font-size: 12px;
-        }
-        .footer a {
-            color: #0af;
-            text-decoration: none;
-        }
-        .footer a:hover {
-            color: #0ff;
-        }
-        @media (max-width: 768px) {
-            body {
-                padding: 12px;
-            }
-            .link-grid {
-                grid-template-columns: 1fr;
-            }
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', 'Consolas', monospace; background: #000; color: #fff; padding: 20px; line-height: 1.4; min-height: 100vh; }
+        .container { max-width: 1600px; margin: 0 auto; }
+        .header { margin-bottom: 16px; text-align: center; }
+        .logo { height: 32px; display: inline-block; }
+        .logo img { height: 100%; width: auto; }
+        h1 { font-size: 22px; margin: 4px 0 2px; }
+        .subtitle { color: #666; font-size: 11px; }
+        .section { margin-bottom: 20px; }
+        .section h2 { color: #0af; margin-bottom: 8px; border-bottom: 2px solid #333; padding-bottom: 4px; font-size: 16px; }
+        .link-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+        .link-card { background: #1a1a1a; border: 1px solid #333; padding: 10px; border-radius: 4px; }
+        .link-card:hover { border-color: #0af; background: #222; }
+        .link-card a { color: #0af; text-decoration: none; font-weight: bold; display: block; margin-bottom: 2px; }
+        .link-card a:hover { color: #0ff; }
+        .description { color: #999; font-size: 11px; line-height: 1.3; }
+        .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #333; text-align: center; color: #666; font-size: 11px; }
+        .footer a { color: #0af; text-decoration: none; }
+        .footer a:hover { color: #0ff; }
+        @media (max-width: 768px) { body { padding: 12px; } .link-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">
-                <img src="chasmtracker-logo.svg" alt="ChasmTracker Logo">
-            </div>
-            <h1>Web MIDI Tracker</h1>
-            <p class="subtitle">A browser-based MIDI tracker and sequencer inspired by Schism Tracker</p>
+            <div class="logo"><img src="chasmtracker-logo.svg" alt="ChasmTracker"></div>
+            <h1>Chasm</h1>
+            <p class="subtitle">Web MIDI tracker · Schism-style</p>
         </div>
-        
-        <div class="section">
-            <h2>Audio Trackers</h2>
-            <div class="link-grid">
-                <div class="link-card">
-                    <a href="audio0.html">audio0.html</a>
-                    <div class="description">Web Audio Tracker - Built-in synthesis with instruments, 808 drums, delay/reverb, per-channel filters. No MIDI hardware needed.</div>
-                </div>
-            </div>
 
+        <div class="section">
+            <h2>Audio</h2>
+            <div class="link-grid">
+                <div class="link-card"><a href="audio0.html">audio0</a><div class="description">Built-in synths, 808 drums, delay/reverb. No MIDI needed.</div></div>
+                <div class="link-card"><a href="noistracker1.html">noistracker1</a><div class="description">Noise/sample tracker.</div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Impulse</h2>
+            <div class="link-grid">
+                <div class="link-card"><a href="impulse1.html">impulse1</a><div class="description">Impulse-style.</div></div>
+                <div class="link-card"><a href="impulse0.html">impulse0</a><div class="description">v0</div></div>
+            </div>
+        </div>
+
+        <div class="section">
             <h2>MIDI Trackers</h2>
             <div class="link-grid">
-                <div class="link-card">
-                    <a href="miditr5.html">miditr5.html</a>
-                    <div class="description">MIDI Tracker v5 - Latest version with enhanced MIDI capabilities and improved interface.</div>
-                </div>
-                <div class="link-card">
-                    <a href="miditr4.html">miditr4.html</a>
-                    <div class="description">MIDI Tracker v4 - Enhanced MIDI tracker with improved features and functionality.</div>
-                </div>
-                <div class="link-card">
-                    <a href="miditr3.html">miditr3.html</a>
-                    <div class="description">MIDI Tracker v3 - Enhanced MIDI tracker with improved features and functionality.</div>
-                </div>
-                <div class="link-card">
-                    <a href="miditr2.html">miditr2.html</a>
-                    <div class="description">MIDI Tracker v2 - MIDI tracker implementation with pattern-based sequencing.</div>
-                </div>
-                <div class="link-card">
-                    <a href="miditr1.html">miditr1.html</a>
-                    <div class="description">MIDI Tracker v1 - Early MIDI tracker version with basic functionality.</div>
-                </div>
-                <div class="link-card">
-                    <a href="miditr0.html">miditr0.html</a>
-                    <div class="description">MIDI Tracker v0 - Original MIDI tracker version with basic functionality.</div>
-                </div>
+                <div class="link-card"><a href="miditr5.html">miditr5</a><div class="description">Latest. IT load/save, hardware MIDI.</div></div>
+                <div class="link-card"><a href="miditr4.html">miditr4</a><div class="description">v4</div></div>
+                <div class="link-card"><a href="miditr3.html">miditr3</a><div class="description">v3</div></div>
+                <div class="link-card"><a href="miditr2.html">miditr2</a><div class="description">v2</div></div>
+                <div class="link-card"><a href="miditr1.html">miditr1</a><div class="description">v1</div></div>
+                <div class="link-card"><a href="miditr0.html">miditr0</a><div class="description">v0</div></div>
             </div>
         </div>
-        
+
         <div class="section">
-            <h2>MIDI Effects</h2>
+            <h2>MIDI FX</h2>
             <div class="link-grid">
-                <div class="link-card">
-                    <a href="midifx1.html">midifx1.html</a>
-                    <div class="description">ChasmFX v1 - MIDI Effects Processor with snapshots. Process and transform MIDI messages in real-time with advanced effects and snapshot management.</div>
-                </div>
-                <div class="link-card">
-                    <a href="midifx0.html">midifx0.html</a>
-                    <div class="description">ChasmFX v0 - MIDI Effects Processor. Process and transform MIDI messages in real-time with various effects and filters.</div>
-                </div>
+                <div class="link-card"><a href="midifx1.html">midifx1</a><div class="description">Effects + snapshots.</div></div>
+                <div class="link-card"><a href="midifx0.html">midifx0</a><div class="description">Effects processor.</div></div>
             </div>
         </div>
-        
+
         <div class="section">
-            <h2>Tracker Versions</h2>
+            <h2>Trackers</h2>
             <div class="link-grid">
-                <div class="link-card">
-                    <a href="tracker5.html">tracker5.html</a>
-                    <div class="description">Latest version of the tracker with enhanced features and improved UI. Recommended for new users.</div>
-                </div>
-                <div class="link-card">
-                    <a href="tracker4.html">tracker4.html</a>
-                    <div class="description">Enhanced version with improved features and UI updates.</div>
-                </div>
-                <div class="link-card">
-                    <a href="tracker3.html">tracker3.html</a>
-                    <div class="description">Advanced version with MIDI + Web Audio dual output modes. Supports both hardware MIDI devices and built-in synthesis.</div>
-                </div>
-                <div class="link-card">
-                    <a href="tracker2.html">tracker2.html</a>
-                    <div class="description">Enhanced version with improved UI and better pattern editing capabilities.</div>
-                </div>
-                <div class="link-card">
-                    <a href="tracker.html">tracker.html</a>
-                    <div class="description">Main tracker implementation with MIDI output support. Classic tracker interface with pattern-based sequencing.</div>
-                </div>
-                <div class="link-card">
-                    <a href="tracker0.html">tracker0.html</a>
-                    <div class="description">Early version with basic features. Good for understanding the core tracker functionality.</div>
-                </div>
+                <div class="link-card"><a href="tracker5.html">tracker5</a><div class="description">Latest. Recommended.</div></div>
+                <div class="link-card"><a href="tracker4.html">tracker4</a><div class="description">v4</div></div>
+                <div class="link-card"><a href="tracker3.html">tracker3</a><div class="description">MIDI + Web Audio.</div></div>
+                <div class="link-card"><a href="tracker2.html">tracker2</a><div class="description">v2</div></div>
+                <div class="link-card"><a href="tracker.html">tracker</a><div class="description">Main. Pattern + MIDI.</div></div>
+                <div class="link-card"><a href="tracker0.html">tracker0</a><div class="description">v0</div></div>
             </div>
         </div>
-        
+
         <div class="section">
-            <h2>Ambient Generators</h2>
+            <h2>Ambient</h2>
             <div class="link-grid">
-                <div class="link-card">
-                    <a href="ambient6.html">ambient6.html</a>
-                    <div class="description">Ambient MIDI Generator v6 - Latest version with advanced generative algorithms, per-channel control, and real-time visualization.</div>
-                </div>
-                <div class="link-card">
-                    <a href="ambient5.html">ambient5.html</a>
-                    <div class="description">Ambient MIDI Generator v5 - Advanced generative algorithms and real-time parameter control.</div>
-                </div>
-                <div class="link-card">
-                    <a href="ambient4.html">ambient4.html</a>
-                    <div class="description">Ambient MIDI Generator v4 - Enhanced generative ambient music creation with improved controls.</div>
-                </div>
-                <div class="link-card">
-                    <a href="ambient3.html">ambient3.html</a>
-                    <div class="description">Ambient MIDI Generator v3 - Generative ambient MIDI patterns with customizable parameters.</div>
-                </div>
-                <div class="link-card">
-                    <a href="ambient2.html">ambient2.html</a>
-                    <div class="description">Ambient MIDI Generator v2 - Early generative MIDI experimentation with ambient focus.</div>
-                </div>
-                <div class="link-card">
-                    <a href="ambient1.html">ambient1.html</a>
-                    <div class="description">Ambient MIDI Generator v1 - Original generative ambient MIDI generator implementation.</div>
-                </div>
+                <div class="link-card"><a href="ambient6.html">ambient6</a><div class="description">Latest. Per-channel, viz.</div></div>
+                <div class="link-card"><a href="ambient5.html">ambient5</a><div class="description">v5</div></div>
+                <div class="link-card"><a href="ambient4.html">ambient4</a><div class="description">v4</div></div>
+                <div class="link-card"><a href="ambient3.html">ambient3</a><div class="description">v3</div></div>
+                <div class="link-card"><a href="ambient2.html">ambient2</a><div class="description">v2</div></div>
+                <div class="link-card"><a href="ambient1.html">ambient1</a><div class="description">v1</div></div>
             </div>
         </div>
-        
+
         <div class="footer">
-            <p>Inspired by <a href="https://github.com/schismtracker/schismtracker" target="_blank">Schism Tracker</a></p>
-            <p style="margin-top: 12px; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 4px; max-width: 800px; margin-left: auto; margin-right: auto; font-size: 12px;">
-                <strong style="color: #0af;">Fork This!</strong><br>
-                Do fork this stuff! Everything is packed in one HTML file that includes CSS and JS, so it's super easy to vibe with. It's unlicensed (public domain), so do whatever you want with it. And let me know if you make something cool! 🎵
-            </p>
-            <p style="margin-top: 8px; font-size: 11px;">This is vibe coded... vibe along or vibe off 🎵</p>
+            <a href="https://github.com/schismtracker/schismtracker" target="_blank">Schism Tracker</a> · Unlicensed, fork at will
         </div>
     </div>
 </body>
 </html>
-
