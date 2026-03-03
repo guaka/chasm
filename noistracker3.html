@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>noistracker2 - No(i)str-acker</title>
+    <title>noistracker3 - No(i)str-acker</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <style>
         * {
@@ -53,6 +53,45 @@
             display: flex;
             align-items: center;
             gap: 5px;
+        }
+
+        .header-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .vu-container {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .vu-label {
+            font-size: 10px;
+            color: #555;
+            text-transform: uppercase;
+        }
+        .vu-track {
+            width: 48px;
+            height: 10px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .vu-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0a4, #8f8);
+            border-radius: 1px;
+            transition: width 0.05s ease-out;
+        }
+        .vu-bar.hot {
+            background: linear-gradient(90deg, #fa0, #f80);
+        }
+        .vu-bar.clip {
+            background: #f44;
         }
 
         .header label {
@@ -673,9 +712,29 @@
             background: #404000;
             border-color: #808000;
         }
+
+        #audioUnlockOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: rgba(0, 0, 0, 0.85);
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', Consolas, monospace;
+            font-size: 18px;
+            color: #aaa;
+            text-align: center;
+            padding: 20px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #audioUnlockOverlay.visible {
+            display: flex;
+        }
     </style>
 </head>
 <body>
+    <div id="audioUnlockOverlay" class="audio-unlock-overlay">Tap to enable sound</div>
     <div class="container">
         <div class="header">
             <div class="logo">
@@ -792,6 +851,18 @@
             <div class="header-group">
                 <label>Audio</label>
                 <span id="audioStatus" style="font-size: 11px; color: #888;">not initialized</span>
+            </div>
+            <div class="header-right">
+                <div class="header-group">
+                    <label>Voices</label>
+                    <span id="voicesCount" style="font-size: 12px; color: #aaa;">0</span>
+                </div>
+                <div class="vu-container">
+                    <span class="vu-label">VU</span>
+                    <div class="vu-track" title="Master level">
+                        <div id="vuBar" class="vu-bar"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1269,6 +1340,14 @@
                 state.masterGain.connect(state.compressorWetGain);
                 state.compressorWetGain.connect(state.compressorNode);
                 state.compressorNode.connect(state.audioContext.destination);
+
+                // VU meter: tap master for analysis (analyser not connected to destination)
+                state.analyserNode = state.audioContext.createAnalyser();
+                state.analyserNode.fftSize = 256;
+                state.analyserNode.smoothingTimeConstant = 0.5;
+                state.masterGain.connect(state.analyserNode);
+                state.analyserBuffer = new Uint8Array(state.analyserNode.fftSize);
+
                 applyGlobalFx();
 
                 createDefaultInstruments();
@@ -2544,7 +2623,7 @@
 
                 case 'Q': { // Qxy: Retrigger (IT/Schism) — retrigger note every y ticks, volume per x. Works with all synths and drums.
                     // x = volume modifier (0-F), y = ticks between retriggers (0-F). Allow "Q1" (y only) or "Q11" (x and y)
-                    if (param.length >= 1 && step.note && step.note.trim() !== '' && step.note.trim() !== '==') {
+                    if (param.length >= 1 && step.note && step.note.trim() !== '' && !isNoteOff(step.note)) {
                         const midiNote = parseNote(step.note);
                         if (midiNote !== null) {
                             const volMod = param.length >= 2 ? (parseInt(param.charAt(0), 16) || 0) : 0;
@@ -2571,7 +2650,7 @@
                         const semitone2 = parseInt(param.charAt(1), 16) || 0;
                         if (semitone1 === 0 && semitone2 === 0) {
                             delete state.channelArpeggio[channel];
-                        } else if (step.note && step.note.trim() !== '' && step.note.trim() !== '==') {
+                        } else if (step.note && step.note.trim() !== '' && !isNoteOff(step.note)) {
                             const baseNote = parseNote(step.note);
                             if (baseNote !== null) {
                                 state.channelArpeggio[channel] = {
@@ -3257,6 +3336,16 @@
                     const patternData = JSON.parse(saved);
                     if (patternData.patterns && patternData.patterns.length > 0) {
                         state.patterns = patternData.patterns;
+                        // Migrate old note-off format: == -> ===
+                        for (const pat of state.patterns) {
+                            if (!pat || !pat.channels) continue;
+                            for (const ch of pat.channels) {
+                                if (!Array.isArray(ch)) continue;
+                                for (const step of ch) {
+                                    if (step && step.note === '==') step.note = '===';
+                                }
+                            }
+                        }
                         // Migrate order from old format (array of numbers) to new format (array of objects)
                         if (patternData.order && patternData.order.length > 0) {
                             if (typeof patternData.order[0] === 'number') {
@@ -3397,6 +3486,12 @@
             const octave = Math.floor(midiNote / 12) - 1;
             const note = midiNote % 12;
             return noteNames[note] + octave;
+        }
+
+        function isNoteOff(note) {
+            if (!note) return false;
+            const t = note.trim();
+            return t === '===' || t === '==';
         }
 
         // Get base channel number from track name (e.g., "4b" -> 4, "4c" -> 4, "5" -> 5)
@@ -3723,7 +3818,13 @@
 
             // Validate and format input
             if (field === 'note') {
-                value = value.toUpperCase().replace(/[^A-G#B0-9-]/g, '');
+                // Allow === for note-off, otherwise standard note chars
+                if (value.replace(/=/g, '') === '') {
+                    if (value.length >= 2) value = '===';
+                    // else let them keep typing =
+                } else {
+                    value = value.toUpperCase().replace(/[^A-G#B0-9-]/g, '');
+                }
             } else if (field === 'fx') {
                 // Single FX column: first char = command (F,R,Q,J,Z or digit), rest = hex value (e.g. Q11, J04)
                 value = value.toUpperCase().replace(/[^FRQJZ0-9A-F]/g, '');
@@ -3980,9 +4081,9 @@
                 }
                 return; // Stop further processing
             } else if (e.key === '§' && currentField === 'note') {
-                // § key to enter note off (==)
+                // § key to enter note off (===)
                 e.preventDefault();
-                e.stopPropagation(); // Prevent global handler from also running
+                e.stopPropagation();
                 const pattern = state.patterns[state.currentPattern];
                 if (!pattern.channels[channel]) {
                     pattern.channels[channel] = [];
@@ -3993,11 +4094,10 @@
                 if (!pattern.channels[channel][row]) {
                     pattern.channels[channel][row] = createEmptyStep();
                 }
-                pattern.channels[channel][row].note = '==';
+                pattern.channels[channel][row].note = '===';
                 if (typeof recordRoomChange === 'function') recordRoomChange(state.currentPattern, channel, row);
 
-                // Update the display
-                e.target.value = '==';
+                e.target.value = '===';
                 
                 // Auto-advance: move by step size
                 const currentPatternLength = getCurrentPatternLength();
@@ -4314,7 +4414,7 @@
                     // Skip tracks that shouldn't play (muted or not soloed when solo is active)
                     if (!shouldTrackPlay(ch)) continue;
                     const step = pattern.channels[ch][state.currentStep];
-                    if (!step || !step.note || step.note.trim() !== '==') continue;
+                    if (!step || !step.note || !isNoteOff(step.note)) continue;
                     
                     state.activeNotes.forEach((activeNote, key) => {
                         if (activeNote.track === ch) {
@@ -4342,7 +4442,7 @@
 
                 let hasNewNote = false;
                 if (step.note && step.note.trim() !== '') {
-                    if (step.note.trim() === '==') {
+                    if (isNoteOff(step.note)) {
                         if (state.currentStep !== 0) {
                             state.activeNotes.forEach((activeNote, key) => {
                                 if (activeNote.track === ch) {
@@ -5153,7 +5253,7 @@
                         for (let row = startRow; row <= endRow; row++) {
                             if (!pattern.channels[ch][row]) continue;
                             const step = pattern.channels[ch][row];
-                            if (step.note && step.note.trim() !== '' && step.note.trim() !== '==') {
+                            if (step.note && step.note.trim() !== '' && !isNoteOff(step.note)) {
                                 const midiNote = parseNote(step.note);
                                 if (midiNote !== null) {
                                     const newMidiNote = Math.max(0, Math.min(127, midiNote + transposeAmount));
@@ -5172,7 +5272,7 @@
                     const row = state.activeCell.row;
                     if (pattern.channels[ch] && pattern.channels[ch][row]) {
                         const step = pattern.channels[ch][row];
-                        if (step.note && step.note.trim() !== '' && step.note.trim() !== '==') {
+                        if (step.note && step.note.trim() !== '' && !isNoteOff(step.note)) {
                             const midiNote = parseNote(step.note);
                             if (midiNote !== null) {
                                 const newMidiNote = Math.max(0, Math.min(127, midiNote + transposeAmount));
@@ -5231,7 +5331,7 @@
                 return;
             }
 
-            // § key to enter note off (==) - only when not typing in cell input
+            // § key to enter note off (===) - only when not typing in cell input
             if (e.key === '§' && state.activeCell.field === 'note' && !e.ctrlKey && !e.altKey && !e.metaKey && !isCellInput) {
                 e.preventDefault();
                 const pattern = state.patterns[state.currentPattern];
@@ -5244,15 +5344,14 @@
                 if (!pattern.channels[state.activeCell.channel][state.activeCell.row]) {
                     pattern.channels[state.activeCell.channel][state.activeCell.row] = createEmptyStep();
                 }
-                pattern.channels[state.activeCell.channel][state.activeCell.row].note = '==';
+                pattern.channels[state.activeCell.channel][state.activeCell.row].note = '===';
                 if (typeof recordRoomChange === 'function') recordRoomChange(state.currentPattern, state.activeCell.channel, state.activeCell.row);
 
-                // Update the display
                 const cell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
                 if (cell) {
                     const noteField = cell.querySelector('input[data-field="note"]');
                     if (noteField) {
-                        noteField.value = '==';
+                        noteField.value = '===';
                     }
                 }
                 
@@ -5907,12 +6006,33 @@
                 pattern.channels.push(channel);
             }
         });
-        
-        // Initialize Web Audio on page load
-        initAudioContext().catch(err => {
-            console.warn('Audio initialization failed (will retry on play):', err);
-        });
-        
+
+        // iOS/iPhone: AudioContext must be created and resumed inside a user gesture.
+        // Don't create on page load; show "Tap to enable sound" and unlock on first touch.
+        function isIOS() {
+            return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        }
+        function setupAudioUnlock() {
+            const overlay = document.getElementById('audioUnlockOverlay');
+            if (!overlay) return;
+            function unlock() {
+                initAudioContext().then(() => {
+                    overlay.classList.remove('visible');
+                    updateAudioStatus();
+                }).catch(err => {
+                    console.warn('Audio unlock failed:', err);
+                });
+                document.removeEventListener('touchstart', unlock, { capture: true });
+                document.removeEventListener('click', unlock, { capture: true });
+            }
+            if (isIOS()) {
+                overlay.classList.add('visible');
+                document.addEventListener('touchstart', unlock, { once: true, capture: true });
+                document.addEventListener('click', unlock, { once: true, capture: true });
+            }
+        }
+        setupAudioUnlock();
+
         renderPattern();
         updatePatternOrder();
         document.getElementById('bpmInput').value = state.bpm;
@@ -6107,8 +6227,17 @@
                         const incomingPatterns = (content.patterns || []).length;
                         console.log(`[nostr] Applying song from ${latest.pubkey === nostrPubkey ? 'self' : 'peer'}: ${incomingPatterns} patterns, ts=${latest.created_at}`);
                         applySongContent(content, state);
-                        // Ensure all patterns are properly initialized for the editor
+                        // Migrate old note-off format and ensure patterns are initialized
                         for (let i = 0; i < state.patterns.length; i++) {
+                            const pat = state.patterns[i];
+                            if (pat && pat.channels) {
+                                for (const ch of pat.channels) {
+                                    if (!Array.isArray(ch)) continue;
+                                    for (const step of ch) {
+                                        if (step && step.note === '==') step.note = '===';
+                                    }
+                                }
+                            }
                             initPattern(i);
                         }
                         // Sync UI controls to loaded state

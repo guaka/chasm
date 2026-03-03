@@ -351,16 +351,22 @@ const TRACKER_SONG_MAX_CONTENT_BYTES = 240000;
 /**
  * Build song content that fits within maxBytes (relay message limit).
  * Returns { content, truncated, originalPatterns, keptPatterns } so callers can warn the user.
+ * Legacy callers that pass a number as 2nd arg still get the old format (content directly).
  * @param {Object} state - audio0-style state
- * @param {number} [maxBytes] - default TRACKER_SONG_MAX_CONTENT_BYTES
- * @returns {{ content: Object, truncated: boolean, originalPatterns: number, keptPatterns: number }}
+ * @param {number|Object} [opts] - maxBytes (number for legacy compat) or { maxBytes, detailed: true }
+ * @returns {{ content: Object, truncated: boolean, originalPatterns: number, keptPatterns: number }|Object}
  */
-function buildSongContentForRelay(state, maxBytes) {
+function buildSongContentForRelay(state, opts) {
+  const detailed = (opts && typeof opts === 'object') ? !!opts.detailed : false;
+  const maxBytes = (typeof opts === 'number') ? opts : (opts && opts.maxBytes) || undefined;
   const max = maxBytes != null ? maxBytes : TRACKER_SONG_MAX_CONTENT_BYTES;
   const totalPatterns = (state.patterns || []).length;
   let content = buildSongContent(state);
   let json = JSON.stringify(content);
-  if (json.length <= max) return { content, truncated: false, originalPatterns: totalPatterns, keptPatterns: totalPatterns };
+  if (json.length <= max) {
+    if (detailed) return { content, truncated: false, originalPatterns: totalPatterns, keptPatterns: totalPatterns };
+    return content;
+  }
 
   // Try keeping all patterns but only non-empty channels (already sparse from packPattern)
   // If still too big, progressively trim pattern count
@@ -398,10 +404,12 @@ function buildSongContentForRelay(state, maxBytes) {
     if (state.globalFx) content.globalFx = { ...state.globalFx };
     json = JSON.stringify(content);
     if (json.length <= max) {
-      return { content, truncated: maxPatterns < totalPatterns, originalPatterns: totalPatterns, keptPatterns: maxPatterns };
+      if (detailed) return { content, truncated: maxPatterns < totalPatterns, originalPatterns: totalPatterns, keptPatterns: maxPatterns };
+      return content;
     }
   }
-  return { content, truncated: true, originalPatterns: totalPatterns, keptPatterns: content.patterns.length };
+  if (detailed) return { content, truncated: true, originalPatterns: totalPatterns, keptPatterns: content.patterns.length };
+  return content;
 }
 
 /**
@@ -412,6 +420,16 @@ function applySongContent(content, state) {
   if (!content || content.v !== TRACKER_SONG_SCHEMA_VERSION) return;
   if (Array.isArray(content.patterns) && content.patterns.length) {
     state.patterns = content.patterns.map(unpackPattern);
+    // Ensure each pattern has enough channels (sparse format may have trimmed trailing empty channels)
+    const numCh = content.channels || state.channels || 16;
+    const patLen = content.patternLength || state.patternLength || 64;
+    for (const pat of state.patterns) {
+      while (pat.channels.length < numCh) {
+        const empty = [];
+        for (let i = 0; i < patLen; i++) empty.push({ ...STEP_EMPTY });
+        pat.channels.push(empty);
+      }
+    }
   }
   if (Array.isArray(content.order) && content.order.length) {
     state.order = content.order;
