@@ -8,12 +8,17 @@
   const NOISTRACKER_RELAY = 'wss://relay.nomadwiki.org';
   const NOISTRACKER_TAG = 'noistracker';
 
+  const NOSTR_KIND_TEXT = 1;
+
   const NOSTR_TRACKER_KIND_SOUND_PACK = 31900;
   const NOSTR_TRACKER_KIND_TRACK_SETTINGS = 31901;
   const NOSTR_TRACKER_KIND_SONG = 30303;
   const NOSTR_TRACKER_KIND_DELTA = 30304;
 
   const TRACKER_KINDS = [NOSTR_TRACKER_KIND_SOUND_PACK, NOSTR_TRACKER_KIND_TRACK_SETTINGS, NOSTR_TRACKER_KIND_SONG, NOSTR_TRACKER_KIND_DELTA];
+
+  /** Tag for kind-1 noistracker chat; filter client-side. */
+  const NOISTRACKER_CHAT_TAG = 'noistracker-chat';
 
   /** Some relays (e.g. 256KB) reject larger messages. Keep event content under this. */
   const RELAY_MAX_MESSAGE_BYTES = 262144;
@@ -43,6 +48,11 @@
   /** Single filter for one kind (for one REQ). */
   function filterForKind(kind, limit) {
     return [{ kinds: [kind], limit: limit || 100 }];
+  }
+
+  /** Filters for kind-1 (text) chat. Filter by #t NOISTRACKER_CHAT_TAG in onevent. */
+  function minimalFiltersChat(limit) {
+    return [{ kinds: [NOSTR_KIND_TEXT], limit: limit || 50 }];
   }
 
   /**
@@ -92,6 +102,8 @@
   global.NostrLib = {
     NOISTRACKER_RELAY,
     NOISTRACKER_TAG,
+    NOISTRACKER_CHAT_TAG,
+    NOSTR_KIND_TEXT,
     NOSTR_TRACKER_KIND_SOUND_PACK,
     NOSTR_TRACKER_KIND_TRACK_SETTINGS,
     NOSTR_TRACKER_KIND_SONG,
@@ -100,6 +112,7 @@
     RELAY_MAX_MESSAGE_BYTES,
     minimalFiltersTracker,
     minimalFiltersRoom,
+    minimalFiltersChat,
     filterForKind,
     eventTag,
     eventHasTag,
