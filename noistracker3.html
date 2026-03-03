@@ -751,7 +751,7 @@
             position: fixed;
             inset: 0;
             z-index: 99999;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.9);
             align-items: center;
             justify-content: center;
             font-family: 'Courier New', Consolas, monospace;
@@ -764,14 +764,31 @@
             touch-action: manipulation;
             -webkit-user-select: none;
             user-select: none;
+            border: none;
+            pointer-events: auto;
         }
         #audioUnlockOverlay.visible {
             display: flex;
         }
+        #audioUnlockBtn {
+            background: #2a4a6a;
+            color: #fff;
+            border: 2px solid #4a7aaa;
+            padding: 16px 32px;
+            font-family: inherit;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 8px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        #audioUnlockBtn:active {
+            background: #1a3a5a;
+        }
     </style>
 </head>
 <body>
-    <div id="audioUnlockOverlay" class="audio-unlock-overlay" role="button" tabindex="0" aria-label="Tap to enable sound">Tap to enable sound<br><small style="color:#666;font-size:12px;">(Ensure ringer is on)</small></div>
+    <div id="audioUnlockOverlay" class="audio-unlock-overlay"><button type="button" id="audioUnlockBtn">Tap to enable sound</button></div>
     <div class="container">
         <div class="header">
             <div class="logo">
@@ -1338,6 +1355,21 @@
                 fxCmd: '', // Effect command (CC number or letter: F, R, Z, Q, J)
                 fxVal: ''  // Effect value/parameter (hex, e.g., "12", "34", "37")
             };
+        }
+
+        // Convert step volume column (supports step.vol or step.v) to MIDI velocity 0-127.
+        // Two digits both 0-9 (e.g. "20") = decimal percentage 0-99. Otherwise hex 00-FF.
+        function stepVolToVelocity(step) {
+            const raw = (step && (step.vol !== undefined && step.vol !== '' ? step.vol : step.v));
+            if (raw === undefined || raw === null || String(raw).trim() === '') return 64;
+            const s = String(raw).trim();
+            if (s.length === 2 && /^[0-9][0-9]$/.test(s)) {
+                const pct = parseInt(s, 10);
+                return Math.max(0, Math.min(127, Math.round(pct * 127 / 100)));
+            }
+            const hex = parseInt(s, 16);
+            if (isNaN(hex)) return 64;
+            return Math.max(0, Math.min(127, Math.round(hex * 127 / 255)));
         }
 
         // Initialize first pattern with 16 channels
@@ -2664,7 +2696,7 @@
             return true;
         }
 
-        // IT/Schism-style logarithmic filter cutoff (Z80-ZFF): 131 * 2^(cutoff*10/127), clamp for Web Audio
+        // IT/Schism-style logarithmic filter cutoff: 131 * 2^(cutoff*10/127), clamp for Web Audio
         function cutoffToFreq(cutoff) {
             const freq = 131.0 * Math.pow(2, (cutoff & 0x7F) * (10.0 / 127.0));
             return Math.max(20, Math.min(20000, freq));
@@ -2680,7 +2712,7 @@
             // Numeric CC commands are ignored in audio mode
             if (/^[0-9]+$/.test(cmd)) return;
 
-            // Zxx: IT/Schism filter macro — Z00-Z7F = resonance (0-127), Z80-ZFF = cutoff (0-127)
+            // Zxx: IT/Schism filter macro — Z00-Z7F = cutoff (0-127), Z80-Z8F = Q resonance (low nibble 0-F)
             if (cmd.startsWith('Z')) {
                 const hexPart = cmd.length > 1 ? cmd.slice(1) : param;
                 const val = parseInt(hexPart, 16) || 0;
@@ -2688,22 +2720,22 @@
                 if (chFilter) {
                     const now = state.audioContext.currentTime;
                     const t = 0.01;
-                    if (val < 0x80) {
-                        // Resonance: Q = 1.0 + res*0.15 (IT/Schism)
-                        const q = 1.0 + val * 0.15;
+                    if (val >= 0x80 && val <= 0x8F) {
+                        // Z80-Z8F: resonance (low nibble 0-15 → Q)
+                        const q = 0.1 + ((val & 0x0F) / 15) * 19.9;
                         chFilter.Q.setTargetAtTime(Math.max(0.1, Math.min(30, q)), now, t);
                         if (!state.channelFxSettings[channel]) state.channelFxSettings[channel] = {};
-                        state.channelFxSettings[channel].resonance = Math.round((q - 0.1) / 19.9 * 255);
+                        state.channelFxSettings[channel].resonance = Math.round((val & 0x0F) / 15 * 255);
                         state.channelFxSettings[channel].resonance = Math.max(0, Math.min(255, state.channelFxSettings[channel].resonance));
-                    } else {
-                        // Cutoff: logarithmic 131*2^(cutoff*10/127) (IT/Schism)
-                        const cutoff = val - 0x80;
-                        const freq = cutoffToFreq(cutoff);
+                    } else if (val < 0x80) {
+                        // Z00-Z7F: cutoff frequency (log scale)
+                        const freq = cutoffToFreq(val);
                         chFilter.frequency.setTargetAtTime(freq, now, t);
                         if (!state.channelFxSettings[channel]) state.channelFxSettings[channel] = {};
                         state.channelFxSettings[channel].filter = Math.round((freq - 100) / 7900 * 255);
                         state.channelFxSettings[channel].filter = Math.max(0, Math.min(255, state.channelFxSettings[channel].filter));
                     }
+                    // Z90-ZFF: undefined / no-op in this scheme
                 }
                 return;
             }
@@ -2734,7 +2766,7 @@
                             const volMod = param.length >= 2 ? (parseInt(param.charAt(0), 16) || 0) : 0;
                             let tickInterval = param.length >= 2 ? (parseInt(param.charAt(1), 16) || 0) : (parseInt(param.charAt(0), 16) || 0);
                             if (tickInterval === 0) tickInterval = 1;
-                            const baseVelocity = step.vol ? Math.min(127, parseInt(step.vol, 16) * 2) : 64;
+                            const baseVelocity = stepVolToVelocity(step);
                             state.channelRepetition[channel] = {
                                 tickInterval: tickInterval,
                                 countdown: tickInterval,
@@ -2763,7 +2795,7 @@
                                     semitone1: semitone1,
                                     semitone2: semitone2,
                                     tick: 0,
-                                    velocity: step.vol ? Math.min(127, parseInt(step.vol, 16) * 2) : 64,
+                                    velocity: stepVolToVelocity(step),
                                     stepIndex: state.currentStep, // row where note was triggered (for moving noteKey -> arp)
                                     firstTick: true
                                 };
@@ -4017,10 +4049,8 @@
                 if (midiNote !== null) {
                     // Get velocity from the step (or default)
                     const step = pattern.channels[channel][row];
-                    const velocity = step.vol 
-                        ? parseInt(step.vol, 16) * 2 
-                        : 64;
-                    previewNote(channel, midiNote, Math.min(127, velocity));
+                    const velocity = stepVolToVelocity(step);
+                    previewNote(channel, midiNote, velocity);
                 }
             }
             
@@ -4427,10 +4457,8 @@
             const midiNote = parseNote(noteStr);
             if (midiNote !== null) {
                 const step = pattern.channels[state.activeCell.channel][state.activeCell.row];
-                const velocity = step.vol 
-                    ? parseInt(step.vol, 16) * 2 
-                    : 64;
-                previewNote(state.activeCell.channel, midiNote, Math.min(127, velocity), 150);
+                const velocity = stepVolToVelocity(step);
+                previewNote(state.activeCell.channel, midiNote, velocity, 150);
             }
 
             // Auto-advance: move by step size (like Schism Tracker)
@@ -4655,11 +4683,9 @@
                                 }
                             });
                             
-                            const velocity = step.vol ? parseInt(step.vol, 16) * 2 : 64;
-                            const clampedVelocity = Math.min(127, velocity);
-                            
+                            const velocity = stepVolToVelocity(step);
                             const instHex = step.inst || null;
-                            const noteInfo = playAudioNote(ch, midiNote, clampedVelocity, instHex);
+                            const noteInfo = playAudioNote(ch, midiNote, velocity, instHex);
                             hasNewNote = true;
                             
                             if (state.channelRepetition[ch]) delete state.channelRepetition[ch];
@@ -4671,7 +4697,7 @@
                                     state.activeNotes.set(noteKey, { note: midiNote, track: ch, noteInfo });
                                 } else if (state.channelArpeggio[ch]) {
                                     state.channelArpeggio[ch].baseNote = midiNote;
-                                    state.channelArpeggio[ch].velocity = clampedVelocity;
+                                    state.channelArpeggio[ch].velocity = velocity;
                                     state.channelArpeggio[ch].tick = 0;
                                     state.channelArpeggio[ch].firstTick = true;
                                     state.activeNotes.delete(noteKey);
@@ -6196,75 +6222,65 @@
             }
         });
 
-        // iOS: create context on load (suspended), then only resume() inside first user gesture.
-        // Bind to overlay with passive: false so the tap counts and preventDefault works.
+        // iOS: create context and play silent buffer only inside touchend/click (no drag).
+        // Real <button> + passive:false so iOS treats it as user gesture.
         function isIOS() {
             return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         }
         function setupAudioUnlock() {
             const overlay = document.getElementById('audioUnlockOverlay');
-            if (!overlay) return;
-            const opts = { capture: true, passive: false };
+            const btn = document.getElementById('audioUnlockBtn');
+            if (!overlay || !btn) return;
+            let dragged = false;
+            const opts = { passive: false };
             function done() {
                 ensureAudioGraph();
                 overlay.classList.remove('visible');
                 updateAudioStatus();
             }
-            function onStateChange() {
+            function waitRunning() {
                 if (state.audioContext && state.audioContext.state === 'running') {
-                    state.audioContext.removeEventListener('statechange', onStateChange);
                     done();
+                    return;
                 }
-            }
-            function trySilentBuffer() {
-                if (!state.audioContext || state.audioContext.state === 'running') return;
-                try {
-                    const buf = state.audioContext.createBuffer(1, 1, 22050);
-                    const src = state.audioContext.createBufferSource();
-                    src.buffer = buf;
-                    src.connect(state.audioContext.destination);
-                    src.start(0);
-                } catch (_) {}
+                state.audioContext.resume();
+                requestAnimationFrame(waitRunning);
             }
             function unlock(e) {
                 if (e) { e.preventDefault(); e.stopPropagation(); }
-                overlay.removeEventListener('touchstart', unlock, opts);
+                if (dragged) { dragged = false; return; }
+                btn.removeEventListener('touchmove', onMove, opts);
+                btn.removeEventListener('touchend', unlock, opts);
+                btn.removeEventListener('click', unlock, opts);
+                overlay.removeEventListener('touchmove', onMove, opts);
                 overlay.removeEventListener('touchend', unlock, opts);
                 overlay.removeEventListener('click', unlock, opts);
-                document.removeEventListener('touchstart', unlock, opts);
-                document.removeEventListener('touchend', unlock, opts);
-                document.removeEventListener('click', unlock, opts);
                 if (!state.audioContext) {
                     state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 }
                 if ('audioSession' in navigator && navigator.audioSession.type !== 'playback') {
                     try { navigator.audioSession.type = 'playback'; } catch (_) {}
                 }
-                state.audioContext.addEventListener('statechange', onStateChange);
-                state.audioContext.resume();
-                trySilentBuffer();
-                state.audioContext.resume().then(function () {
-                    if (state.audioContext && state.audioContext.state === 'running') {
-                        state.audioContext.removeEventListener('statechange', onStateChange);
-                        done();
-                    }
-                }).catch(function () {});
-                setTimeout(function () {
-                    if (state.audioContext && state.audioContext.state === 'running') {
-                        state.audioContext.removeEventListener('statechange', onStateChange);
-                        done();
-                    }
-                }, 200);
+                var ctx = state.audioContext;
+                try {
+                    var buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+                    var src = ctx.createBufferSource();
+                    src.buffer = buf;
+                    src.connect(ctx.destination);
+                    src.start(ctx.currentTime + 0.01);
+                } catch (_) {}
+                ctx.resume();
+                waitRunning();
             }
+            function onMove() { dragged = true; }
             if (isIOS()) {
-                state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 overlay.classList.add('visible');
-                overlay.addEventListener('touchstart', unlock, opts);
+                btn.addEventListener('touchmove', onMove, opts);
+                btn.addEventListener('touchend', unlock, opts);
+                btn.addEventListener('click', unlock, opts);
+                overlay.addEventListener('touchmove', onMove, opts);
                 overlay.addEventListener('touchend', unlock, opts);
                 overlay.addEventListener('click', unlock, opts);
-                document.addEventListener('touchstart', unlock, opts);
-                document.addEventListener('touchend', unlock, opts);
-                document.addEventListener('click', unlock, opts);
             }
         }
         setupAudioUnlock();
