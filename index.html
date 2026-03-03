@@ -130,6 +130,81 @@
         #noistracker-rooms-empty a { color: var(--accent); text-decoration: none; }
         #noistracker-rooms-empty a:hover { text-decoration: underline; }
 
+        .new-room-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            align-items: center;
+        }
+        .new-room-row input {
+            flex: 1;
+            max-width: 280px;
+            padding: 8px 12px;
+            font-family: inherit;
+            font-size: 13px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+        }
+        .new-room-row input::placeholder { color: var(--text-muted); }
+        .new-room-row input:focus { outline: none; border-color: var(--accent); }
+        .new-room-row .hint { font-size: 11px; color: var(--text-muted); }
+
+        .chat-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            max-width: 560px;
+        }
+        .chat-messages {
+            height: 220px;
+            overflow-y: auto;
+            padding: 10px;
+            font-size: 12px;
+        }
+        .chat-msg {
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+        .chat-msg .chat-meta { color: var(--text-muted); font-size: 10px; margin-bottom: 2px; }
+        .chat-msg .chat-body { color: var(--text); }
+        .chat-input-row {
+            display: flex;
+            gap: 8px;
+            padding: 8px 10px;
+            border-top: 1px solid var(--border);
+            background: var(--bg);
+        }
+        .chat-input-row input {
+            flex: 1;
+            padding: 8px 10px;
+            font-family: inherit;
+            font-size: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+        }
+        .chat-input-row input:focus { outline: none; border-color: var(--accent); }
+        .chat-input-row button {
+            padding: 8px 14px;
+            font-family: inherit;
+            font-size: 12px;
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .chat-input-row button:hover { background: var(--accent-dim); }
+        .chat-input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #chat-key-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+        #chat-key-hint button { margin-left: 4px; padding: 2px 8px; font-size: 11px; background: var(--surface); border: 1px solid var(--border); color: var(--accent); border-radius: 4px; cursor: pointer; }
+        #chat-key-hint button:hover { background: var(--surface-hover); }
+        #chat-status { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
         .footer {
             margin-top: 48px;
             padding-top: 20px;
@@ -162,10 +237,27 @@
 
         <div class="section">
             <h2>Noistracker rooms</h2>
+            <div class="new-room-row">
+                <input type="text" id="new-room-input" placeholder="New room name…" autocomplete="off" />
+                <span class="hint">Enter → open in tracker</span>
+            </div>
             <div id="noistracker-rooms-wrap" class="link-grid">
                 <div id="noistracker-rooms-loading" class="description" style="grid-column: 1 / -1;">Loading rooms…</div>
             </div>
             <div id="noistracker-rooms-empty" class="description" style="display: none; margin-top: 4px;">No rooms yet. <a href="noistracker3.html">Open the tracker</a> and enter a room name to create one.</div>
+        </div>
+
+        <div class="section">
+            <h2>Chat</h2>
+            <div class="chat-box">
+                <div id="chatMessages" class="chat-messages">Loading…</div>
+                <div class="chat-input-row">
+                    <input type="text" id="chatInput" placeholder="Message…" maxlength="500">
+                    <button type="button" id="chatSendBtn">Send</button>
+                </div>
+                <div id="chat-key-hint" style="display: none; padding: 6px 10px; border-top: 1px solid var(--border);"></div>
+                <div id="chat-status" style="padding: 4px 10px;"></div>
+            </div>
         </div>
 
         <div class="section">
@@ -230,6 +322,17 @@
         const CACHE_KEY = 'chasm_noistracker_rooms';
         const CACHE_MAX_AGE_SEC = 600; // 10 min
         const TRACKER_URL = 'noistracker3.html';
+
+        const newRoomInput = document.getElementById('new-room-input');
+        if (newRoomInput) {
+          newRoomInput.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            const name = this.value.trim();
+            if (!name) return;
+            e.preventDefault();
+            window.location.href = TRACKER_URL + '#' + encodeURIComponent(name);
+          });
+        }
 
         const wrapEl = document.getElementById('noistracker-rooms-wrap');
         const loadingEl = document.getElementById('noistracker-rooms-loading');
@@ -364,6 +467,164 @@
             }
           }
         })();
+      })();
+
+      // --- Nostr kind-1 chat (noistracker-chat) ---
+      (function () {
+        const RELAY = NostrLib.NOISTRACKER_RELAY;
+        const CHAT_TAG = NostrLib.NOISTRACKER_CHAT_TAG;
+        const NOSTR_KEY_STORAGE = 'noistracker_nsec_hex';
+
+        const messagesEl = document.getElementById('chatMessages');
+        const inputEl = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('chatSendBtn');
+        const keyHintEl = document.getElementById('chat-key-hint');
+        const statusEl = document.getElementById('chat-status');
+
+        let pool = null;
+        let chatSubs = [];
+        let NostrTools = null;
+        const chatEvents = [];
+
+        function hexToBytes(hex) {
+          const b = new Uint8Array(hex.length / 2);
+          for (let i = 0; i < hex.length; i += 2) b[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+          return b;
+        }
+        function bytesToHex(b) {
+          return Array.from(b).map(x => ('0' + x.toString(16)).slice(-2)).join('');
+        }
+
+        function escapeHtml(s) {
+          const div = document.createElement('div');
+          div.textContent = s;
+          return div.innerHTML;
+        }
+
+        function abbrev(pubkey) {
+          if (!pubkey || pubkey.length < 16) return '?';
+          return pubkey.slice(0, 8) + '…';
+        }
+
+        function formatChatTime(ts) {
+          const d = new Date(ts * 1000);
+          const now = Date.now() / 1000;
+          if (now - ts < 86400) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function renderChat() {
+          const sorted = [...chatEvents].sort((a, b) => a.created_at - b.created_at);
+          messagesEl.innerHTML = sorted.length === 0
+            ? '<div class="description">No messages yet. Send one!</div>'
+            : sorted.map(ev => '<div class="chat-msg"><div class="chat-meta">' + escapeHtml(abbrev(ev.pubkey)) + ' · ' + formatChatTime(ev.created_at) + '</div><div class="chat-body">' + escapeHtml((ev.content || '').slice(0, 500)) + '</div></div>').join('');
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function onChatEvent(ev) {
+          if (!NostrLib.eventHasTag(ev, 't', CHAT_TAG)) return;
+          if (chatEvents.some(e => e.id === ev.id)) return;
+          chatEvents.push(ev);
+          while (chatEvents.length > 200) chatEvents.shift();
+          renderChat();
+        }
+
+        function setChatStatus(text) {
+          if (statusEl) statusEl.textContent = text;
+        }
+
+        function updateKeyHint() {
+          try {
+            const hex = localStorage.getItem(NOSTR_KEY_STORAGE);
+            if (hex && /^[a-fA-F0-9]{64}$/.test(hex)) {
+              keyHintEl.style.display = 'none';
+              return true;
+            }
+          } catch (_) {}
+          keyHintEl.style.display = 'block';
+          keyHintEl.innerHTML = 'Generate a key to send messages. <button type="button" id="chatGenerateKeyBtn">Generate key</button>';
+          const btn = document.getElementById('chatGenerateKeyBtn');
+          if (btn) btn.onclick = generateKeyAndHint;
+          return false;
+        }
+
+        async function generateKeyAndHint() {
+          const t = await loadNostrTools();
+          if (!t) return;
+          try {
+            const sk = t.generateSecretKey();
+            const hex = bytesToHex(sk);
+            localStorage.setItem(NOSTR_KEY_STORAGE, hex);
+            updateKeyHint();
+          } catch (e) {
+            setChatStatus('Failed to generate key');
+          }
+        }
+
+        async function loadNostrTools() {
+          if (NostrTools) return NostrTools;
+          try {
+            NostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2/+esm');
+            return NostrTools;
+          } catch (e) {
+            setChatStatus('Failed to load nostr-tools');
+            return null;
+          }
+        }
+
+        async function connectAndSub() {
+          const t = await loadNostrTools();
+          if (!t) return;
+          pool = new t.SimplePool();
+          try {
+            await pool.ensureRelay(RELAY);
+            setChatStatus('Connected');
+          } catch (e) {
+            setChatStatus('Relay error');
+            messagesEl.innerHTML = '<div class="description">Could not connect to relay.</div>';
+            return;
+          }
+          NostrLib.unsubMany(chatSubs);
+          chatSubs = NostrLib.subscribeMany(pool, [RELAY], NostrLib.minimalFiltersChat(100), { onevent: onChatEvent });
+          messagesEl.innerHTML = '';
+          renderChat();
+        }
+
+        async function sendMessage() {
+          const text = (inputEl && inputEl.value || '').trim();
+          if (!text) return;
+          try {
+            const hex = localStorage.getItem(NOSTR_KEY_STORAGE);
+            if (!hex || !/^[a-fA-F0-9]{64}$/.test(hex)) {
+              setChatStatus('Generate a key first');
+              updateKeyHint();
+              return;
+            }
+            const t = await loadNostrTools();
+            if (!t || !pool) { await connectAndSub(); await loadNostrTools(); }
+            const nt = NostrTools || await loadNostrTools();
+            if (!nt) return;
+            const sk = hexToBytes(hex);
+            const ev = nt.finalizeEvent({
+              kind: 1,
+              tags: [['t', CHAT_TAG]],
+              content: text.slice(0, 500),
+              created_at: Math.floor(Date.now() / 1000),
+              pubkey: nt.getPublicKey(sk)
+            }, sk);
+            await pool.publish([RELAY], ev);
+            if (inputEl) inputEl.value = '';
+            setChatStatus('Sent');
+            setTimeout(() => setChatStatus(''), 2000);
+          } catch (e) {
+            setChatStatus('Send failed: ' + (e.message || 'error'));
+          }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
+        updateKeyHint();
+        connectAndSub();
       })();
     </script>
 </body>
