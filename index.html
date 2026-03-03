@@ -572,21 +572,36 @@
           }
         }
 
+        function setChatMessagesContent(html) {
+          if (messagesEl) messagesEl.innerHTML = html;
+        }
+
         async function connectAndSub() {
+          if (messagesEl) messagesEl.innerHTML = '<div class="description">Connecting…</div>';
           const t = await loadNostrTools();
-          if (!t) return;
-          pool = new t.SimplePool();
-          try {
-            await pool.ensureRelay(RELAY);
-            setChatStatus('Connected');
-          } catch (e) {
-            setChatStatus('Relay error');
-            messagesEl.innerHTML = '<div class="description">Could not connect to relay.</div>';
+          if (!t) {
+            setChatMessagesContent('<div class="description">Failed to load chat. Check network and reload.</div>');
             return;
           }
+          pool = new t.SimplePool();
+          const relayPromise = pool.ensureRelay(RELAY);
+          const timeoutMs = 12000;
+          let connected = false;
+          try {
+            await Promise.race([
+              relayPromise,
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
+            ]);
+            connected = true;
+          } catch (e) {
+            setChatStatus( e.message === 'timeout' ? 'Connection timed out' : 'Relay error' );
+            setChatMessagesContent('<div class="description">Could not connect to relay. Try sending a message to retry.</div>');
+            return;
+          }
+          setChatStatus('Connected');
           NostrLib.unsubMany(chatSubs);
           chatSubs = NostrLib.subscribeMany(pool, [RELAY], NostrLib.minimalFiltersChat(100), { onevent: onChatEvent });
-          messagesEl.innerHTML = '';
+          setChatMessagesContent('');
           renderChat();
         }
 

@@ -261,6 +261,22 @@
             height: 20px;
         }
 
+        .pattern-editor tr.row-beat td.row-number {
+            background: #222;
+        }
+        .pattern-editor tr.row-beat td.cell.even {
+            background: #1e1e1e;
+        }
+        .pattern-editor tr.row-beat td.cell.odd {
+            background: #1a1a1a;
+        }
+        .pattern-editor tr.row-beat td.cell.even:hover {
+            background: #2e2e2e;
+        }
+        .pattern-editor tr.row-beat td.cell.odd:hover {
+            background: #252525;
+        }
+
         .pattern-editor td.row-number {
             background: #1a1a1a;
             color: #666;
@@ -746,6 +762,8 @@
             -webkit-tap-highlight-color: transparent;
             cursor: pointer;
             touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
         }
         #audioUnlockOverlay.visible {
             display: flex;
@@ -753,7 +771,7 @@
     </style>
 </head>
 <body>
-    <div id="audioUnlockOverlay" class="audio-unlock-overlay">Tap to enable sound</div>
+    <div id="audioUnlockOverlay" class="audio-unlock-overlay" role="button" tabindex="0" aria-label="Tap to enable sound">Tap to enable sound<br><small style="color:#666;font-size:12px;">(Ensure ringer is on)</small></div>
     <div class="container">
         <div class="header">
             <div class="logo">
@@ -1048,7 +1066,8 @@
                 <div style="font-size: 11px; color: #888; margin-bottom: 8px;">SYNTHS</div>
                 <div id="synthPickerSynths" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px;"></div>
                 <div style="font-size: 11px; color: #888; margin-bottom: 8px;">DRUM MACHINES</div>
-                <div id="synthPickerDrums" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px;"></div>
+                <div id="synthPickerDrums" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px;"></div>
+                <div id="drumMapLegend" style="display: none; font-size: 10px; color: #888; margin-bottom: 12px; padding: 8px; background: #1a1a1a; border: 1px solid #333; border-radius: 4px; font-family: 'Courier New', monospace; line-height: 1.5;"></div>
                 <div style="font-size: 11px; color: #888; margin-bottom: 8px; margin-top: 14px;">FX (per-channel)</div>
                 <div id="channelSettingsFx" style="display: grid; grid-template-columns: auto 1fr auto; gap: 8px 12px; align-items: center; margin-bottom: 8px;">
                     <label style="font-size: 12px; color: #aaa;">Filter (F)</label>
@@ -1119,6 +1138,11 @@
             stepTimer: null,
             scheduledTickTime: 0,
             scheduledStepTime: 0,
+            // Single-clock timing (for solid sync)
+            playbackStartTime: 0,
+            totalStepsSinceStart: 0,
+            totalTicksSinceStart: 0,
+            timingLoopId: null,
             maxChannels: 256,
             currentOctave: 4,
             noteEntryBuffer: '',
@@ -2604,12 +2628,24 @@
             }
         }
 
-        function stopAudioNote(noteInfo) {
-            if (!noteInfo || noteInfo.isDrum) return;
+        function stopAudioNote(noteInfo, forceStop = false) {
+            if (!noteInfo) return;
+            const now = state.audioContext ? state.audioContext.currentTime : 0;
             try {
+                if (noteInfo.isDrum) {
+                    if (!forceStop) return;
+                    // Force-stop drums: mute gain and stop oscillator if present (stops one-shots from continuing)
+                    if (noteInfo.gainNode) {
+                        noteInfo.gainNode.gain.cancelScheduledValues(now);
+                        noteInfo.gainNode.gain.setValueAtTime(0, now);
+                    }
+                    if (noteInfo.oscillator) {
+                        try { noteInfo.oscillator.stop(now); } catch (_) {}
+                    }
+                    return;
+                }
                 const instrument = getInstrumentForChannel(noteInfo.channel);
                 const releaseTime = instrument.release || 0.3;
-                const now = state.audioContext.currentTime;
                 noteInfo.gainNode.gain.cancelScheduledValues(now);
                 const currentGain = noteInfo.gainNode.gain.value;
                 noteInfo.gainNode.gain.setValueAtTime(Math.max(0.001, currentGain), now);
@@ -2628,6 +2664,12 @@
             return true;
         }
 
+        // IT/Schism-style logarithmic filter cutoff (Z80-ZFF): 131 * 2^(cutoff*10/127), clamp for Web Audio
+        function cutoffToFreq(cutoff) {
+            const freq = 131.0 * Math.pow(2, (cutoff & 0x7F) * (10.0 / 127.0));
+            return Math.max(20, Math.min(20000, freq));
+        }
+
         // Handle FX effects (Impulse Tracker / Schism Tracker style)
         function handleFXEffect(channel, fxCmd, fxVal, step) {
             if (!fxCmd) return;
@@ -2638,7 +2680,7 @@
             // Numeric CC commands are ignored in audio mode
             if (/^[0-9]+$/.test(cmd)) return;
 
-            // Zxx: allow "Z" + param in next column, or "Z40" / "z40" in command column
+            // Zxx: IT/Schism filter macro — Z00-Z7F = resonance (0-127), Z80-ZFF = cutoff (0-127)
             if (cmd.startsWith('Z')) {
                 const hexPart = cmd.length > 1 ? cmd.slice(1) : param;
                 const val = parseInt(hexPart, 16) || 0;
@@ -2647,11 +2689,20 @@
                     const now = state.audioContext.currentTime;
                     const t = 0.01;
                     if (val < 0x80) {
-                        const q = 0.1 + (val / 127) * 19.9;
-                        chFilter.Q.setTargetAtTime(q, now, t);
+                        // Resonance: Q = 1.0 + res*0.15 (IT/Schism)
+                        const q = 1.0 + val * 0.15;
+                        chFilter.Q.setTargetAtTime(Math.max(0.1, Math.min(30, q)), now, t);
+                        if (!state.channelFxSettings[channel]) state.channelFxSettings[channel] = {};
+                        state.channelFxSettings[channel].resonance = Math.round((q - 0.1) / 19.9 * 255);
+                        state.channelFxSettings[channel].resonance = Math.max(0, Math.min(255, state.channelFxSettings[channel].resonance));
                     } else {
-                        const freq = 100 + ((val - 0x80) / 127) * 7900;
+                        // Cutoff: logarithmic 131*2^(cutoff*10/127) (IT/Schism)
+                        const cutoff = val - 0x80;
+                        const freq = cutoffToFreq(cutoff);
                         chFilter.frequency.setTargetAtTime(freq, now, t);
+                        if (!state.channelFxSettings[channel]) state.channelFxSettings[channel] = {};
+                        state.channelFxSettings[channel].filter = Math.round((freq - 100) / 7900 * 255);
+                        state.channelFxSettings[channel].filter = Math.max(0, Math.min(255, state.channelFxSettings[channel].filter));
                     }
                 }
                 return;
@@ -2774,7 +2825,18 @@
                             }
                             velocity = Math.max(1, Math.min(127, velocity));
                             if (state.activeNotes.has(retrigKey)) {
-                                stopAudioNote(state.activeNotes.get(retrigKey).noteInfo);
+                                const prev = state.activeNotes.get(retrigKey).noteInfo;
+                                if (prev) {
+                                    if (prev.gainNode) {
+                                        try {
+                                            prev.gainNode.gain.cancelScheduledValues(state.audioContext.currentTime);
+                                            prev.gainNode.gain.setValueAtTime(0, state.audioContext.currentTime);
+                                        } catch (_) {}
+                                    }
+                                    if (!prev.isDrum && prev.oscillator) {
+                                        try { prev.oscillator.stop(state.audioContext.currentTime); } catch (_) {}
+                                    }
+                                }
                                 state.activeNotes.delete(retrigKey);
                             }
                             const noteInfo = playAudioNote(ch, retrig.note, velocity);
@@ -2819,9 +2881,18 @@
                         } catch (_) {}
                         existing.note = arpNote;
                     } else {
-                        // Drums or missing oscillator: stop previous, play new
+                        // Drums or missing oscillator: mute/stop previous so we don't stack voices, then play new
                         if (existing && existing.noteInfo) {
-                            stopAudioNote(existing.noteInfo);
+                            const prev = existing.noteInfo;
+                            if (prev.gainNode) {
+                                try {
+                                    prev.gainNode.gain.cancelScheduledValues(state.audioContext.currentTime);
+                                    prev.gainNode.gain.setValueAtTime(0, state.audioContext.currentTime);
+                                } catch (_) {}
+                            }
+                            if (!prev.isDrum && prev.oscillator) {
+                                try { prev.oscillator.stop(state.audioContext.currentTime); } catch (_) {}
+                            }
                         }
                         const noteInfo = playAudioNote(ch, arpNote, arp.velocity);
                         state.activeNotes.set(noteKey, { note: arpNote, track: ch, noteInfo });
@@ -2889,6 +2960,20 @@
                 if (synth.category === 'drums') drumGrid.appendChild(btn);
                 else synthGrid.appendChild(btn);
             });
+
+            // Show note → sound mapping when a drum machine is selected
+            const drumLegend = document.getElementById('drumMapLegend');
+            const selectedDrum = state.trackInstruments[trackIndex];
+            if (selectedDrum === '606' || selectedDrum === '808' || selectedDrum === '909') {
+                const map = selectedDrum === '606' ? DRUM_MAP_606 : selectedDrum === '808' ? DRUM_MAP_808 : DRUM_MAP_909;
+                const midiToNoteStr = (n) => noteNames[n % 12] + (Math.floor(n / 12) - 2); // 36 = C1 (GM drum)
+                const entries = Object.entries(map).sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10));
+                drumLegend.innerHTML = '<span style="color: #666;">Note → sound:</span> ' +
+                    entries.map(([note, sound]) => '<span style="color: #aaa;">' + midiToNoteStr(parseInt(note, 10)) + ' → ' + sound + '</span>').join(' &nbsp;|&nbsp; ');
+                drumLegend.style.display = 'block';
+            } else {
+                drumLegend.style.display = 'none';
+            }
 
             // Populate FX settings for this channel
             const fx = state.channelFxSettings[trackIndex] || {};
@@ -3747,7 +3832,8 @@
             const patternLength = pattern.length || state.patternLength;
             for (let row = 0; row < patternLength; row++) {
                 const tr = document.createElement('tr');
-                
+                if (row % 4 === 0) tr.classList.add('row-beat');
+
                 // Row number
                 const rowNum = document.createElement('td');
                 rowNum.className = 'row-number';
@@ -4407,59 +4493,104 @@
             savePatternsToStorage();
         }
 
-        // Tick scheduler — 24 ticks per quarter note (for retrig/arpeggio)
-        function scheduleTick() {
+        // Single timing loop — one clock for steps and ticks (solid, no drift)
+        // 4 steps per beat (16th), 24 ticks per beat (for retrig/arpeggio)
+        const STEP_INDEX_PER_BEAT = 4;
+        const TICK_INDEX_PER_BEAT = 24;
+        const MAX_TICKS_CATCH_UP_PER_FRAME = 24;
+        const MAX_STEPS_CATCH_UP_PER_FRAME = 4;
+
+        function runTimingLoop() {
             if (!state.isPlaying) return;
-            
+
             const now = performance.now();
-            const tickInterval = (60000.0 / state.bpm / 24.0);
-            
-            if (state.scheduledTickTime === 0) {
-                state.scheduledTickTime = now + tickInterval;
-            } else {
-                state.scheduledTickTime += tickInterval;
-            }
-            
-            const delay = Math.max(0, Math.min(tickInterval, state.scheduledTickTime - now));
-            
-            state.tickTimer = setTimeout(() => {
-                if (state.isPlaying) {
+            const elapsed = now - state.playbackStartTime;
+            const stepIntervalMs = 60000.0 / state.bpm / STEP_INDEX_PER_BEAT;
+            const tickIntervalMs = 60000.0 / state.bpm / TICK_INDEX_PER_BEAT;
+
+            const targetStep = Math.floor(elapsed / stepIntervalMs);
+            const targetTick = Math.floor(elapsed / tickIntervalMs);
+
+            // Process ticks we're behind (cap to avoid burst when tab was backgrounded)
+            const tickDelta = targetTick - state.totalTicksSinceStart;
+            if (tickDelta > 0) {
+                const ticksToRun = Math.min(tickDelta, MAX_TICKS_CATCH_UP_PER_FRAME);
+                for (let i = 0; i < ticksToRun; i++) {
+                    if (!state.isPlaying) break;
                     processTick();
-                    scheduleTick();
+                    state.totalTicksSinceStart++;
                 }
-            }, delay);
+                if (tickDelta > MAX_TICKS_CATCH_UP_PER_FRAME) {
+                    state.totalTicksSinceStart = targetTick;
+                }
+            }
+
+            // Process steps we're behind (cap to avoid flooding)
+            const stepDelta = targetStep - state.totalStepsSinceStart;
+            if (stepDelta > 0) {
+                const stepsToRun = Math.min(stepDelta, MAX_STEPS_CATCH_UP_PER_FRAME);
+                for (let i = 0; i < stepsToRun; i++) {
+                    if (!state.isPlaying) break;
+                    playStep();
+                    state.totalStepsSinceStart++;
+                }
+                if (stepDelta > MAX_STEPS_CATCH_UP_PER_FRAME) {
+                    state.totalStepsSinceStart = targetStep;
+                    seekToStepCount(targetStep);
+                }
+            }
+
+            if (state.isPlaying) {
+                state.timingLoopId = requestAnimationFrame(runTimingLoop);
+            }
         }
 
-        // Precise step scheduler
-        function scheduleStep() {
-            if (!state.isPlaying) return;
-            
-            const now = performance.now();
-            
-            // BPM-based timing: 4 steps per beat (16th notes)
-            // Step interval = 60000ms / BPM / 4 steps per beat
-            // More precise calculation: (60 * 1000) / (BPM * 4)
-            const stepInterval = (60000.0 / state.bpm / 4.0);
-            
-            // Calculate when the next step should happen
-            if (state.scheduledStepTime === 0) {
-                state.scheduledStepTime = now + stepInterval;
-            } else {
-                // Schedule next step based on when it should have happened, not when we check
-                // This prevents drift accumulation
-                state.scheduledStepTime += stepInterval;
-            }
-            
-            // Calculate delay, but if we're behind, catch up immediately
-            const delay = Math.max(0, Math.min(stepInterval, state.scheduledStepTime - now));
-            
-            // Use the most precise timing available
-            state.stepTimer = setTimeout(() => {
-                if (state.isPlaying) {
-                    playStep();
-                    scheduleStep();
+        function seekToStepCount(targetTotalSteps) {
+            const order = state.playbackMode === 'song' && state.order.length > 0 ? state.order : null;
+
+            if (order) {
+                let totalSongSteps = 0;
+                for (let i = 0; i < order.length; i++) {
+                    const entry = order[i];
+                    const pat = typeof entry === 'number' ? entry : entry.pattern;
+                    const rep = typeof entry === 'number' ? 1 : (entry.repeat || 1);
+                    const len = state.patterns[pat] && state.patterns[pat].length ? state.patterns[pat].length : 64;
+                    totalSongSteps += len * rep;
                 }
-            }, delay);
+                const targetInSong = totalSongSteps > 0 ? targetTotalSteps % totalSongSteps : 0;
+                let remaining = targetInSong;
+
+                for (let orderIndex = 0; orderIndex < order.length; orderIndex++) {
+                    const entry = order[orderIndex];
+                    const pat = typeof entry === 'number' ? entry : entry.pattern;
+                    const rep = typeof entry === 'number' ? 1 : (entry.repeat || 1);
+                    const len = state.patterns[pat] && state.patterns[pat].length ? state.patterns[pat].length : 64;
+                    const stepsInEntry = len * rep;
+                    if (remaining < stepsInEntry) {
+                        state.currentPattern = pat;
+                        state.currentOrderIndex = orderIndex;
+                        state.currentOrderRepeat = Math.floor(remaining / len);
+                        state.currentStep = remaining % len;
+                        break;
+                    }
+                    remaining -= stepsInEntry;
+                }
+            } else {
+                const patternLength = getCurrentPatternLength();
+                state.currentStep = patternLength > 0 ? targetTotalSteps % patternLength : 0;
+            }
+
+            document.getElementById('patternInput').value = state.currentPattern;
+            document.getElementById('currentStep').textContent = state.currentStep;
+            const pat = state.patterns[state.currentPattern];
+            if (pat && pat.length) {
+                const lenInput = document.getElementById('patternLengthInput');
+                if (lenInput) lenInput.value = pat.length;
+            }
+            renderPattern();
+            updatePatternOrder();
+            updatePatternQuickSwitch();
+            updateActiveCell();
         }
 
         function playStep() {
@@ -4711,13 +4842,15 @@
             
             const now = performance.now();
             state.lastTickTime = now;
+            state.playbackStartTime = now;
+            state.totalStepsSinceStart = 0;
+            state.totalTicksSinceStart = 0;
             state.scheduledTickTime = 0;
             state.scheduledStepTime = 0;
             
             document.getElementById('playBtn').classList.add('active');
             
-            scheduleTick();
-            scheduleStep();
+            state.timingLoopId = requestAnimationFrame(runTimingLoop);
         }
         
         function stopPlaybackInternal() {
@@ -4725,6 +4858,10 @@
             state.currentStep = 0;
             document.getElementById('playBtn').classList.remove('active');
             
+            if (state.timingLoopId != null) {
+                cancelAnimationFrame(state.timingLoopId);
+                state.timingLoopId = null;
+            }
             if (state.tickTimer) {
                 clearTimeout(state.tickTimer);
                 state.tickTimer = null;
@@ -4738,10 +4875,10 @@
             state.scheduledStepTime = 0;
             
             state.activeNotes.forEach((activeNote) => {
-                stopAudioNote(activeNote.noteInfo);
+                stopAudioNote(activeNote.noteInfo, true);
             });
             state.activeNotes.clear();
-            
+
             // Clear repetition and arpeggio states
             state.channelRepetition = {};
             state.channelArpeggio = {};
@@ -4767,16 +4904,7 @@
         function panicAllNotesOff() {
             const now = state.audioContext ? state.audioContext.currentTime : 0;
             state.activeNotes.forEach((activeNote) => {
-                const info = activeNote.noteInfo;
-                if (!info) return;
-                try {
-                    if (info.gainNode) {
-                        info.gainNode.gain.cancelScheduledValues(now);
-                        info.gainNode.gain.setValueAtTime(0, now);
-                    }
-                    if (info.oscillator) { try { info.oscillator.stop(now); } catch (_) {} }
-                } catch (_) {}
-                if (!info.isDrum) stopAudioNote(info);
+                stopAudioNote(activeNote.noteInfo, true);
             });
             state.activeNotes.clear();
             state.channelRepetition = {};
@@ -6068,43 +6196,75 @@
             }
         });
 
-        // iOS/iPhone: AudioContext must be created and resume() called synchronously inside a user gesture.
-        // Awaiting resume() after the gesture ends leaves the context stuck suspended.
+        // iOS: create context on load (suspended), then only resume() inside first user gesture.
+        // Bind to overlay with passive: false so the tap counts and preventDefault works.
         function isIOS() {
             return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         }
         function setupAudioUnlock() {
             const overlay = document.getElementById('audioUnlockOverlay');
             if (!overlay) return;
-            function unlock(e) {
-                if (e) e.preventDefault();
-                document.removeEventListener('touchstart', unlock, { capture: true });
-                document.removeEventListener('touchend', unlock, { capture: true });
-                document.removeEventListener('click', unlock, { capture: true });
-                if (!state.audioContext) {
-                    state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    state.audioContext.addEventListener('statechange', function onRunning() {
-                        if (state.audioContext.state !== 'running') return;
-                        state.audioContext.removeEventListener('statechange', onRunning);
-                        ensureAudioGraph();
-                        overlay.classList.remove('visible');
-                        updateAudioStatus();
-                    });
-                    // Must call resume() synchronously in this user gesture on iOS.
-                    state.audioContext.resume();
-                } else {
-                    state.audioContext.resume();
-                    initAudioContext().then(() => {
-                        overlay.classList.remove('visible');
-                        updateAudioStatus();
-                    }).catch(err => console.warn('Audio unlock failed:', err));
+            const opts = { capture: true, passive: false };
+            function done() {
+                ensureAudioGraph();
+                overlay.classList.remove('visible');
+                updateAudioStatus();
+            }
+            function onStateChange() {
+                if (state.audioContext && state.audioContext.state === 'running') {
+                    state.audioContext.removeEventListener('statechange', onStateChange);
+                    done();
                 }
             }
+            function trySilentBuffer() {
+                if (!state.audioContext || state.audioContext.state === 'running') return;
+                try {
+                    const buf = state.audioContext.createBuffer(1, 1, 22050);
+                    const src = state.audioContext.createBufferSource();
+                    src.buffer = buf;
+                    src.connect(state.audioContext.destination);
+                    src.start(0);
+                } catch (_) {}
+            }
+            function unlock(e) {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                overlay.removeEventListener('touchstart', unlock, opts);
+                overlay.removeEventListener('touchend', unlock, opts);
+                overlay.removeEventListener('click', unlock, opts);
+                document.removeEventListener('touchstart', unlock, opts);
+                document.removeEventListener('touchend', unlock, opts);
+                document.removeEventListener('click', unlock, opts);
+                if (!state.audioContext) {
+                    state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if ('audioSession' in navigator && navigator.audioSession.type !== 'playback') {
+                    try { navigator.audioSession.type = 'playback'; } catch (_) {}
+                }
+                state.audioContext.addEventListener('statechange', onStateChange);
+                state.audioContext.resume();
+                trySilentBuffer();
+                state.audioContext.resume().then(function () {
+                    if (state.audioContext && state.audioContext.state === 'running') {
+                        state.audioContext.removeEventListener('statechange', onStateChange);
+                        done();
+                    }
+                }).catch(function () {});
+                setTimeout(function () {
+                    if (state.audioContext && state.audioContext.state === 'running') {
+                        state.audioContext.removeEventListener('statechange', onStateChange);
+                        done();
+                    }
+                }, 200);
+            }
             if (isIOS()) {
+                state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 overlay.classList.add('visible');
-                document.addEventListener('touchstart', unlock, { capture: true });
-                document.addEventListener('touchend', unlock, { capture: true });
-                document.addEventListener('click', unlock, { capture: true });
+                overlay.addEventListener('touchstart', unlock, opts);
+                overlay.addEventListener('touchend', unlock, opts);
+                overlay.addEventListener('click', unlock, opts);
+                document.addEventListener('touchstart', unlock, opts);
+                document.addEventListener('touchend', unlock, opts);
+                document.addEventListener('click', unlock, opts);
             }
         }
         setupAudioUnlock();
@@ -6249,6 +6409,7 @@
             else if (typeof location !== 'undefined' && location.hash) {
                 const roomId = location.hash.replace(/^#/, '').trim();
                 if (roomId) {
+                    clearRoomState();
                     currentRoomId = roomId;
                     const input = document.getElementById('nostrRoomIdInput');
                     if (input) input.value = roomId;
