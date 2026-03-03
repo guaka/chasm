@@ -727,6 +727,8 @@
             text-align: center;
             padding: 20px;
             -webkit-tap-highlight-color: transparent;
+            cursor: pointer;
+            touch-action: manipulation;
         }
         #audioUnlockOverlay.visible {
             display: flex;
@@ -1296,61 +1298,65 @@
 
 
         // Web Audio Engine
+        function ensureAudioGraph() {
+            if (!state.audioContext || state.masterGain) return;
+            state.masterGain = state.audioContext.createGain();
+            state.masterGain.gain.value = state.globalFx.masterVolume != null ? state.globalFx.masterVolume : 0.7;
+
+            // Delay with feedback + tone filter (lowpass on delay line)
+            state.delayNode = state.audioContext.createDelay(1.0);
+            state.delayNode.delayTime.value = state.globalFx.delayTime;
+            state.delayToneFilter = state.audioContext.createBiquadFilter();
+            state.delayToneFilter.type = 'lowpass';
+            state.delayToneFilter.frequency.value = 12000;
+            state.delayToneFilter.Q.value = 0.7;
+            state.delayFeedbackGain = state.audioContext.createGain();
+            state.delayFeedbackGain.gain.value = state.globalFx.delayFeedback;
+            state.delayNode.connect(state.delayToneFilter);
+            state.delayToneFilter.connect(state.delayFeedbackGain);
+            state.delayFeedbackGain.connect(state.delayNode);
+            state.delayFeedbackGain.connect(state.masterGain);
+
+            // Reverb via convolver (decay from globalFx.reverbDecay)
+            state.convolverNode = state.audioContext.createConvolver();
+            const rDecay = state.globalFx.reverbDecay != null ? state.globalFx.reverbDecay : 2;
+            state.convolverNode.buffer = createReverbImpulse(state.audioContext, 2, rDecay);
+            state.reverbGain = state.audioContext.createGain();
+            state.reverbGain.gain.value = state.globalFx.reverbAmount;
+            state.convolverNode.connect(state.reverbGain);
+            state.reverbGain.connect(state.masterGain);
+
+            // Master compressor (dry/wet blend) then destination
+            state.compressorNode = state.audioContext.createDynamicsCompressor();
+            state.compressorNode.threshold.value = state.globalFx.compThreshold != null ? state.globalFx.compThreshold : -24;
+            state.compressorNode.knee.value = state.globalFx.compKnee != null ? state.globalFx.compKnee : 6;
+            state.compressorNode.ratio.value = state.globalFx.compRatio != null ? state.globalFx.compRatio : 4;
+            state.compressorNode.attack.value = state.globalFx.compAttack != null ? state.globalFx.compAttack : 0.003;
+            state.compressorNode.release.value = state.globalFx.compRelease != null ? state.globalFx.compRelease : 0.25;
+            state.compressorDryGain = state.audioContext.createGain();
+            state.compressorWetGain = state.audioContext.createGain();
+            state.masterGain.connect(state.compressorDryGain);
+            state.compressorDryGain.connect(state.audioContext.destination);
+            state.masterGain.connect(state.compressorWetGain);
+            state.compressorWetGain.connect(state.compressorNode);
+            state.compressorNode.connect(state.audioContext.destination);
+
+            // VU meter: tap master for analysis (analyser not connected to destination)
+            state.analyserNode = state.audioContext.createAnalyser();
+            state.analyserNode.fftSize = 256;
+            state.analyserNode.smoothingTimeConstant = 0.5;
+            state.masterGain.connect(state.analyserNode);
+            state.analyserBuffer = new Uint8Array(state.analyserNode.fftSize);
+
+            applyGlobalFx();
+
+            createDefaultInstruments();
+        }
+
         async function initAudioContext() {
             if (!state.audioContext) {
                 state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-                state.masterGain = state.audioContext.createGain();
-                state.masterGain.gain.value = state.globalFx.masterVolume != null ? state.globalFx.masterVolume : 0.7;
-
-                // Delay with feedback + tone filter (lowpass on delay line)
-                state.delayNode = state.audioContext.createDelay(1.0);
-                state.delayNode.delayTime.value = state.globalFx.delayTime;
-                state.delayToneFilter = state.audioContext.createBiquadFilter();
-                state.delayToneFilter.type = 'lowpass';
-                state.delayToneFilter.frequency.value = 12000;
-                state.delayToneFilter.Q.value = 0.7;
-                state.delayFeedbackGain = state.audioContext.createGain();
-                state.delayFeedbackGain.gain.value = state.globalFx.delayFeedback;
-                state.delayNode.connect(state.delayToneFilter);
-                state.delayToneFilter.connect(state.delayFeedbackGain);
-                state.delayFeedbackGain.connect(state.delayNode);
-                state.delayFeedbackGain.connect(state.masterGain);
-
-                // Reverb via convolver (decay from globalFx.reverbDecay)
-                state.convolverNode = state.audioContext.createConvolver();
-                const rDecay = state.globalFx.reverbDecay != null ? state.globalFx.reverbDecay : 2;
-                state.convolverNode.buffer = createReverbImpulse(state.audioContext, 2, rDecay);
-                state.reverbGain = state.audioContext.createGain();
-                state.reverbGain.gain.value = state.globalFx.reverbAmount;
-                state.convolverNode.connect(state.reverbGain);
-                state.reverbGain.connect(state.masterGain);
-
-                // Master compressor (dry/wet blend) then destination
-                state.compressorNode = state.audioContext.createDynamicsCompressor();
-                state.compressorNode.threshold.value = state.globalFx.compThreshold != null ? state.globalFx.compThreshold : -24;
-                state.compressorNode.knee.value = state.globalFx.compKnee != null ? state.globalFx.compKnee : 6;
-                state.compressorNode.ratio.value = state.globalFx.compRatio != null ? state.globalFx.compRatio : 4;
-                state.compressorNode.attack.value = state.globalFx.compAttack != null ? state.globalFx.compAttack : 0.003;
-                state.compressorNode.release.value = state.globalFx.compRelease != null ? state.globalFx.compRelease : 0.25;
-                state.compressorDryGain = state.audioContext.createGain();
-                state.compressorWetGain = state.audioContext.createGain();
-                state.masterGain.connect(state.compressorDryGain);
-                state.compressorDryGain.connect(state.audioContext.destination);
-                state.masterGain.connect(state.compressorWetGain);
-                state.compressorWetGain.connect(state.compressorNode);
-                state.compressorNode.connect(state.audioContext.destination);
-
-                // VU meter: tap master for analysis (analyser not connected to destination)
-                state.analyserNode = state.audioContext.createAnalyser();
-                state.analyserNode.fftSize = 256;
-                state.analyserNode.smoothingTimeConstant = 0.5;
-                state.masterGain.connect(state.analyserNode);
-                state.analyserBuffer = new Uint8Array(state.analyserNode.fftSize);
-
-                applyGlobalFx();
-
-                createDefaultInstruments();
+                ensureAudioGraph();
             }
             if (state.audioContext.state === 'suspended') {
                 await state.audioContext.resume();
@@ -1371,6 +1377,31 @@
                 el.textContent = 'not initialized';
                 el.style.color = '#888';
             }
+        }
+
+        function updateVuAndVoices() {
+            const voicesEl = document.getElementById('voicesCount');
+            const vuBarEl = document.getElementById('vuBar');
+            if (voicesEl) voicesEl.textContent = state.activeNotes.size;
+
+            if (!state.analyserNode || !state.analyserBuffer || !vuBarEl) return;
+            state.analyserNode.getByteTimeDomainData(state.analyserBuffer);
+            let sum = 0;
+            for (let i = 0; i < state.analyserBuffer.length; i++) {
+                const n = (state.analyserBuffer[i] - 128) / 128;
+                sum += n * n;
+            }
+            const rms = Math.sqrt(sum / state.analyserBuffer.length);
+            const percent = Math.min(100, Math.round(rms * 200));
+            vuBarEl.style.width = percent + '%';
+            vuBarEl.classList.remove('hot', 'clip');
+            if (percent >= 95) vuBarEl.classList.add('clip');
+            else if (percent >= 75) vuBarEl.classList.add('hot');
+        }
+
+        function vuAndVoicesLoop() {
+            updateVuAndVoices();
+            requestAnimationFrame(vuAndVoicesLoop);
         }
 
         function createReverbImpulse(audioContext, duration = 2, decay = 2) {
@@ -3659,9 +3690,10 @@
                     knob.innerHTML = `<span class="strip-lbl">${p.lbl}</span><div class="strip-bar"><div class="strip-fill" style="height:${pct}%;background:${p.color};"></div></div><span class="strip-val">${pct}</span>`;
                     const bar = knob.querySelector('.strip-bar');
                     let dragging = false;
+                    const clientY = (e) => (e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY);
                     const update = (e) => {
                         const rect = bar.getBoundingClientRect();
-                        const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
+                        const y = Math.max(0, Math.min(1, (rect.bottom - clientY(e)) / rect.height));
                         const v = Math.round(y * 255);
                         if (!state.channelFxSettings[ch]) state.channelFxSettings[ch] = {};
                         state.channelFxSettings[ch][p.key] = v;
@@ -3672,9 +3704,15 @@
                         knob.title = `${p.lbl}: ${vPct}%`;
                         applyChannelFxSettings(ch);
                     };
-                    bar.addEventListener('mousedown', (e) => { e.preventDefault(); dragging = true; update(e); });
+                    const startDrag = (e) => { e.preventDefault(); dragging = true; update(e); };
+                    const endDrag = () => { if (dragging) { dragging = false; saveFxSettingsToStorage(); } };
+                    bar.addEventListener('mousedown', (e) => startDrag(e));
+                    bar.addEventListener('touchstart', (e) => startDrag(e), { passive: false });
                     document.addEventListener('mousemove', (e) => { if (dragging) update(e); });
-                    document.addEventListener('mouseup', () => { if (dragging) { dragging = false; saveFxSettingsToStorage(); } });
+                    document.addEventListener('touchmove', (e) => { if (dragging) { e.preventDefault(); update(e); } }, { passive: false });
+                    document.addEventListener('mouseup', endDrag);
+                    document.addEventListener('touchend', endDrag);
+                    document.addEventListener('touchcancel', endDrag);
                     div.appendChild(knob);
                 }
                 td.appendChild(div);
@@ -6007,31 +6045,48 @@
             }
         });
 
-        // iOS/iPhone: AudioContext must be created and resumed inside a user gesture.
-        // Don't create on page load; show "Tap to enable sound" and unlock on first touch.
+        // iOS/iPhone: AudioContext must be created and resume() called synchronously inside a user gesture.
+        // Awaiting resume() after the gesture ends leaves the context stuck suspended.
         function isIOS() {
             return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         }
         function setupAudioUnlock() {
             const overlay = document.getElementById('audioUnlockOverlay');
             if (!overlay) return;
-            function unlock() {
-                initAudioContext().then(() => {
-                    overlay.classList.remove('visible');
-                    updateAudioStatus();
-                }).catch(err => {
-                    console.warn('Audio unlock failed:', err);
-                });
+            function unlock(e) {
+                if (e) e.preventDefault();
                 document.removeEventListener('touchstart', unlock, { capture: true });
+                document.removeEventListener('touchend', unlock, { capture: true });
                 document.removeEventListener('click', unlock, { capture: true });
+                if (!state.audioContext) {
+                    state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    state.audioContext.addEventListener('statechange', function onRunning() {
+                        if (state.audioContext.state !== 'running') return;
+                        state.audioContext.removeEventListener('statechange', onRunning);
+                        ensureAudioGraph();
+                        overlay.classList.remove('visible');
+                        updateAudioStatus();
+                    });
+                    // Must call resume() synchronously in this user gesture on iOS.
+                    state.audioContext.resume();
+                } else {
+                    state.audioContext.resume();
+                    initAudioContext().then(() => {
+                        overlay.classList.remove('visible');
+                        updateAudioStatus();
+                    }).catch(err => console.warn('Audio unlock failed:', err));
+                }
             }
             if (isIOS()) {
                 overlay.classList.add('visible');
-                document.addEventListener('touchstart', unlock, { once: true, capture: true });
-                document.addEventListener('click', unlock, { once: true, capture: true });
+                document.addEventListener('touchstart', unlock, { capture: true });
+                document.addEventListener('touchend', unlock, { capture: true });
+                document.addEventListener('click', unlock, { capture: true });
             }
         }
         setupAudioUnlock();
+
+        vuAndVoicesLoop();
 
         renderPattern();
         updatePatternOrder();
