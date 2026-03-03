@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>noistracker0 - No(i)str-acker</title>
+    <title>noistracker2 - No(i)str-acker</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <style>
         * {
@@ -288,12 +288,7 @@
         }
 
         .fx-cmd-field {
-            width: 30px;
-            text-align: center;
-        }
-
-        .fx-val-field {
-            width: 20px;
+            width: 40px;
             text-align: center;
         }
 
@@ -320,6 +315,18 @@
             margin-bottom: 10px;
             font-weight: bold;
         }
+
+        .global-fx-section { margin-bottom: 16px; }
+        .global-fx-grid {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 4px 10px;
+            align-items: center;
+            font-size: 11px;
+        }
+        .global-fx-lbl { color: #888; white-space: nowrap; }
+        .global-fx-val { color: #6a6; min-width: 42px; font-size: 10px; text-align: right; }
+        .global-fx-slider { width: 100%; accent-color: #6f6; }
 
         .pattern-order {
             display: flex;
@@ -798,6 +805,38 @@
                 </div>
             </div>
             <div class="sidebar">
+                <div class="sidebar-section global-fx-section">
+                    <div class="sidebar-title">Global FX</div>
+                    <div class="global-fx-grid">
+                        <label class="global-fx-lbl">Delay time</label>
+                        <input type="range" id="globalFxDelayTime" min="1" max="100" value="30" class="global-fx-slider">
+                        <span id="globalFxDelayTimeVal" class="global-fx-val">0.30s</span>
+                        <label class="global-fx-lbl">Delay feedback</label>
+                        <input type="range" id="globalFxDelayFeedback" min="0" max="100" value="30" class="global-fx-slider">
+                        <span id="globalFxDelayFeedbackVal" class="global-fx-val">30%</span>
+                        <label class="global-fx-lbl">Delay tone</label>
+                        <input type="range" id="globalFxDelayTone" min="0" max="100" value="100" class="global-fx-slider">
+                        <span id="globalFxDelayToneVal" class="global-fx-val">100%</span>
+                        <label class="global-fx-lbl">Reverb</label>
+                        <input type="range" id="globalFxReverb" min="0" max="100" value="30" class="global-fx-slider">
+                        <span id="globalFxReverbVal" class="global-fx-val">30%</span>
+                        <label class="global-fx-lbl">Reverb decay</label>
+                        <input type="range" id="globalFxReverbDecay" min="10" max="100" value="50" class="global-fx-slider">
+                        <span id="globalFxReverbDecayVal" class="global-fx-val">2.0s</span>
+                        <label class="global-fx-lbl">Compressor</label>
+                        <input type="range" id="globalFxCompressor" min="0" max="100" value="0" class="global-fx-slider">
+                        <span id="globalFxCompressorVal" class="global-fx-val">off</span>
+                        <label class="global-fx-lbl">Threshold</label>
+                        <input type="range" id="globalFxCompThreshold" min="-60" max="0" value="-24" class="global-fx-slider">
+                        <span id="globalFxCompThresholdVal" class="global-fx-val">-24 dB</span>
+                        <label class="global-fx-lbl">Ratio</label>
+                        <input type="range" id="globalFxCompRatio" min="1" max="20" value="4" class="global-fx-slider">
+                        <span id="globalFxCompRatioVal" class="global-fx-val">4:1</span>
+                        <label class="global-fx-lbl">Master</label>
+                        <input type="range" id="globalFxMaster" min="0" max="100" value="70" class="global-fx-slider">
+                        <span id="globalFxMasterVal" class="global-fx-val">70%</span>
+                    </div>
+                </div>
                 <div class="sidebar-section">
                     <div class="sidebar-title">Pattern Order</div>
                     <div class="pattern-order" id="patternOrder"></div>
@@ -947,18 +986,6 @@
                     <input type="range" id="channelFxVolume" min="0" max="255" value="255" style="width: 100%; accent-color: #6f6;">
                     <span id="channelFxVolumePct" style="font-size: 11px; color: #888; min-width: 32px;">100%</span>
                 </div>
-                <div style="font-size: 11px; color: #888; margin-bottom: 8px; margin-top: 14px;">Master FX</div>
-                <div id="channelSettingsMasterFx" style="display: grid; grid-template-columns: auto 1fr auto; gap: 8px 12px; align-items: center; margin-bottom: 8px;">
-                    <label style="font-size: 12px; color: #aaa;">Delay time</label>
-                    <input type="range" id="globalFxDelayTime" min="1" max="100" value="30" style="width: 100%; accent-color: #6f6;">
-                    <span id="globalFxDelayTimeVal" style="font-size: 11px; color: #888; min-width: 40px;">0.30s</span>
-                    <label style="font-size: 12px; color: #aaa;">Delay feedback</label>
-                    <input type="range" id="globalFxDelayFeedback" min="0" max="100" value="30" style="width: 100%; accent-color: #6f6;">
-                    <span id="globalFxDelayFeedbackVal" style="font-size: 11px; color: #888; min-width: 40px;">30%</span>
-                    <label style="font-size: 12px; color: #aaa;">Reverb</label>
-                    <input type="range" id="globalFxReverb" min="0" max="100" value="30" style="width: 100%; accent-color: #6f6;">
-                    <span id="globalFxReverbVal" style="font-size: 11px; color: #888; min-width: 40px;">30%</span>
-                </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
                     <button onclick="closeChannelSettingsModal()" style="padding: 6px 14px; cursor: pointer; background: #2a2a2a; border: 1px solid #444; color: #fff; font-family: 'Courier New', monospace; font-size: 12px;">Close</button>
                 </div>
@@ -1020,8 +1047,15 @@
             channelDelaySendGain: {}, // Per-channel gain into delay
             channelReverbSendGain: {}, // Per-channel gain into reverb
             globalFx: {
-                delayTime: 0.3, delayFeedback: 0.3, reverbAmount: 0.3
+                delayTime: 0.3, delayFeedback: 0.3, delayTone: 1,
+                reverbAmount: 0.3, reverbDecay: 2,
+                compressorMix: 0, compThreshold: -24, compRatio: 4, compKnee: 6, compAttack: 0.003, compRelease: 0.25,
+                masterVolume: 0.7
             },
+            compressorNode: null,
+            compressorDryGain: null,
+            compressorWetGain: null,
+            delayToneFilter: null,
             channelDistortionNodes: {}, // per-channel WaveShaper
             channelFlangerNodes: {},   // per-channel flanger
             channelPhaserNodes: {},    // per-channel phaser
@@ -1196,27 +1230,45 @@
                 state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
                 state.masterGain = state.audioContext.createGain();
-                state.masterGain.gain.value = 0.7;
+                state.masterGain.gain.value = state.globalFx.masterVolume != null ? state.globalFx.masterVolume : 0.7;
 
-                // Delay with feedback
+                // Delay with feedback + tone filter (lowpass on delay line)
                 state.delayNode = state.audioContext.createDelay(1.0);
                 state.delayNode.delayTime.value = state.globalFx.delayTime;
+                state.delayToneFilter = state.audioContext.createBiquadFilter();
+                state.delayToneFilter.type = 'lowpass';
+                state.delayToneFilter.frequency.value = 12000;
+                state.delayToneFilter.Q.value = 0.7;
                 state.delayFeedbackGain = state.audioContext.createGain();
                 state.delayFeedbackGain.gain.value = state.globalFx.delayFeedback;
-                state.delayNode.connect(state.delayFeedbackGain);
+                state.delayNode.connect(state.delayToneFilter);
+                state.delayToneFilter.connect(state.delayFeedbackGain);
                 state.delayFeedbackGain.connect(state.delayNode);
                 state.delayFeedbackGain.connect(state.masterGain);
 
-                // Reverb via convolver
+                // Reverb via convolver (decay from globalFx.reverbDecay)
                 state.convolverNode = state.audioContext.createConvolver();
-                state.convolverNode.buffer = createReverbImpulse(state.audioContext, 2, 2);
+                const rDecay = state.globalFx.reverbDecay != null ? state.globalFx.reverbDecay : 2;
+                state.convolverNode.buffer = createReverbImpulse(state.audioContext, 2, rDecay);
                 state.reverbGain = state.audioContext.createGain();
                 state.reverbGain.gain.value = state.globalFx.reverbAmount;
                 state.convolverNode.connect(state.reverbGain);
                 state.reverbGain.connect(state.masterGain);
 
-                // No global phaser (per-channel)
-                state.masterGain.connect(state.audioContext.destination);
+                // Master compressor (dry/wet blend) then destination
+                state.compressorNode = state.audioContext.createDynamicsCompressor();
+                state.compressorNode.threshold.value = state.globalFx.compThreshold != null ? state.globalFx.compThreshold : -24;
+                state.compressorNode.knee.value = state.globalFx.compKnee != null ? state.globalFx.compKnee : 6;
+                state.compressorNode.ratio.value = state.globalFx.compRatio != null ? state.globalFx.compRatio : 4;
+                state.compressorNode.attack.value = state.globalFx.compAttack != null ? state.globalFx.compAttack : 0.003;
+                state.compressorNode.release.value = state.globalFx.compRelease != null ? state.globalFx.compRelease : 0.25;
+                state.compressorDryGain = state.audioContext.createGain();
+                state.compressorWetGain = state.audioContext.createGain();
+                state.masterGain.connect(state.compressorDryGain);
+                state.compressorDryGain.connect(state.audioContext.destination);
+                state.masterGain.connect(state.compressorWetGain);
+                state.compressorWetGain.connect(state.compressorNode);
+                state.compressorNode.connect(state.audioContext.destination);
                 applyGlobalFx();
 
                 createDefaultInstruments();
@@ -1587,7 +1639,25 @@
             const t = 0.01;
             if (state.delayNode) state.delayNode.delayTime.setTargetAtTime(g.delayTime, now, t);
             if (state.delayFeedbackGain) state.delayFeedbackGain.gain.setTargetAtTime(g.delayFeedback, now, t);
+            if (state.delayToneFilter) {
+                const tone = g.delayTone != null ? g.delayTone : 1;
+                const freq = 400 + tone * 11600;
+                state.delayToneFilter.frequency.setTargetAtTime(freq, now, t);
+            }
             if (state.reverbGain) state.reverbGain.gain.setTargetAtTime(g.reverbAmount, now, t);
+            if (state.convolverNode && g.reverbDecay != null) {
+                state.convolverNode.buffer = createReverbImpulse(ctx, 2, g.reverbDecay);
+            }
+            if (state.masterGain && g.masterVolume != null) state.masterGain.gain.setTargetAtTime(g.masterVolume, now, t);
+            if (state.compressorNode) {
+                state.compressorNode.threshold.setTargetAtTime(g.compThreshold, now, t);
+                state.compressorNode.knee.setTargetAtTime(g.compKnee, now, t);
+                state.compressorNode.ratio.setTargetAtTime(g.compRatio, now, t);
+                state.compressorNode.attack.setTargetAtTime(g.compAttack, now, t);
+                state.compressorNode.release.setTargetAtTime(g.compRelease, now, t);
+            }
+            if (state.compressorDryGain) state.compressorDryGain.gain.setTargetAtTime(1 - (g.compressorMix || 0), now, t);
+            if (state.compressorWetGain) state.compressorWetGain.gain.setTargetAtTime(g.compressorMix || 0, now, t);
         }
 
         // TR-808 Kit 1 (Toms) - matches Roland TR-8 MIDI mapping
@@ -1597,6 +1667,7 @@
             37: 'rimshot',    // C#1
             39: 'clap',       // D#1
             42: 'hihat',      // F#1 - closed
+            44: 'pedalHihat', // G#1 - pedal (half-open)
             46: 'openHihat',  // A#1 - open
             49: 'cymbal',     // C#2
             51: 'cowbell',    // D#2
@@ -1642,85 +1713,159 @@
             const vol = velocity / 127;
             switch (drumType) {
                 case 'kick': {
-                    // Bridged-T bandpass oscillator: fundamental ~49Hz, attack pitch sweep to ~130Hz over 6ms
+                    // 808 kick: deeper sub, punchy attack sweep, soft saturation
                     const osc = audioContext.createOscillator();
-                    const gain = audioContext.createGain();
                     osc.type = 'sine';
-                    osc.frequency.setValueAtTime(130, now);
-                    osc.frequency.exponentialRampToValueAtTime(49, now + 0.006);
-                    // Subtle continued pitch drop through decay
-                    osc.frequency.exponentialRampToValueAtTime(44, now + 0.4);
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(52, now + 0.008);
+                    osc.frequency.exponentialRampToValueAtTime(46, now + 0.45);
+                    const gain = audioContext.createGain();
                     gain.gain.setValueAtTime(0, now);
-                    gain.gain.linearRampToValueAtTime(vol * 0.9, now + 0.002);
-                    gain.gain.setValueAtTime(vol * 0.9, now + 0.006);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                    // Tone shaping: gentle LP to tame click
+                    gain.gain.linearRampToValueAtTime(vol * 0.95, now + 0.0015);
+                    gain.gain.setValueAtTime(vol * 0.95, now + 0.008);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+                    const sat = audioContext.createWaveShaper();
+                    const c = new Float32Array(256);
+                    for (let i = 0; i < 256; i++) { const x = (i * 2) / 255 - 1; c[i] = Math.tanh(x * 1.2); }
+                    sat.curve = c;
                     const lp = audioContext.createBiquadFilter();
-                    lp.type = 'lowpass'; lp.frequency.value = 600; lp.Q.value = 0.7;
-                    osc.connect(lp); lp.connect(gain); gain.connect(masterGain);
-                    osc.start(now); osc.stop(now + 0.55);
+                    lp.type = 'lowpass'; lp.frequency.value = 550; lp.Q.value = 0.6;
+                    osc.connect(sat); sat.connect(lp); lp.connect(gain); gain.connect(masterGain);
+                    osc.start(now); osc.stop(now + 0.58);
                     return { oscillator: osc, gainNode: gain };
                 }
                 case 'snare': {
-                    // Body: two distorted triangle waves at 185Hz and 349Hz
+                    // 808 snare: fuller body (two triangles + soft clip), crisp wires
                     const bodyLow = audioContext.createOscillator();
                     const bodyHigh = audioContext.createOscillator();
-                    bodyLow.type = 'triangle'; bodyLow.frequency.value = 185;
-                    bodyHigh.type = 'triangle'; bodyHigh.frequency.value = 349;
-                    const distLow = audioContext.createWaveShaper();
-                    const distHigh = audioContext.createWaveShaper();
+                    bodyLow.type = 'triangle'; bodyLow.frequency.value = 182;
+                    bodyHigh.type = 'triangle'; bodyHigh.frequency.value = 352;
                     const curve = new Float32Array(256);
                     for (let i = 0; i < 256; i++) {
                         const x = (i * 2) / 255 - 1;
-                        curve[i] = (Math.PI + 5) * x / (Math.PI + 5 * Math.abs(x));
+                        curve[i] = (Math.PI + 4) * x / (Math.PI + 4 * Math.abs(x));
                     }
-                    distLow.curve = curve; distHigh.curve = curve;
+                    const dist = audioContext.createWaveShaper();
+                    dist.curve = curve;
                     const bodyGain = audioContext.createGain();
-                    bodyGain.gain.setValueAtTime(vol * 0.45, now);
-                    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-                    bodyLow.connect(distLow); distLow.connect(bodyGain);
-                    bodyHigh.connect(distHigh); distHigh.connect(bodyGain);
-                    bodyGain.connect(masterGain);
-                    // Snare wires: highpass-filtered white noise
-                    const noise = makeNoise(audioContext, 0.25);
-                    const nFilt = audioContext.createBiquadFilter();
-                    nFilt.type = 'highpass'; nFilt.frequency.value = 2000; nFilt.Q.value = 0.5;
+                    bodyGain.gain.setValueAtTime(vol * 0.5, now);
+                    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+                    bodyLow.connect(dist); bodyHigh.connect(dist);
+                    dist.connect(bodyGain); bodyGain.connect(masterGain);
+                    const noise = makeNoise(audioContext, 0.28);
+                    const nHP = audioContext.createBiquadFilter();
+                    nHP.type = 'highpass'; nHP.frequency.value = 1800; nHP.Q.value = 0.6;
+                    const nBP = audioContext.createBiquadFilter();
+                    nBP.type = 'bandpass'; nBP.frequency.value = 5500; nBP.Q.value = 1.2;
                     const nGain = audioContext.createGain();
-                    nGain.gain.setValueAtTime(vol * 0.5, now);
-                    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-                    noise.connect(nFilt); nFilt.connect(nGain); nGain.connect(masterGain);
-                    bodyLow.start(now); bodyLow.stop(now + 0.15);
-                    bodyHigh.start(now); bodyHigh.stop(now + 0.15);
-                    noise.start(now); noise.stop(now + 0.25);
+                    nGain.gain.setValueAtTime(vol * 0.55, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                    noise.connect(nHP); nHP.connect(nBP); nBP.connect(nGain); nGain.connect(masterGain);
+                    bodyLow.start(now); bodyLow.stop(now + 0.16);
+                    bodyHigh.start(now); bodyHigh.stop(now + 0.16);
+                    noise.start(now); noise.stop(now + 0.28);
                     return { oscillator: noise, gainNode: nGain };
                 }
-                case 'hihat':
-                case 'openHihat': {
-                    // 6 inharmonic square wave oscillators (factory tunings from service manual)
-                    const isOpen = drumType === 'openHihat';
-                    const dur = isOpen ? 0.6 : 0.05;
+                case 'hihat': {
+                    // 808 closed hihat: 6 metallic square oscs, tight decay, dual bandpass for shimmer + body
+                    const dur = 0.06;
                     const freqs = [205.3, 304.4, 369.6, 522.7, 540, 800];
                     const merger = audioContext.createGain();
-                    merger.gain.value = vol * 0.12;
-                    // Two bandpass filters as in original circuit
+                    merger.gain.value = vol * 0.16;
                     const bp1 = audioContext.createBiquadFilter();
-                    bp1.type = 'bandpass'; bp1.frequency.value = 7100; bp1.Q.value = 1.5;
+                    bp1.type = 'bandpass'; bp1.frequency.value = 7500; bp1.Q.value = 1.6;
                     const bp2 = audioContext.createBiquadFilter();
-                    bp2.type = 'bandpass'; bp2.frequency.value = 3440; bp2.Q.value = 1.5;
+                    bp2.type = 'bandpass'; bp2.frequency.value = 3800; bp2.Q.value = 1.2;
                     const hatGain = audioContext.createGain();
                     hatGain.gain.setValueAtTime(1, now);
+                    hatGain.gain.exponentialRampToValueAtTime(0.3, now + 0.012);
                     hatGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-                    const oscs = freqs.map(f => {
+                    freqs.forEach(f => {
                         const o = audioContext.createOscillator();
                         o.type = 'square'; o.frequency.value = f;
-                        o.connect(merger);
-                        o.start(now); o.stop(now + dur + 0.01);
-                        return o;
+                        o.connect(merger); o.start(now); o.stop(now + dur + 0.01);
                     });
+                    // Noise layer for sizzle
+                    const noise = makeNoise(audioContext, dur);
+                    const nHP = audioContext.createBiquadFilter();
+                    nHP.type = 'highpass'; nHP.frequency.value = 9000; nHP.Q.value = 0.5;
+                    const nGain = audioContext.createGain();
+                    nGain.gain.setValueAtTime(vol * 0.06, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.001, now + dur * 0.7);
+                    noise.connect(nHP); nHP.connect(nGain); nGain.connect(hatGain);
                     merger.connect(bp1); merger.connect(bp2);
                     bp1.connect(hatGain); bp2.connect(hatGain);
                     hatGain.connect(masterGain);
-                    return { oscillator: oscs[0], gainNode: hatGain };
+                    noise.start(now); noise.stop(now + dur + 0.01);
+                    return { oscillator: null, gainNode: hatGain };
+                }
+                case 'pedalHihat': {
+                    // 808 pedal hihat (G#): shorter than open, longer than closed, slight pitch drop
+                    const dur = 0.15;
+                    const freqs = [205.3, 304.4, 369.6, 522.7, 540, 800];
+                    const merger = audioContext.createGain();
+                    merger.gain.value = vol * 0.14;
+                    const bp1 = audioContext.createBiquadFilter();
+                    bp1.type = 'bandpass'; bp1.frequency.value = 6800; bp1.Q.value = 1.3;
+                    const bp2 = audioContext.createBiquadFilter();
+                    bp2.type = 'bandpass'; bp2.frequency.value = 3200; bp2.Q.value = 1.1;
+                    const lp = audioContext.createBiquadFilter();
+                    lp.type = 'lowpass'; lp.frequency.setValueAtTime(10000, now);
+                    lp.frequency.exponentialRampToValueAtTime(4000, now + dur); lp.Q.value = 0.6;
+                    const hatGain = audioContext.createGain();
+                    hatGain.gain.setValueAtTime(1, now);
+                    hatGain.gain.exponentialRampToValueAtTime(0.4, now + 0.02);
+                    hatGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                    freqs.forEach(f => {
+                        const o = audioContext.createOscillator();
+                        o.type = 'square'; o.frequency.value = f;
+                        o.connect(merger); o.start(now); o.stop(now + dur + 0.01);
+                    });
+                    const noise = makeNoise(audioContext, dur);
+                    const nHP = audioContext.createBiquadFilter();
+                    nHP.type = 'highpass'; nHP.frequency.value = 7000; nHP.Q.value = 0.5;
+                    const nGain = audioContext.createGain();
+                    nGain.gain.setValueAtTime(vol * 0.05, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.001, now + dur * 0.6);
+                    noise.connect(nHP); nHP.connect(nGain); nGain.connect(lp);
+                    merger.connect(bp1); merger.connect(bp2);
+                    bp1.connect(lp); bp2.connect(lp);
+                    lp.connect(hatGain); hatGain.connect(masterGain);
+                    noise.start(now); noise.stop(now + dur + 0.01);
+                    return { oscillator: null, gainNode: hatGain };
+                }
+                case 'openHihat': {
+                    // 808 open hihat: longer ring, brighter, noise shimmer layer
+                    const dur = 0.7;
+                    const freqs = [205.3, 304.4, 369.6, 522.7, 540, 800];
+                    const merger = audioContext.createGain();
+                    merger.gain.value = vol * 0.15;
+                    const bp1 = audioContext.createBiquadFilter();
+                    bp1.type = 'bandpass'; bp1.frequency.value = 7500; bp1.Q.value = 1.5;
+                    const bp2 = audioContext.createBiquadFilter();
+                    bp2.type = 'bandpass'; bp2.frequency.value = 3800; bp2.Q.value = 1.3;
+                    const hatGain = audioContext.createGain();
+                    hatGain.gain.setValueAtTime(1, now);
+                    hatGain.gain.setValueAtTime(0.85, now + 0.02);
+                    hatGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                    freqs.forEach(f => {
+                        const o = audioContext.createOscillator();
+                        o.type = 'square'; o.frequency.value = f;
+                        o.connect(merger); o.start(now); o.stop(now + dur + 0.01);
+                    });
+                    // Noise shimmer for sustain
+                    const noise = makeNoise(audioContext, dur);
+                    const nHP = audioContext.createBiquadFilter();
+                    nHP.type = 'highpass'; nHP.frequency.value = 8500; nHP.Q.value = 0.6;
+                    const nGain = audioContext.createGain();
+                    nGain.gain.setValueAtTime(vol * 0.08, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.001, now + dur * 0.8);
+                    noise.connect(nHP); nHP.connect(nGain); nGain.connect(hatGain);
+                    merger.connect(bp1); merger.connect(bp2);
+                    bp1.connect(hatGain); bp2.connect(hatGain);
+                    hatGain.connect(masterGain);
+                    noise.start(now); noise.stop(now + dur + 0.01);
+                    return { oscillator: null, gainNode: hatGain };
                 }
                 case 'cymbal': {
                     // Same 6 oscillators as hihat but much longer decay (350-1200ms)
@@ -1873,82 +2018,79 @@
             }
         }
 
-        // TR-909: punchier analog/digital hybrid — compressed kick, snappy snare, metallic hats
+        // TR-909: punchy digital-analog hybrid — tight kick with click, snappy snare, bright metallic hats
         function play909Drum(drumType, velocity, audioContext, masterGain) {
             const now = audioContext.currentTime;
             const vol = velocity / 127;
             switch (drumType) {
                 case 'kick': {
-                    // 909 kick: more compressed, higher attack pitch, punchier than 808
                     const osc = audioContext.createOscillator();
                     osc.type = 'sine';
-                    osc.frequency.setValueAtTime(160, now);
-                    osc.frequency.exponentialRampToValueAtTime(55, now + 0.012);
-                    osc.frequency.exponentialRampToValueAtTime(48, now + 0.3);
-                    // Click transient from triangle wave
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(58, now + 0.01);
+                    osc.frequency.exponentialRampToValueAtTime(50, now + 0.35);
                     const click = audioContext.createOscillator();
-                    click.type = 'triangle'; click.frequency.value = 4500;
+                    click.type = 'triangle';
+                    click.frequency.setValueAtTime(5200, now);
+                    click.frequency.exponentialRampToValueAtTime(2400, now + 0.008);
                     const clickGain = audioContext.createGain();
-                    clickGain.gain.setValueAtTime(vol * 0.35, now);
-                    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.006);
+                    clickGain.gain.setValueAtTime(vol * 0.4, now);
+                    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.007);
                     const gain = audioContext.createGain();
                     gain.gain.setValueAtTime(0, now);
-                    gain.gain.linearRampToValueAtTime(vol * 0.95, now + 0.001);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-                    // Slight compression via waveshaper
+                    gain.gain.linearRampToValueAtTime(vol * 0.92, now + 0.0012);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
                     const comp = audioContext.createWaveShaper();
                     const c = new Float32Array(256);
-                    for (let i = 0; i < 256; i++) { const x = (i * 2) / 255 - 1; c[i] = Math.tanh(x * 1.5); }
+                    for (let i = 0; i < 256; i++) { const x = (i * 2) / 255 - 1; c[i] = Math.tanh(x * 1.6); }
                     comp.curve = c;
                     osc.connect(comp); comp.connect(gain); gain.connect(masterGain);
                     click.connect(clickGain); clickGain.connect(masterGain);
-                    osc.start(now); osc.stop(now + 0.45);
-                    click.start(now); click.stop(now + 0.01);
+                    osc.start(now); osc.stop(now + 0.48);
+                    click.start(now); click.stop(now + 0.012);
                     return { oscillator: osc, gainNode: gain };
                 }
                 case 'snare': {
-                    // 909 snare: pitched body oscillators + noise, snappier than 808
                     const body = audioContext.createOscillator();
                     body.type = 'triangle';
-                    body.frequency.setValueAtTime(330, now);
-                    body.frequency.exponentialRampToValueAtTime(180, now + 0.025);
+                    body.frequency.setValueAtTime(340, now);
+                    body.frequency.exponentialRampToValueAtTime(185, now + 0.022);
                     const bodyGain = audioContext.createGain();
-                    bodyGain.gain.setValueAtTime(vol * 0.55, now);
-                    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    bodyGain.gain.setValueAtTime(vol * 0.58, now);
+                    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
                     body.connect(bodyGain); bodyGain.connect(masterGain);
-                    // Noise through bandpass for snare wire character
-                    const noise = makeNoise(audioContext, 0.3);
+                    const noise = makeNoise(audioContext, 0.32);
                     const nBP = audioContext.createBiquadFilter();
-                    nBP.type = 'bandpass'; nBP.frequency.value = 3500; nBP.Q.value = 0.8;
+                    nBP.type = 'bandpass'; nBP.frequency.value = 3800; nBP.Q.value = 0.9;
+                    const nHP = audioContext.createBiquadFilter();
+                    nHP.type = 'highpass'; nHP.frequency.value = 2500; nHP.Q.value = 0.5;
                     const nGain = audioContext.createGain();
-                    nGain.gain.setValueAtTime(vol * 0.6, now);
-                    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-                    noise.connect(nBP); nBP.connect(nGain); nGain.connect(masterGain);
-                    body.start(now); body.stop(now + 0.1);
-                    noise.start(now); noise.stop(now + 0.3);
+                    nGain.gain.setValueAtTime(vol * 0.62, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+                    noise.connect(nHP); nHP.connect(nBP); nBP.connect(nGain); nGain.connect(masterGain);
+                    body.start(now); body.stop(now + 0.11);
+                    noise.start(now); noise.stop(now + 0.32);
                     return { oscillator: noise, gainNode: nGain };
                 }
                 case 'hihat':
                 case 'openHihat': {
-                    // 909 hats: 6 detuned square oscillators (higher pitched than 808, brighter)
                     const isOpen = drumType === 'openHihat';
-                    const dur = isOpen ? 0.5 : 0.055;
-                    const freqs = [800, 1042, 1185, 1648, 2085, 3541];
+                    const dur = isOpen ? 0.55 : 0.052;
+                    const freqs = [820, 1050, 1200, 1680, 2120, 3620];
                     const merger = audioContext.createGain();
-                    merger.gain.value = vol * 0.13;
-                    const bp = audioContext.createBiquadFilter();
-                    bp.type = 'highpass'; bp.frequency.value = 7500; bp.Q.value = 1.2;
+                    merger.gain.value = vol * 0.145;
+                    const hp = audioContext.createBiquadFilter();
+                    hp.type = 'highpass'; hp.frequency.value = 7800; hp.Q.value = 1.1;
                     const hatGain = audioContext.createGain();
                     hatGain.gain.setValueAtTime(1, now);
                     hatGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-                    const oscs = freqs.map(f => {
+                    freqs.forEach(f => {
                         const o = audioContext.createOscillator();
                         o.type = 'square'; o.frequency.value = f;
                         o.connect(merger); o.start(now); o.stop(now + dur + 0.01);
-                        return o;
                     });
-                    merger.connect(bp); bp.connect(hatGain); hatGain.connect(masterGain);
-                    return { oscillator: oscs[0], gainNode: hatGain };
+                    merger.connect(hp); hp.connect(hatGain); hatGain.connect(masterGain);
+                    return { oscillator: null, gainNode: hatGain };
                 }
                 case 'clap': {
                     // 909 clap: similar burst noise to 808 but tighter, more sibilant
@@ -2075,122 +2217,115 @@
             const vol = velocity / 127;
             switch (drumType) {
                 case 'kick': {
-                    // Triangle osc with pitch envelope, punchier and shorter than 808
                     const osc = audioContext.createOscillator();
                     osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(120, now);
-                    osc.frequency.exponentialRampToValueAtTime(55, now + 0.06);
-                    osc.frequency.exponentialRampToValueAtTime(48, now + 0.25);
+                    osc.frequency.setValueAtTime(135, now);
+                    osc.frequency.exponentialRampToValueAtTime(56, now + 0.04);
+                    osc.frequency.exponentialRampToValueAtTime(48, now + 0.28);
                     const gain = audioContext.createGain();
-                    gain.gain.setValueAtTime(vol * 0.9, now);
-                    gain.gain.setValueAtTime(vol * 0.9, now + 0.005);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-                    // Noise click for attack
-                    const click = makeNoise(audioContext, 0.012);
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(vol * 0.92, now + 0.003);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+                    const click = makeNoise(audioContext, 0.014);
+                    const clickHP = audioContext.createBiquadFilter();
+                    clickHP.type = 'highpass'; clickHP.frequency.value = 800;
                     const clickGain = audioContext.createGain();
-                    clickGain.gain.setValueAtTime(vol * 0.2, now);
-                    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.01);
-                    click.connect(clickGain); clickGain.connect(masterGain);
-                    osc.connect(gain); gain.connect(masterGain);
-                    click.start(now); click.stop(now + 0.012);
+                    clickGain.gain.setValueAtTime(vol * 0.22, now);
+                    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
+                    click.connect(clickHP); clickHP.connect(clickGain); clickGain.connect(masterGain);
+                    const lp = audioContext.createBiquadFilter();
+                    lp.type = 'lowpass'; lp.frequency.value = 500; lp.Q.value = 0.5;
+                    osc.connect(lp); lp.connect(gain); gain.connect(masterGain);
+                    click.start(now); click.stop(now + 0.014);
                     osc.start(now); osc.stop(now + 0.4);
                     return { oscillator: osc, gainNode: gain };
                 }
                 case 'snare': {
-                    // Crunchy snare: dual triangle body oscs + loud bandpass noise
                     const bodyLo = audioContext.createOscillator();
                     const bodyHi = audioContext.createOscillator();
-                    bodyLo.type = 'triangle'; bodyLo.frequency.value = 175;
-                    bodyHi.type = 'triangle'; bodyHi.frequency.value = 340;
+                    bodyLo.type = 'triangle'; bodyLo.frequency.value = 172;
+                    bodyHi.type = 'triangle'; bodyHi.frequency.value = 335;
                     const bodyGain = audioContext.createGain();
-                    bodyGain.gain.setValueAtTime(vol * 0.55, now);
-                    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+                    bodyGain.gain.setValueAtTime(vol * 0.58, now);
+                    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
                     bodyLo.connect(bodyGain); bodyHi.connect(bodyGain);
                     bodyGain.connect(masterGain);
-                    // Noise: louder, wider band for that 606 crackle
-                    const noise = makeNoise(audioContext, 0.2);
-                    const nHP = audioContext.createBiquadFilter();
-                    nHP.type = 'highpass'; nHP.frequency.value = 1800; nHP.Q.value = 0.8;
+                    const noise = makeNoise(audioContext, 0.22);
+                    const nBP = audioContext.createBiquadFilter();
+                    nBP.type = 'bandpass'; nBP.frequency.value = 2200; nBP.Q.value = 0.9;
                     const nGain = audioContext.createGain();
-                    nGain.gain.setValueAtTime(vol * 0.7, now);
-                    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-                    noise.connect(nHP); nHP.connect(nGain); nGain.connect(masterGain);
-                    bodyLo.start(now); bodyLo.stop(now + 0.1);
-                    bodyHi.start(now); bodyHi.stop(now + 0.1);
-                    noise.start(now); noise.stop(now + 0.2);
+                    nGain.gain.setValueAtTime(vol * 0.72, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+                    noise.connect(nBP); nBP.connect(nGain); nGain.connect(masterGain);
+                    bodyLo.start(now); bodyLo.stop(now + 0.12);
+                    bodyHi.start(now); bodyHi.stop(now + 0.12);
+                    noise.start(now); noise.stop(now + 0.22);
                     return { oscillator: noise, gainNode: nGain };
                 }
                 case 'hihat':
                 case 'openHihat': {
-                    // 6 inharmonic square oscillators at 606-specific frequencies
-                    // Lower/closer tuning than 808 gives a warmer, grittier metallic tone
                     const isOpen = drumType === 'openHihat';
-                    const dur = isOpen ? 0.4 : 0.045;
+                    const dur = isOpen ? 0.42 : 0.042;
                     const freqs = [245.1, 308.6, 367.6, 416.6, 438.5, 625.0];
                     const merger = audioContext.createGain();
-                    merger.gain.value = vol * 0.18;
+                    merger.gain.value = vol * 0.2;
                     const bp = audioContext.createBiquadFilter();
-                    bp.type = 'bandpass'; bp.frequency.value = 7100; bp.Q.value = 1.0;
+                    bp.type = 'bandpass'; bp.frequency.value = 6200; bp.Q.value = 1.1;
                     const hp = audioContext.createBiquadFilter();
-                    hp.type = 'highpass'; hp.frequency.value = 5500; hp.Q.value = 0.7;
+                    hp.type = 'highpass'; hp.frequency.value = 4800; hp.Q.value = 0.6;
                     const hatGain = audioContext.createGain();
                     hatGain.gain.setValueAtTime(1, now);
                     hatGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-                    const oscs = freqs.map(f => {
+                    freqs.forEach(f => {
                         const o = audioContext.createOscillator();
                         o.type = 'square'; o.frequency.value = f;
                         o.connect(merger); o.start(now); o.stop(now + dur + 0.01);
-                        return o;
                     });
                     merger.connect(bp); bp.connect(hp); hp.connect(hatGain);
                     hatGain.connect(masterGain);
-                    return { oscillator: oscs[0], gainNode: hatGain };
+                    return { oscillator: null, gainNode: hatGain };
                 }
                 case 'cymbal': {
-                    // Both bandpass paths (7100Hz shimmer + 3440Hz body)
                     const freqs = [245.1, 308.6, 367.6, 416.6, 438.5, 625.0];
-                    const dur = 1.0;
+                    const dur = 1.05;
                     const merger = audioContext.createGain();
-                    merger.gain.value = vol * 0.14;
+                    merger.gain.value = vol * 0.16;
                     const bpHi = audioContext.createBiquadFilter();
-                    bpHi.type = 'bandpass'; bpHi.frequency.value = 7100; bpHi.Q.value = 1.0;
+                    bpHi.type = 'bandpass'; bpHi.frequency.value = 6800; bpHi.Q.value = 1.0;
                     const bpLo = audioContext.createBiquadFilter();
-                    bpLo.type = 'bandpass'; bpLo.frequency.value = 3440; bpLo.Q.value = 1.0;
+                    bpLo.type = 'bandpass'; bpLo.frequency.value = 3200; bpLo.Q.value = 0.9;
                     const gain = audioContext.createGain();
                     gain.gain.setValueAtTime(1, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-                    const oscs = freqs.map(f => {
+                    freqs.forEach(f => {
                         const o = audioContext.createOscillator();
                         o.type = 'square'; o.frequency.value = f;
                         o.connect(merger); o.start(now); o.stop(now + dur + 0.01);
-                        return o;
                     });
                     merger.connect(bpHi); merger.connect(bpLo);
                     bpHi.connect(gain); bpLo.connect(gain);
                     gain.connect(masterGain);
-                    return { oscillator: oscs[0], gainNode: gain };
+                    return { oscillator: null, gainNode: gain };
                 }
                 case 'lowTom':
                 case 'hiTom': {
-                    // Punchy bridged-T toms with noise attack
-                    const freq = drumType === 'lowTom' ? 110 : 180;
-                    const decay = drumType === 'lowTom' ? 0.22 : 0.15;
+                    const freq = drumType === 'lowTom' ? 108 : 178;
+                    const decay = drumType === 'lowTom' ? 0.24 : 0.16;
                     const osc = audioContext.createOscillator();
                     osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(freq * 2.5, now);
-                    osc.frequency.exponentialRampToValueAtTime(freq, now + 0.012);
-                    osc.frequency.exponentialRampToValueAtTime(freq * 0.9, now + decay);
+                    osc.frequency.setValueAtTime(freq * 2.4, now);
+                    osc.frequency.exponentialRampToValueAtTime(freq, now + 0.01);
+                    osc.frequency.exponentialRampToValueAtTime(freq * 0.88, now + decay);
                     const gain = audioContext.createGain();
-                    gain.gain.setValueAtTime(vol * 0.75, now);
+                    gain.gain.setValueAtTime(vol * 0.78, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + decay);
-                    // Noise hit for attack snap
-                    const noise = makeNoise(audioContext, 0.02);
+                    const noise = makeNoise(audioContext, 0.018);
                     const nGain = audioContext.createGain();
-                    nGain.gain.setValueAtTime(vol * 0.25, now);
-                    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+                    nGain.gain.setValueAtTime(vol * 0.2, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.014);
                     noise.connect(nGain); nGain.connect(masterGain);
                     osc.connect(gain); gain.connect(masterGain);
-                    noise.start(now); noise.stop(now + 0.02);
+                    noise.start(now); noise.stop(now + 0.018);
                     osc.start(now); osc.stop(now + decay + 0.01);
                     return { oscillator: osc, gainNode: gain };
                 }
@@ -2407,40 +2542,36 @@
                     break;
                 }
 
-                case 'Q': // Qxy: Retrigger note (Repetition)
-                    // Qxy: x = volume modifier (0-F), y = ticks between retriggers (0-F)
-                    // On first tick, set countdown to y
-                    // On subsequent ticks, decrement countdown, retrig when it hits 0
-                    if (param.length >= 2) {
-                        const volMod = parseInt(param.charAt(0), 16) || 0;
-                        const tickInterval = parseInt(param.charAt(1), 16) || 0;
-                        
-                        if (step.note && step.note.trim() !== '' && step.note.trim() !== '==') {
-                            const midiNote = parseNote(step.note);
-                            if (midiNote !== null) {
-                                const baseVelocity = step.vol ? Math.min(127, parseInt(step.vol, 16) * 2) : 64;
-                                state.channelRepetition[channel] = {
-                                    tickInterval: tickInterval,
-                                    countdown: tickInterval,
-                                    volMod: volMod,
-                                    note: midiNote,
-                                    baseVelocity: baseVelocity,
-                                    firstTick: true // Flag to skip retrig on first tick
-                                };
-                            }
+                case 'Q': { // Qxy: Retrigger (IT/Schism) — retrigger note every y ticks, volume per x. Works with all synths and drums.
+                    // x = volume modifier (0-F), y = ticks between retriggers (0-F). Allow "Q1" (y only) or "Q11" (x and y)
+                    if (param.length >= 1 && step.note && step.note.trim() !== '' && step.note.trim() !== '==') {
+                        const midiNote = parseNote(step.note);
+                        if (midiNote !== null) {
+                            const volMod = param.length >= 2 ? (parseInt(param.charAt(0), 16) || 0) : 0;
+                            let tickInterval = param.length >= 2 ? (parseInt(param.charAt(1), 16) || 0) : (parseInt(param.charAt(0), 16) || 0);
+                            if (tickInterval === 0) tickInterval = 1;
+                            const baseVelocity = step.vol ? Math.min(127, parseInt(step.vol, 16) * 2) : 64;
+                            state.channelRepetition[channel] = {
+                                tickInterval: tickInterval,
+                                countdown: tickInterval,
+                                volMod: volMod,
+                                note: midiNote,
+                                baseVelocity: baseVelocity,
+                                stepIndex: state.currentStep,
+                                firstTick: true
+                            };
                         }
                     }
                     break;
-                    
-                case 'J': // Jxy: Arpeggio
-                    // Jxy: x = first semitone offset (0-F), y = second semitone offset (0-F)
-                    // Cycles through: base note, base + x semitones, base + y semitones, repeat
-                    // Cycle happens every tick (tick % 3: 0 = base, 1 = +x, 2 = +y)
+                }
+                case 'J': { // Jxy: Arpeggio (IT/Schism) — cycle base, base+x, base+y semitones every tick
+                    // x and y = semitone offsets (0-F). J00 = no arpeggio.
                     if (param.length >= 2) {
                         const semitone1 = parseInt(param.charAt(0), 16) || 0;
                         const semitone2 = parseInt(param.charAt(1), 16) || 0;
-                        
-                        if (step.note && step.note.trim() !== '' && step.note.trim() !== '==') {
+                        if (semitone1 === 0 && semitone2 === 0) {
+                            delete state.channelArpeggio[channel];
+                        } else if (step.note && step.note.trim() !== '' && step.note.trim() !== '==') {
                             const baseNote = parseNote(step.note);
                             if (baseNote !== null) {
                                 state.channelArpeggio[channel] = {
@@ -2449,12 +2580,14 @@
                                     semitone2: semitone2,
                                     tick: 0,
                                     velocity: step.vol ? Math.min(127, parseInt(step.vol, 16) * 2) : 64,
-                                    firstTick: true // Flag to start at base note on first tick
+                                    stepIndex: state.currentStep, // row where note was triggered (for moving noteKey -> arp)
+                                    firstTick: true
                                 };
                             }
                         }
                     }
                     break;
+                }
             }
         }
 
@@ -2469,37 +2602,55 @@
                 if (!pattern.channels[ch]) continue;
                 if (!shouldTrackPlay(ch)) continue;
 
-                // Retrig (Qxy)
+                // Retrig (Qxy) — IT/Schism: retrigger every y ticks, volume per x (Retrigger Volume table)
                 if (state.channelRepetition[ch]) {
                     const retrig = state.channelRepetition[ch];
+                    const retrigKey = `${ch}-retrig`;
+                    const noteKey = `${ch}-${retrig.stepIndex}`;
                     if (retrig.firstTick) {
                         retrig.firstTick = false;
+                        // Move the note we just played from noteKey to retrigKey so only one note plays
+                        if (state.activeNotes.has(noteKey)) {
+                            const entry = state.activeNotes.get(noteKey);
+                            state.activeNotes.set(retrigKey, entry);
+                            state.activeNotes.delete(noteKey);
+                        } else {
+                            state.activeNotes.set(retrigKey, { note: retrig.note, track: ch, noteInfo: null });
+                        }
                     } else {
                         retrig.countdown--;
                         if (retrig.countdown <= 0) {
                             retrig.countdown = retrig.tickInterval;
                             let velocity = retrig.baseVelocity;
-                            if (retrig.volMod > 0) {
-                                if (retrig.volMod >= 6 && retrig.volMod <= 7) {
-                                    velocity = Math.floor(velocity * (retrig.volMod === 6 ? 0.625 : 0.5));
-                                } else if (retrig.volMod >= 8 && retrig.volMod <= 12) {
-                                    const increase = (retrig.volMod - 8) * 4;
-                                    velocity = Math.min(127, velocity + increase);
-                                }
+                            // IT/Schism Retrigger Volume table: 0=no change, 1-5=-1/-2/-4/-8/-16, 6=×⅔, 7=×½, 8=no change, 9-D=+1/+2/+4/+8/+16, E=×1.5, F=×2
+                            switch (retrig.volMod) {
+                                case 1: velocity -= 1; break;
+                                case 2: velocity -= 2; break;
+                                case 3: velocity -= 4; break;
+                                case 4: velocity -= 8; break;
+                                case 5: velocity -= 16; break;
+                                case 6: velocity = Math.floor(velocity * 2 / 3); break;
+                                case 7: velocity = Math.floor(velocity / 2); break;
+                                case 9: velocity += 1; break;
+                                case 0xA: velocity += 2; break;
+                                case 0xB: velocity += 4; break;
+                                case 0xC: velocity += 8; break;
+                                case 0xD: velocity += 16; break;
+                                case 0xE: velocity = Math.floor(velocity * 1.5); break;
+                                case 0xF: velocity = Math.min(127, velocity * 2); break;
                             }
-                            // Stop previous, play new
-                            const retrigKey = `${ch}-retrig`;
+                            velocity = Math.max(1, Math.min(127, velocity));
                             if (state.activeNotes.has(retrigKey)) {
                                 stopAudioNote(state.activeNotes.get(retrigKey).noteInfo);
                                 state.activeNotes.delete(retrigKey);
                             }
-                            const noteInfo = playAudioNote(ch, retrig.note, Math.max(1, Math.min(127, velocity)));
+                            const noteInfo = playAudioNote(ch, retrig.note, velocity);
                             state.activeNotes.set(retrigKey, { note: retrig.note, track: ch, noteInfo });
                         }
                     }
                 }
 
-                // Arpeggio (Jxy)
+                // Arpeggio (Jxy) — pitch-shift the running oscillator instead of retriggering
                 if (state.channelArpeggio[ch]) {
                     const arp = state.channelArpeggio[ch];
                     if (!shouldTrackPlay(ch)) { delete state.channelArpeggio[ch]; continue; }
@@ -2508,7 +2659,7 @@
                         arp.firstTick = false;
                         arp.tick = 0;
                         const arpNoteKey = `${ch}-arp`;
-                        const regularNoteKey = `${ch}-${state.currentStep}`;
+                        const regularNoteKey = `${ch}-${arp.stepIndex}`;
                         const existing = state.activeNotes.get(regularNoteKey);
                         if (existing) {
                             state.activeNotes.set(arpNoteKey, existing);
@@ -2521,18 +2672,27 @@
 
                     arp.tick = (arp.tick + 1) % 3;
                     let arpNote = arp.baseNote;
-                    if (arp.tick === 1 && arp.semitone1 > 0) arpNote = Math.min(127, arp.baseNote + arp.semitone1);
-                    else if (arp.tick === 2 && arp.semitone2 > 0) arpNote = Math.min(127, arp.baseNote + arp.semitone2);
+                    if (arp.tick === 1) arpNote = Math.min(127, arp.baseNote + arp.semitone1);
+                    else if (arp.tick === 2) arpNote = Math.min(127, arp.baseNote + arp.semitone2);
 
                     const noteKey = `${ch}-arp`;
-                    if (state.activeNotes.has(noteKey)) {
-                        const prev = state.activeNotes.get(noteKey);
-                        if (prev.note !== arpNote) {
-                            stopAudioNote(prev.noteInfo);
+                    const existing = state.activeNotes.has(noteKey) ? state.activeNotes.get(noteKey) : null;
+
+                    // For non-drum oscillator synths: retune the running oscillator (no retrigger)
+                    if (existing && existing.noteInfo && existing.noteInfo.oscillator && !existing.noteInfo.isDrum) {
+                        const newFreq = 440 * Math.pow(2, (arpNote - 69) / 12);
+                        try {
+                            existing.noteInfo.oscillator.frequency.setValueAtTime(newFreq, state.audioContext.currentTime);
+                        } catch (_) {}
+                        existing.note = arpNote;
+                    } else {
+                        // Drums or missing oscillator: stop previous, play new
+                        if (existing && existing.noteInfo) {
+                            stopAudioNote(existing.noteInfo);
                         }
+                        const noteInfo = playAudioNote(ch, arpNote, arp.velocity);
+                        state.activeNotes.set(noteKey, { note: arpNote, track: ch, noteInfo });
                     }
-                    const noteInfo = playAudioNote(ch, arpNote, arp.velocity);
-                    state.activeNotes.set(noteKey, { note: arpNote, track: ch, noteInfo });
                 }
             }
         }
@@ -2715,34 +2875,6 @@
                 resSlider.value = isNaN(v) ? 0 : Math.max(0, Math.min(255, v));
                 updateChannelFxFromUi();
             });
-
-            // Master FX (global)
-            const g = state.globalFx;
-            const delayTimeSlider = document.getElementById('globalFxDelayTime');
-            const delayTimeVal = document.getElementById('globalFxDelayTimeVal');
-            const delayFbSlider = document.getElementById('globalFxDelayFeedback');
-            const delayFbVal = document.getElementById('globalFxDelayFeedbackVal');
-            const reverbSlider = document.getElementById('globalFxReverb');
-            const reverbVal = document.getElementById('globalFxReverbVal');
-            delayTimeSlider.value = Math.round((g.delayTime || 0.3) * 100);
-            delayTimeVal.textContent = (g.delayTime || 0.3).toFixed(2) + 's';
-            delayFbSlider.value = Math.round((g.delayFeedback || 0.3) * 100);
-            delayFbVal.textContent = Math.round((g.delayFeedback || 0.3) * 100) + '%';
-            reverbSlider.value = Math.round((g.reverbAmount || 0.3) * 100);
-            reverbVal.textContent = Math.round((g.reverbAmount || 0.3) * 100) + '%';
-            function updateGlobalFxFromUi() {
-                state.globalFx.delayTime = Math.max(0.01, Math.min(1, parseInt(delayTimeSlider.value, 10) / 100));
-                state.globalFx.delayFeedback = Math.max(0, Math.min(1, parseInt(delayFbSlider.value, 10) / 100));
-                state.globalFx.reverbAmount = Math.max(0, Math.min(1, parseInt(reverbSlider.value, 10) / 100));
-                delayTimeVal.textContent = state.globalFx.delayTime.toFixed(2) + 's';
-                delayFbVal.textContent = Math.round(state.globalFx.delayFeedback * 100) + '%';
-                reverbVal.textContent = Math.round(state.globalFx.reverbAmount * 100) + '%';
-                applyGlobalFx();
-                saveFxSettingsToStorage();
-            }
-            delayTimeSlider.oninput = updateGlobalFxFromUi;
-            delayFbSlider.oninput = updateGlobalFxFromUi;
-            reverbSlider.oninput = updateGlobalFxFromUi;
 
             const modal = document.getElementById('channelSettingsModal');
             modal.style.display = 'block';
@@ -3016,6 +3148,75 @@
             } catch (error) {
                 console.error('Error loading FX settings:', error);
             }
+        }
+
+        function initGlobalFxSidebar() {
+            const g = state.globalFx;
+            const delayTimeSlider = document.getElementById('globalFxDelayTime');
+            const delayTimeVal = document.getElementById('globalFxDelayTimeVal');
+            const delayFbSlider = document.getElementById('globalFxDelayFeedback');
+            const delayFbVal = document.getElementById('globalFxDelayFeedbackVal');
+            const delayToneSlider = document.getElementById('globalFxDelayTone');
+            const delayToneVal = document.getElementById('globalFxDelayToneVal');
+            const reverbSlider = document.getElementById('globalFxReverb');
+            const reverbVal = document.getElementById('globalFxReverbVal');
+            const reverbDecaySlider = document.getElementById('globalFxReverbDecay');
+            const reverbDecayVal = document.getElementById('globalFxReverbDecayVal');
+            const compSlider = document.getElementById('globalFxCompressor');
+            const compVal = document.getElementById('globalFxCompressorVal');
+            const compThrSlider = document.getElementById('globalFxCompThreshold');
+            const compThrVal = document.getElementById('globalFxCompThresholdVal');
+            const compRatioSlider = document.getElementById('globalFxCompRatio');
+            const compRatioVal = document.getElementById('globalFxCompRatioVal');
+            const masterSlider = document.getElementById('globalFxMaster');
+            const masterVal = document.getElementById('globalFxMasterVal');
+            if (!delayTimeSlider) return;
+
+            function syncGlobalFxToUi() {
+                delayTimeSlider.value = Math.round((g.delayTime ?? 0.3) * 100);
+                delayTimeVal.textContent = (g.delayTime ?? 0.3).toFixed(2) + 's';
+                delayFbSlider.value = Math.round((g.delayFeedback ?? 0.3) * 100);
+                delayFbVal.textContent = Math.round((g.delayFeedback ?? 0.3) * 100) + '%';
+                delayToneSlider.value = Math.round((g.delayTone ?? 1) * 100);
+                delayToneVal.textContent = Math.round((g.delayTone ?? 1) * 100) + '%';
+                reverbSlider.value = Math.round((g.reverbAmount ?? 0.3) * 100);
+                reverbVal.textContent = Math.round((g.reverbAmount ?? 0.3) * 100) + '%';
+                const decayNum = g.reverbDecay ?? 2;
+                reverbDecaySlider.value = Math.round(((decayNum - 0.5) / 3.5) * 90 + 10);
+                reverbDecayVal.textContent = decayNum.toFixed(1) + 's';
+                compSlider.value = Math.round((g.compressorMix ?? 0) * 100);
+                compVal.textContent = (g.compressorMix ?? 0) > 0 ? Math.round((g.compressorMix ?? 0) * 100) + '%' : 'off';
+                compThrSlider.value = Math.round(g.compThreshold ?? -24);
+                compThrVal.textContent = (g.compThreshold ?? -24) + ' dB';
+                compRatioSlider.value = Math.round(g.compRatio ?? 4);
+                compRatioVal.textContent = (g.compRatio ?? 4) + ':1';
+                masterSlider.value = Math.round((g.masterVolume ?? 0.7) * 100);
+                masterVal.textContent = Math.round((g.masterVolume ?? 0.7) * 100) + '%';
+            }
+            function updateGlobalFxFromUi() {
+                g.delayTime = Math.max(0.01, Math.min(1, parseInt(delayTimeSlider.value, 10) / 100));
+                g.delayFeedback = Math.max(0, Math.min(1, parseInt(delayFbSlider.value, 10) / 100));
+                g.delayTone = Math.max(0, Math.min(1, parseInt(delayToneSlider.value, 10) / 100));
+                g.reverbAmount = Math.max(0, Math.min(1, parseInt(reverbSlider.value, 10) / 100));
+                g.reverbDecay = 0.5 + (parseInt(reverbDecaySlider.value, 10) / 100) * 3.5;
+                g.compressorMix = Math.max(0, Math.min(1, parseInt(compSlider.value, 10) / 100));
+                g.compThreshold = Math.max(-60, Math.min(0, parseInt(compThrSlider.value, 10)));
+                g.compRatio = Math.max(1, Math.min(20, parseInt(compRatioSlider.value, 10)));
+                g.masterVolume = Math.max(0, Math.min(1, parseInt(masterSlider.value, 10) / 100));
+                delayTimeVal.textContent = g.delayTime.toFixed(2) + 's';
+                delayFbVal.textContent = Math.round(g.delayFeedback * 100) + '%';
+                delayToneVal.textContent = Math.round(g.delayTone * 100) + '%';
+                reverbVal.textContent = Math.round(g.reverbAmount * 100) + '%';
+                reverbDecayVal.textContent = g.reverbDecay.toFixed(1) + 's';
+                compVal.textContent = g.compressorMix > 0 ? Math.round(g.compressorMix * 100) + '%' : 'off';
+                compThrVal.textContent = g.compThreshold + ' dB';
+                compRatioVal.textContent = g.compRatio + ':1';
+                masterVal.textContent = Math.round(g.masterVolume * 100) + '%';
+                applyGlobalFx();
+                saveFxSettingsToStorage();
+            }
+            syncGlobalFxToUi();
+            delayTimeSlider.oninput = delayFbSlider.oninput = delayToneSlider.oninput = reverbSlider.oninput = reverbDecaySlider.oninput = compSlider.oninput = compThrSlider.oninput = compRatioSlider.oninput = masterSlider.oninput = updateGlobalFxFromUi;
         }
 
         // Debounced save to prevent performance issues during rapid edits
@@ -3484,41 +3685,23 @@
             });
             content.appendChild(volField);
 
-            // FX command field (effect command: CC number or letter)
-            const fxCmdField = document.createElement('input');
-            fxCmdField.type = 'text';
-            fxCmdField.className = 'cell-field fx-cmd-field';
-            fxCmdField.value = step.fxCmd || '';
-            fxCmdField.placeholder = '---';
-            fxCmdField.maxLength = 3; // Allow 0-127 for CC numbers
-            fxCmdField.dataset.field = 'fxCmd';
-            fxCmdField.addEventListener('input', (e) => handleCellInput(row, channel, 'fxCmd', e.target.value));
-            fxCmdField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
-            fxCmdField.addEventListener('focus', () => {
+            // Single FX field (command + value, e.g. Q11, J04, F40)
+            const fxField = document.createElement('input');
+            fxField.type = 'text';
+            fxField.className = 'cell-field fx-cmd-field';
+            fxField.value = (step.fxCmd || '') + (step.fxVal || '');
+            fxField.placeholder = '--';
+            fxField.maxLength = 3;
+            fxField.dataset.field = 'fx';
+            fxField.addEventListener('input', (e) => handleCellInput(row, channel, 'fx', e.target.value));
+            fxField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
+            fxField.addEventListener('focus', () => {
                 state.activeCell.row = row;
                 state.activeCell.channel = channel;
-                state.activeCell.field = 'fxCmd';
+                state.activeCell.field = 'fx';
                 updateActiveCell();
             });
-            content.appendChild(fxCmdField);
-
-            // FX value field (effect parameter)
-            const fxValField = document.createElement('input');
-            fxValField.type = 'text';
-            fxValField.className = 'cell-field fx-val-field';
-            fxValField.value = step.fxVal || '';
-            fxValField.placeholder = '--';
-            fxValField.maxLength = 2;
-            fxValField.dataset.field = 'fxVal';
-            fxValField.addEventListener('input', (e) => handleCellInput(row, channel, 'fxVal', e.target.value));
-            fxValField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
-            fxValField.addEventListener('focus', () => {
-                state.activeCell.row = row;
-                state.activeCell.channel = channel;
-                state.activeCell.field = 'fxVal';
-                updateActiveCell();
-            });
-            content.appendChild(fxValField);
+            content.appendChild(fxField);
 
             td.appendChild(content);
             return td;
@@ -3541,6 +3724,18 @@
             // Validate and format input
             if (field === 'note') {
                 value = value.toUpperCase().replace(/[^A-G#B0-9-]/g, '');
+            } else if (field === 'fx') {
+                // Single FX column: first char = command (F,R,Q,J,Z or digit), rest = hex value (e.g. Q11, J04)
+                value = value.toUpperCase().replace(/[^FRQJZ0-9A-F]/g, '');
+                value = value.substring(0, 3);
+                const cmd = value.charAt(0) || '';
+                const val = value.slice(1).replace(/[^0-9A-F]/g, '').substring(0, 2);
+                pattern.channels[channel][row].fxCmd = cmd;
+                pattern.channels[channel][row].fxVal = val;
+                if (typeof recordRoomChange === 'function') recordRoomChange(state.currentPattern, channel, row);
+                debouncedSave();
+                updateActiveCell();
+                return;
             } else if (field === 'fxCmd') {
                 // FX command: CC number (0-127) or letter (F, R, Q, J, Z)
                 value = value.toUpperCase().replace(/[^FRQJZ0-9]/g, '');
@@ -3586,7 +3781,7 @@
 
         // Handle keyboard navigation in cells
         function handleCellKeydown(e, row, channel) {
-            const fields = ['note', 'vol', 'fxCmd', 'fxVal'];
+            const fields = ['note', 'vol', 'fx'];
             const currentField = e.target.dataset.field;
             const currentIndex = fields.indexOf(currentField);
             
@@ -3630,7 +3825,7 @@
                     } else {
                         // Move to previous channel (last field)
                         if (channel > 0) {
-                            focusField(row, channel - 1, 'fxVal');
+                            focusField(row, channel - 1, 'fx');
                         }
                     }
                 }
@@ -3752,7 +3947,7 @@
                 } else {
                     // Move to previous channel, last field
                     if (channel > 0) {
-                        focusField(row, channel - 1, 'fxVal');
+                        focusField(row, channel - 1, 'fx');
                     }
                 }
             } else if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -4409,12 +4604,26 @@
         }
 
         function panicAllNotesOff() {
+            const now = state.audioContext ? state.audioContext.currentTime : 0;
             state.activeNotes.forEach((activeNote) => {
-                stopAudioNote(activeNote.noteInfo);
+                const info = activeNote.noteInfo;
+                if (!info) return;
+                try {
+                    if (info.gainNode) {
+                        info.gainNode.gain.cancelScheduledValues(now);
+                        info.gainNode.gain.setValueAtTime(0, now);
+                    }
+                    if (info.oscillator) { try { info.oscillator.stop(now); } catch (_) {} }
+                } catch (_) {}
+                if (!info.isDrum) stopAudioNote(info);
             });
             state.activeNotes.clear();
             state.channelRepetition = {};
             state.channelArpeggio = {};
+            if (state.audioContext && state.masterGain) {
+                state.masterGain.gain.setValueAtTime(0, now);
+                state.masterGain.gain.setValueAtTime(state.globalFx.masterVolume ?? 0.7, now + 0.05);
+            }
         }
 
 
@@ -4610,6 +4819,7 @@
             updatePatternOrder();
             updatePatternQuickSwitch();
             savePatternsToStorage();
+            if (typeof currentRoomId !== 'undefined' && currentRoomId && typeof debouncedPublishToRoom === 'function') debouncedPublishToRoom();
         }
 
         // Add pattern by copying current pattern
@@ -4653,6 +4863,7 @@
             updatePatternOrder();
             updatePatternQuickSwitch();
             savePatternsToStorage();
+            if (typeof currentRoomId !== 'undefined' && currentRoomId && typeof debouncedPublishToRoom === 'function') debouncedPublishToRoom();
         }
 
 
@@ -4860,7 +5071,7 @@
                         } else {
                             // Move to previous channel (last field)
                             if (state.activeCell.channel > 0) {
-                                focusField(state.activeCell.row, state.activeCell.channel - 1, 'fxVal');
+                                focusField(state.activeCell.row, state.activeCell.channel - 1, 'fx');
                             }
                         }
                     }
@@ -5163,7 +5374,7 @@
             } else if (e.key === 'Tab' && !e.shiftKey) {
                 e.preventDefault();
                 // Tab cycles through fields, then moves to next channel
-                const fields = ['note', 'vol', 'fxCmd', 'fxVal'];
+                const fields = ['note', 'vol', 'fx'];
                 const currentIndex = fields.indexOf(state.activeCell.field);
                 if (currentIndex < fields.length - 1) {
                     // Move to next field in same cell
@@ -5178,7 +5389,7 @@
             } else if (e.key === 'Tab' && e.shiftKey) {
                 e.preventDefault();
                 // Shift+Tab cycles backwards through fields
-                const fields = ['note', 'vol', 'fxCmd', 'fxVal'];
+                const fields = ['note', 'vol', 'fx'];
                 const currentIndex = fields.indexOf(state.activeCell.field);
                 if (currentIndex > 0) {
                     // Move to previous field in same cell
@@ -5186,7 +5397,7 @@
                 } else {
                     // Move to previous channel, last field
                     if (state.activeCell.channel > 0) {
-                        focusField(state.activeCell.row, state.activeCell.channel - 1, 'fxVal');
+                        focusField(state.activeCell.row, state.activeCell.channel - 1, 'fx');
                     }
                 }
                 return;
@@ -5649,6 +5860,7 @@
         // Try to load patterns from storage
         const patternsLoaded = loadPatternsFromStorage();
         loadFxSettingsFromStorage();
+        initGlobalFxSidebar();
 
         // If no patterns were loaded, create default pattern
         if (!patternsLoaded) {
@@ -5758,8 +5970,22 @@
                 if (stored && /^[a-fA-F0-9]{64}$/.test(stored)) {
                     nostrSecKeyHex = stored;
                     updateIdentityFromKey();
+                    return;
                 }
             } catch (_) {}
+            // Auto-generate a key if none exists
+            (async () => {
+                const t = await loadNostrTools();
+                if (!t) return;
+                try {
+                    const sk = t.generateSecretKey();
+                    nostrSecKeyHex = bytesToHex(sk);
+                    try { localStorage.setItem(NOSTR_KEY_STORAGE, nostrSecKeyHex); } catch (_) {}
+                    updateIdentityFromKey();
+                } catch (e) {
+                    console.error('Auto-generate key failed:', e);
+                }
+            })();
         }
         function updateIdentityFromKey() {
             if (!nostrSecKeyHex) {
@@ -5847,10 +6073,14 @@
             NostrLib.unsubMany(roomSubs);
             roomSubs = [];
             roomEventsByPubkey.clear();
+            let gotEose = false;
             const onRoomEvent = (ev) => {
                 if (NostrLib.eventTag(ev, 'r') !== currentRoomId) return;
-                if (ev.pubkey === nostrPubkey) return;
+                // After initial load (EOSE), skip own real-time deltas to avoid echo.
+                // But always process song events (including own) so we restore our data on rejoin.
+                const isOwnEvent = ev.pubkey === nostrPubkey;
                 if (ev.kind === NOSTR_TRACKER_KIND_DELTA) {
+                    if (isOwnEvent) return;
                     try {
                         const content = JSON.parse(ev.content);
                         applyDeltaContent(content, state);
@@ -5870,6 +6100,8 @@
                         if (!latest || e.created_at > latest.created_at) latest = e;
                     }
                     if (!latest || latest.created_at <= lastAppliedCreatedAt) return;
+                    // After EOSE, skip applying our own song events (we already have the data)
+                    if (gotEose && latest.pubkey === nostrPubkey) return;
                     try {
                         const content = JSON.parse(latest.content);
                         applySongContent(content, state);
@@ -5879,12 +6111,15 @@
                         savePatternsToStorage();
                         saveFxSettingsToStorage();
                         lastAppliedCreatedAt = latest.created_at;
-                        setRoomLastSync('Last from: ' + new Date(latest.created_at * 1000).toLocaleTimeString());
-                        showToast('Synced from room');
-                    } catch (_) {}
+                        const source = latest.pubkey === nostrPubkey ? 'self' : new Date(latest.created_at * 1000).toLocaleTimeString();
+                        setRoomLastSync('Last from: ' + source);
+                        const patCount = (state.patterns || []).length;
+                        showToast(`Synced ${patCount} patterns from room`);
+                    } catch (e) { console.error('[nostr] apply song failed:', e); }
                 }
             };
-            roomSubs = NostrLib.subscribeMany(nostrPool, [NOISTRACKER_RELAY], NostrLib.minimalFiltersRoom(100), { onevent: onRoomEvent });
+            const onEose = () => { gotEose = true; };
+            roomSubs = NostrLib.subscribeMany(nostrPool, [NOISTRACKER_RELAY], NostrLib.minimalFiltersRoom(100), { onevent: onRoomEvent, eose: onEose });
             setRoomStatus('Room: ' + currentRoomId);
         }
 
@@ -5986,21 +6221,34 @@
             }, 1500);
         }
 
-        async function publishSongToRoom() {
+        async function publishSongToRoom(retryCount) {
             if (!currentRoomId || !nostrPool || !nostrSecKeyHex || !nostrPubkey) return;
             const t = NostrTools || await loadNostrTools();
             if (!t) return;
+            const retry = retryCount || 0;
             try {
-                const content = buildSongContentForRelay(state);
+                const result = buildSongContentForRelay(state);
+                const contentJson = JSON.stringify(result.content);
+                if (result.truncated) {
+                    showToast(`Warning: only ${result.keptPatterns}/${result.originalPatterns} patterns fit in relay (${Math.round(contentJson.length/1024)}KB)`, 5000);
+                    console.warn(`[nostr] Song truncated: ${result.keptPatterns}/${result.originalPatterns} patterns, ${contentJson.length} bytes`);
+                }
                 const dTag = currentRoomId + '-' + nostrPubkey.slice(0, 16);
                 const tags = [['d', dTag], ['r', currentRoomId], ['t', NOISTRACKER_TAG]];
-                const ev = { kind: NOSTR_TRACKER_KIND_SONG, content: JSON.stringify(content), tags, created_at: Math.floor(Date.now() / 1000) };
+                const ev = { kind: NOSTR_TRACKER_KIND_SONG, content: contentJson, tags, created_at: Math.floor(Date.now() / 1000) };
                 const signed = await signEventWithKey(ev);
                 if (signed) await nostrPool.publish([NOISTRACKER_RELAY], signed);
-                showToast('Published to room');
+                showToast(`Published ${(state.patterns || []).length} patterns to room`);
                 setLastPublish('song');
+                setTimeout(() => refreshRoomsList(), 800);
             } catch (e) {
-                showToast('Room publish failed');
+                console.error('[nostr] publish failed:', e);
+                if (retry < 2) {
+                    showToast('Publish failed, retrying...');
+                    setTimeout(() => publishSongToRoom(retry + 1), 1000 * (retry + 1));
+                } else {
+                    showToast('Room publish failed after retries');
+                }
             }
         }
 
@@ -6023,6 +6271,8 @@
                 n: cell.note ?? '', v: cell.vol ?? '', fx: cell.fxCmd ?? '', fv: cell.fxVal ?? ''
             });
             debouncedPublishDeltas();
+            // Also schedule a full song publish so the relay always has the complete state
+            debouncedPublishToRoom();
         }
 
         function debouncedPublishDeltas() {
@@ -6144,13 +6394,23 @@
 
         // Warn before leaving the page (back button, close tab, reload, etc.)
         window.addEventListener('beforeunload', (e) => {
-            // Always warn to prevent accidental data loss
             e.preventDefault();
-            // Chrome requires returnValue to be set
             e.returnValue = '';
-            // Some browsers show this custom message (though most modern browsers ignore it)
+            // Flush any pending changes to Nostr before leaving
+            if (currentRoomId && nostrPool && nostrSecKeyHex) {
+                if (publishToRoomTimeout) { clearTimeout(publishToRoomTimeout); publishToRoomTimeout = null; }
+                if (publishDeltasTimeout) { clearTimeout(publishDeltasTimeout); publishDeltasTimeout = null; }
+                try { publishSongToRoom(); } catch (_) {}
+            }
             return 'You have unsaved tracker data. Are you sure you want to leave?';
         });
+
+        // Periodic full song publish to ensure relay has complete data
+        setInterval(() => {
+            if (currentRoomId && nostrPool && nostrSecKeyHex && nostrPubkey) {
+                publishSongToRoom();
+            }
+        }, 60000);
     </script>
 </body>
 </html>

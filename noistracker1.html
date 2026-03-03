@@ -5904,6 +5904,24 @@
             if (typeof location !== 'undefined') location.hash = '';
         }
 
+        /** Reset patterns/order so the editor shows the new room's state (empty until 30303 arrives). */
+        function clearRoomState() {
+            state.patterns = [];
+            state.order = [{ pattern: 0, repeat: 1 }];
+            state.currentPattern = 0;
+            state.currentOrderIndex = 0;
+            state.currentOrderRepeat = 0;
+            state.activeCell = { row: 0, channel: 0, field: 'note' };
+            initPattern(0);
+            const patternInput = document.getElementById('patternInput');
+            if (patternInput) patternInput.value = 0;
+            const patternLengthInput = document.getElementById('patternLengthInput');
+            if (patternLengthInput) patternLengthInput.value = state.patternLength;
+            renderPattern();
+            updatePatternOrder();
+            updateActiveCell();
+        }
+
         let roomsListSubs = [];
         function refreshRoomsList() {
             if (!nostrPool) {
@@ -5930,7 +5948,9 @@
                         row.textContent = roomId;
                         row.title = 'Click to join';
                         row.addEventListener('click', () => {
+                            if (roomId === currentRoomId) return;
                             document.getElementById('nostrRoomIdInput').value = roomId;
+                            clearRoomState();
                             currentRoomId = roomId;
                             if (typeof location !== 'undefined') location.hash = roomId;
                             subscribeToRoom();
@@ -6041,6 +6061,7 @@
                 return;
             }
             if (roomId === currentRoomId) return;
+            clearRoomState();
             NostrLib.unsubMany(roomSubs);
             roomSubs = [];
             roomEventsByPubkey.clear();
@@ -6111,6 +6132,7 @@
         window.addEventListener('hashchange', () => {
             const roomId = (typeof location !== 'undefined' && location.hash) ? location.hash.replace(/^#/, '').trim() : '';
             if (roomId && roomId !== currentRoomId) {
+                clearRoomState();
                 currentRoomId = roomId;
                 const input = document.getElementById('nostrRoomIdInput');
                 if (input) input.value = roomId;
