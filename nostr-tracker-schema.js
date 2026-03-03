@@ -221,11 +221,12 @@ const STEP_EMPTY = { note: '', vol: '', fxCmd: '', fxVal: '' };
 
 /**
  * Pack a step for storage: short keys (n,v,fx,fv), omit empty fields. Reduces payload size.
+ * Returns null for completely empty steps (caller should handle).
  * @param {{ note?: string, vol?: string, fxCmd?: string, fxVal?: string }} step
- * @returns {{ n?: string, v?: string, fx?: string, fv?: string }}
+ * @returns {{ n?: string, v?: string, fx?: string, fv?: string }|null}
  */
 function packStep(step) {
-  if (!step) return {};
+  if (!step) return null;
   const out = {};
   const n = (step.note !== undefined && step.note !== null) ? String(step.note) : (step.n != null ? String(step.n) : '');
   const v = (step.vol !== undefined && step.vol !== null) ? String(step.vol) : (step.v != null ? String(step.v) : '');
@@ -235,7 +236,16 @@ function packStep(step) {
   if (v) out.v = v;
   if (fx) out.fx = fx;
   if (fv) out.fv = fv;
-  return out;
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+function isStepEmpty(step) {
+  if (!step) return true;
+  const n = step.note || step.n || '';
+  const v = step.vol || step.v || '';
+  const fx = step.fxCmd || step.fx || '';
+  const fv = step.fxVal || step.fv || '';
+  return !n && !v && !fx && !fv;
 }
 
 /**
@@ -254,24 +264,50 @@ function unpackStep(packed) {
 }
 
 /**
- * Pack a pattern's channels for storage (each step packed).
+ * Pack a pattern's channels for storage. Uses sparse format: only non-empty steps stored as {row: packedStep}.
+ * Empty channels are omitted entirely.
  */
 function packPattern(pattern) {
   if (!pattern || !pattern.channels) return { channels: [], length: pattern?.length ?? 64 };
-  return {
-    channels: pattern.channels.map((ch) => Array.isArray(ch) ? ch.map(packStep) : []),
-    length: pattern.length ?? 64
-  };
+  const channels = [];
+  for (let ci = 0; ci < pattern.channels.length; ci++) {
+    const ch = pattern.channels[ci];
+    if (!Array.isArray(ch)) { channels.push(null); continue; }
+    const sparse = {};
+    let hasData = false;
+    for (let ri = 0; ri < ch.length; ri++) {
+      const packed = packStep(ch[ri]);
+      if (packed) { sparse[ri] = packed; hasData = true; }
+    }
+    channels.push(hasData ? sparse : null);
+  }
+  // Trim trailing null channels
+  while (channels.length > 0 && channels[channels.length - 1] === null) channels.pop();
+  return { channels, length: pattern.length ?? 64 };
 }
 
 /**
- * Unpack pattern from storage (each step unpacked to full form).
+ * Unpack pattern from storage. Handles both sparse ({row: step}) and dense (array) channel formats.
  */
 function unpackPattern(packed) {
   if (!packed || !packed.channels) return { channels: [], length: 64 };
+  const patLen = packed.length ?? 64;
   return {
-    channels: packed.channels.map((ch) => Array.isArray(ch) ? ch.map(unpackStep) : []),
-    length: packed.length ?? 64
+    channels: packed.channels.map((ch) => {
+      if (!ch) {
+        const empty = [];
+        for (let i = 0; i < patLen; i++) empty.push({ ...STEP_EMPTY });
+        return empty;
+      }
+      if (Array.isArray(ch)) return ch.map(unpackStep);
+      // Sparse format: object with row indices as keys
+      const rows = [];
+      for (let i = 0; i < patLen; i++) {
+        rows.push(ch[i] ? unpackStep(ch[i]) : { ...STEP_EMPTY });
+      }
+      return rows;
+    }),
+    length: patLen
   };
 }
 
@@ -313,57 +349,59 @@ function buildSongContent(state) {
 const TRACKER_SONG_MAX_CONTENT_BYTES = 240000;
 
 /**
- * Build song content that fits within maxBytes (relay message limit). Trims patterns and rows if needed.
+ * Build song content that fits within maxBytes (relay message limit).
+ * Returns { content, truncated, originalPatterns, keptPatterns } so callers can warn the user.
  * @param {Object} state - audio0-style state
  * @param {number} [maxBytes] - default TRACKER_SONG_MAX_CONTENT_BYTES
- * @returns {Object} Content for kind 30303
+ * @returns {{ content: Object, truncated: boolean, originalPatterns: number, keptPatterns: number }}
  */
 function buildSongContentForRelay(state, maxBytes) {
   const max = maxBytes != null ? maxBytes : TRACKER_SONG_MAX_CONTENT_BYTES;
+  const totalPatterns = (state.patterns || []).length;
   let content = buildSongContent(state);
-  if (JSON.stringify(content).length <= max) return content;
+  let json = JSON.stringify(content);
+  if (json.length <= max) return { content, truncated: false, originalPatterns: totalPatterns, keptPatterns: totalPatterns };
+
+  // Try keeping all patterns but only non-empty channels (already sparse from packPattern)
+  // If still too big, progressively trim pattern count
   const patternLength = state.patternLength || 64;
-  for (const maxPatterns of [16, 8, 4]) {
-    for (const maxRows of [64, 32, 16]) {
-      const patterns = (state.patterns || []).slice(0, maxPatterns).map((p) => {
-        const ch = (p.channels || []).map((channel) =>
-          Array.isArray(channel) ? channel.slice(0, maxRows).map(packStep) : []
-        );
-        return { channels: ch, length: Math.min(p.length || patternLength, maxRows) };
-      });
-      const order = (state.order || []).filter((e) => {
-        const idx = typeof e === 'number' ? e : e.pattern;
-        return idx < maxPatterns;
-      });
-      if (order.length === 0 && state.order && state.order.length) order.push(0);
-      content = {
-        v: TRACKER_SONG_SCHEMA_VERSION,
-        patterns,
-        order: order.length ? order : state.order,
-        currentPattern: Math.min(state.currentPattern ?? 0, maxPatterns - 1),
-        channels: state.channels,
-        patternLength: Math.min(patternLength, maxRows),
-        bpm: state.bpm,
-        playbackMode: state.playbackMode,
-        stepSize: state.stepSize,
-        trackNames: state.trackNames ? [...state.trackNames] : [],
-        trackDevices: state.trackDevices ? [...state.trackDevices] : [],
-        trackInstruments: state.trackInstruments ? { ...state.trackInstruments } : {},
-        currentOctave: state.currentOctave,
-        mutedTracks: state.mutedTracks ? [...state.mutedTracks] : [],
-        soloedTracks: state.soloedTracks ? [...state.soloedTracks] : []
-      };
-      if (state.channelFxSettings && Object.keys(state.channelFxSettings).length) {
-        content.channelFxSettings = {};
-        for (const k of Object.keys(state.channelFxSettings)) {
-          content.channelFxSettings[k] = { ...state.channelFxSettings[k] };
-        }
+  for (const maxPatterns of [totalPatterns, 32, 16, 8, 4]) {
+    const patterns = (state.patterns || []).slice(0, maxPatterns).map(packPattern);
+    const order = (state.order || []).filter((e) => {
+      const idx = typeof e === 'number' ? e : e.pattern;
+      return idx < maxPatterns;
+    });
+    if (order.length === 0 && state.order && state.order.length) order.push(state.order[0]);
+    content = {
+      v: TRACKER_SONG_SCHEMA_VERSION,
+      patterns,
+      order: order.length ? order : state.order,
+      currentPattern: Math.min(state.currentPattern ?? 0, maxPatterns - 1),
+      channels: state.channels,
+      patternLength,
+      bpm: state.bpm,
+      playbackMode: state.playbackMode,
+      stepSize: state.stepSize,
+      trackNames: state.trackNames ? [...state.trackNames] : [],
+      trackDevices: state.trackDevices ? [...state.trackDevices] : [],
+      trackInstruments: state.trackInstruments ? { ...state.trackInstruments } : {},
+      currentOctave: state.currentOctave,
+      mutedTracks: state.mutedTracks ? [...state.mutedTracks] : [],
+      soloedTracks: state.soloedTracks ? [...state.soloedTracks] : []
+    };
+    if (state.channelFxSettings && Object.keys(state.channelFxSettings).length) {
+      content.channelFxSettings = {};
+      for (const k of Object.keys(state.channelFxSettings)) {
+        content.channelFxSettings[k] = { ...state.channelFxSettings[k] };
       }
-      if (state.globalFx) content.globalFx = { ...state.globalFx };
-      if (JSON.stringify(content).length <= max) return content;
+    }
+    if (state.globalFx) content.globalFx = { ...state.globalFx };
+    json = JSON.stringify(content);
+    if (json.length <= max) {
+      return { content, truncated: maxPatterns < totalPatterns, originalPatterns: totalPatterns, keptPatterns: maxPatterns };
     }
   }
-  return content;
+  return { content, truncated: true, originalPatterns: totalPatterns, keptPatterns: content.patterns.length };
 }
 
 /**
@@ -483,6 +521,7 @@ if (typeof module !== 'undefined' && module.exports) {
     buildTrackSettingsContent,
     packStep,
     unpackStep,
+    isStepEmpty,
     packPattern,
     unpackPattern,
     buildSongContent,
