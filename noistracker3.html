@@ -1849,41 +1849,44 @@
             if (state.compressorWetGain) state.compressorWetGain.gain.setTargetAtTime(g.compressorMix || 0, now, t);
         }
 
-        // TR-808 Kit 1 (Toms) - matches Roland TR-8 MIDI mapping
+        // TR-808: Roland TR-8 Kit 1 (TR-808 - Toms) + GM pedal hi-hat and conga set
+        // Ref: Roland TR-8 MIDI implementation (36–51 = Kit 1; 44 = GM Pedal Hi-Hat; 62–64, 70, 75 = GM)
         const DRUM_MAP_808 = {
-            36: 'kick',       // C1
-            38: 'snare',      // D1
-            37: 'rimshot',    // C#1
-            39: 'clap',       // D#1
-            42: 'hihat',      // F#1 - closed
-            44: 'pedalHihat', // G#1 - pedal (half-open)
-            46: 'openHihat',  // A#1 - open
-            49: 'cymbal',     // C#2
-            51: 'cowbell',    // D#2
-            43: 'lowTom',     // G1
-            47: 'midTom',     // B1
-            50: 'hiTom',      // D2
-            70: 'maracas',    // A#3
-            75: 'clave',      // D#4
-            62: 'lowConga',   // D3
-            63: 'midConga',   // D#3
-            64: 'hiConga',    // E3
+            36: 'kick',       // C1  Bass Drum
+            37: 'rimshot',    // C#1 Rim Shot
+            38: 'snare',      // D1  Snare Drum
+            39: 'clap',       // D#1 Hand Clap
+            42: 'hihat',      // F#1 Closed Hi-Hat
+            44: 'pedalHihat', // G#1 Pedal Hi-Hat (GM)
+            46: 'openHihat',  // A#1 Open Hi-Hat
+            43: 'lowTom',     // G1  Low Tom
+            47: 'midTom',     // B1  Mid Tom
+            50: 'hiTom',      // D2  High Tom
+            49: 'cymbal',     // C#2 Cymbal
+            51: 'cowbell',    // D#2 Cowbell
+            62: 'lowConga',   // D3  (GM Low Conga)
+            63: 'midConga',   // D#3 (GM Mid Conga)
+            64: 'hiConga',    // E3  (GM High Conga)
+            70: 'maracas',    // A#3 (GM Short Guiro / maracas)
+            75: 'clave',      // D#4 (GM Claves)
         };
+        const DRUM_LABELS_808 = { kick: 'Bass Drum', snare: 'Snare Drum', rimshot: 'Rim Shot', clap: 'Hand Clap', hihat: 'Closed Hi-Hat', pedalHihat: 'Pedal Hi-Hat', openHihat: 'Open Hi-Hat', lowTom: 'Low Tom', midTom: 'Mid Tom', hiTom: 'High Tom', cymbal: 'Cymbal', cowbell: 'Cowbell', lowConga: 'Low Conga', midConga: 'Mid Conga', hiConga: 'High Conga', maracas: 'Maracas', clave: 'Claves' };
 
-        // TR-909 - same GM mapping but ride instead of cowbell
+        // TR-909 - Roland TR-8 Kit 2 (TR-909): ride at 51, crash at 49
         const DRUM_MAP_909 = {
-            36: 'kick',       // C1
-            38: 'snare',      // D1
-            37: 'rimshot',    // C#1
-            39: 'clap',       // D#1
-            42: 'hihat',      // F#1 - closed
-            46: 'openHihat',  // A#1 - open
-            49: 'crash',      // C#2
-            51: 'ride',       // D#2
-            43: 'lowTom',     // G1
-            47: 'midTom',     // B1
-            50: 'hiTom',      // D2
+            36: 'kick',       // C1  Bass Drum
+            37: 'rimshot',    // C#1 Rim Shot
+            38: 'snare',      // D1  Snare Drum
+            39: 'clap',       // D#1 Hand Clap
+            42: 'hihat',      // F#1 Closed Hi-Hat
+            46: 'openHihat',  // A#1 Open Hi-Hat
+            43: 'lowTom',     // G1  Low Tom
+            47: 'midTom',     // B1  Mid Tom
+            50: 'hiTom',      // D2  High Tom
+            49: 'crash',      // C#2 Crash Cymbal
+            51: 'ride',       // D#2 Ride Cymbal
         };
+        const DRUM_LABELS_909 = { kick: 'Bass Drum', snare: 'Snare Drum', rimshot: 'Rim Shot', clap: 'Hand Clap', hihat: 'Closed Hi-Hat', openHihat: 'Open Hi-Hat', lowTom: 'Low Tom', midTom: 'Mid Tom', hiTom: 'High Tom', crash: 'Crash Cymbal', ride: 'Ride Cymbal' };
 
         // Backwards compat alias
         const DRUM_MAP = DRUM_MAP_808;
@@ -2390,16 +2393,17 @@
             }
         }
 
-        // TR-606: 7 sounds — warm, raw analog character, sister to the TB-303
+        // TR-606: 7 sounds — warm, raw analog character (Roland TR-606)
         const DRUM_MAP_606 = {
-            36: 'kick',       // C1
-            38: 'snare',      // D1
-            42: 'hihat',      // F#1 - closed
-            46: 'openHihat',  // A#1 - open
-            49: 'cymbal',     // C#2
-            43: 'lowTom',     // G1
-            50: 'hiTom',      // D2
+            36: 'kick',       // C1  Bass Drum
+            38: 'snare',      // D1  Snare
+            42: 'hihat',      // F#1 Closed Hi-Hat
+            46: 'openHihat',  // A#1 Open Hi-Hat
+            49: 'cymbal',     // C#2 Cymbal
+            43: 'lowTom',     // G1  Low Tom
+            50: 'hiTom',      // D2  High Tom
         };
+        const DRUM_LABELS_606 = { kick: 'Bass Drum', snare: 'Snare', hihat: 'Closed Hi-Hat', openHihat: 'Open Hi-Hat', cymbal: 'Cymbal', lowTom: 'Low Tom', hiTom: 'High Tom' };
 
         function play606Drum(drumType, velocity, audioContext, masterGain) {
             const now = audioContext.currentTime;
@@ -2993,15 +2997,16 @@
                 else synthGrid.appendChild(btn);
             });
 
-            // Show note → sound mapping when a drum machine is selected
+            // Show note → sound mapping when a drum machine is selected (Roland TR-808/909/606 names)
             const drumLegend = document.getElementById('drumMapLegend');
             const selectedDrum = state.trackInstruments[trackIndex];
             if (selectedDrum === '606' || selectedDrum === '808' || selectedDrum === '909') {
                 const map = selectedDrum === '606' ? DRUM_MAP_606 : selectedDrum === '808' ? DRUM_MAP_808 : DRUM_MAP_909;
+                const labels = selectedDrum === '606' ? DRUM_LABELS_606 : selectedDrum === '808' ? DRUM_LABELS_808 : DRUM_LABELS_909;
                 const midiToNoteStr = (n) => noteNames[n % 12] + (Math.floor(n / 12) - 2); // 36 = C1 (GM drum)
                 const entries = Object.entries(map).sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10));
                 drumLegend.innerHTML = '<span style="color: #666;">Note → sound:</span> ' +
-                    entries.map(([note, sound]) => '<span style="color: #aaa;">' + midiToNoteStr(parseInt(note, 10)) + ' → ' + sound + '</span>').join(' &nbsp;|&nbsp; ');
+                    entries.map(([note, sound]) => '<span style="color: #aaa;">' + midiToNoteStr(parseInt(note, 10)) + ' → ' + (labels[sound] || sound) + '</span>').join(' &nbsp;|&nbsp; ');
                 drumLegend.style.display = 'block';
             } else {
                 drumLegend.style.display = 'none';
