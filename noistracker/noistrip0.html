@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>noistrip0 - IDM song generator</title>
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', Consolas, monospace;
+            background: #0a0a0a;
+            color: #eee;
+            min-height: 100vh;
+            padding: 12px;
+            padding-bottom: 24px;
+        }
+        h1 { font-size: 1.25rem; margin-bottom: 4px; color: #4a90e2; }
+        .subtitle { font-size: 0.7rem; color: #666; margin-bottom: 16px; }
+        section { margin-bottom: 20px; }
+        .section-title { font-size: 0.75rem; color: #888; text-transform: uppercase; margin-bottom: 8px; }
+        label { display: block; font-size: 0.75rem; color: #aaa; margin-bottom: 4px; }
+        input[type="number"], input[type="text"], select {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 10px 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            min-height: 44px;
+            width: 100%;
+            max-width: 200px;
+        }
+        input[type="range"] {
+            width: 100%;
+            max-width: 280px;
+            min-height: 28px;
+            accent-color: #4a90e2;
+        }
+        .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .row label { margin-bottom: 0; }
+        button {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 12px 20px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            cursor: pointer;
+            min-height: 44px;
+            min-width: 44px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button:hover { background: #3a3a3a; }
+        button:active { background: #1a3a5a; }
+        button.primary { background: #1a4a7a; border-color: #4a90e2; }
+        button.primary:hover { background: #2a5a8a; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .preset-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .preset-chips button { flex: 1; min-width: 80px; }
+        .preset-chips button.active { background: #1a4a7a; border-color: #4a90e2; }
+        .player-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-top: 1px solid #333;
+            border-bottom: 1px solid #333;
+            margin: 12px 0;
+        }
+        .player-bar button { padding: 10px 18px; }
+        #playBtn.playing { background: #2a5a2a; border-color: #4a8; }
+        #summary { font-size: 0.8rem; color: #888; margin-top: 8px; }
+        .export-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2a2a2a;
+            border: 1px solid #4a90e2;
+            padding: 12px 20px;
+            font-size: 0.85rem;
+            z-index: 9999;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        #audioUnlockOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: rgba(0,0,0,0.9);
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+            padding: 20px;
+        }
+        #audioUnlockOverlay.visible { display: flex; }
+        #audioUnlockBtn {
+            background: #1a4a7a;
+            color: #fff;
+            border: 2px solid #4a90e2;
+            padding: 16px 32px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            min-height: 44px;
+            touch-action: manipulation;
+        }
+        .transform-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .transform-actions button { font-size: 0.85rem; padding: 10px 14px; }
+    </style>
+</head>
+<body>
+    <div id="audioUnlockOverlay" class="audio-unlock-overlay">
+        <button type="button" id="audioUnlockBtn">Tap to enable sound</button>
+    </div>
+    <h1>noistrip0</h1>
+    <p class="subtitle">Generate and transform IDM songs for NoisTracker3. Load from Nostr, preview, then export.</p>
+
+    <section>
+        <div class="section-title">Parameters</div>
+        <div class="preset-chips">
+            <button type="button" id="presetGlitch" class="preset">Glitch (165)</button>
+            <button type="button" id="presetBreak" class="preset active">Break (148)</button>
+            <button type="button" id="presetDrill" class="preset">Drill (172)</button>
+        </div>
+        <div class="row">
+            <label>Patterns</label>
+            <input type="number" id="numPatterns" value="24" min="4" max="64" style="width:80px">
+            <button type="button" id="patternsDown">−</button>
+            <button type="button" id="patternsUp">+</button>
+        </div>
+        <div class="row">
+            <label>Length</label>
+            <select id="patternLength" style="width:100px">
+                <option value="32">32</option>
+                <option value="64" selected>64</option>
+                <option value="128">128</option>
+            </select>
+        </div>
+        <div class="row">
+            <label>BPM</label>
+            <input type="range" id="bpmSlider" min="80" max="200" value="148">
+            <span id="bpmVal">148</span>
+        </div>
+        <div class="row">
+            <label>Seed</label>
+            <input type="number" id="seedInput" value="1" min="0" max="9999" style="width:80px">
+        </div>
+        <div class="row">
+            <label>Breakbeat intensity (0–100%)</label>
+            <input type="range" id="breakbeatIntensity" min="0" max="100" value="100">
+            <span id="breakbeatVal">100%</span>
+        </div>
+        <div class="row">
+            <label>303 bass</label>
+            <select id="toggle303" style="width:120px">
+                <option value="1">On</option>
+                <option value="0">Off</option>
+            </select>
+        </div>
+        <div class="row">
+            <label>Synth stab density (0–100%)</label>
+            <input type="range" id="stabDensity" min="0" max="100" value="100">
+            <span id="stabVal">100%</span>
+        </div>
+    </section>
+
+    <section>
+        <div class="section-title">Actions</div>
+        <button type="button" id="generateBtn" class="primary">Generate new song</button>
+        <div class="transform-actions">
+            <button type="button" id="appendBtn" title="Append 10 patterns">Append 10</button>
+            <button type="button" id="add303Btn">Add 303 to all</button>
+            <button type="button" id="addBreakbeatBtn">Add breakbeats to all</button>
+            <button type="button" id="regenDrumsBtn">Regenerate drums</button>
+        </div>
+    </section>
+
+    <section class="player-bar">
+        <button type="button" id="playBtn">Play</button>
+        <button type="button" id="stopBtn">Stop</button>
+        <span id="playerStatus" style="font-size:0.8rem;color:#888">—</span>
+    </section>
+
+    <section>
+        <div class="section-title">Load from Nostr</div>
+        <div class="row">
+            <input type="text" id="nostrRoomInput" placeholder="Room id (e.g. idm-break-52)" style="flex:1;max-width:240px">
+            <button type="button" id="nostrLoadBtn">Load</button>
+        </div>
+        <p id="nostrStatus" style="font-size:0.7rem;color:#666;margin-top:6px">—</p>
+    </section>
+
+    <section>
+        <div class="section-title">Export</div>
+        <div class="export-row">
+            <button type="button" id="copyBtn">Copy JSON</button>
+            <button type="button" id="downloadBtn">Download JSON</button>
+            <button type="button" id="openTrackerBtn">Open in NoisTracker3</button>
+        </div>
+        <p id="summary">No song yet. Generate or load from Nostr.</p>
+    </section>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="../nostr-tracker-schema.js"></script>
+    <script src="../nostrlib.js"></script>
+    <script>
+(function () {
+    'use strict';
+
+    const TRACKER_SONG_SCHEMA_VERSION = 1;
+    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const KICK = 36, SNARE = 38, HIHAT = 42, OPENHAT = 46, CLAP = 39, LOWTOM = 43, MIDTOM = 47, HITOM = 50;
+
+    function midiToNote(midi) {
+        const oct = Math.floor(midi / 12) - 1;
+        return NOTE_NAMES[midi % 12] + oct;
+    }
+
+    function emptyStep() {
+        return { note: '', vol: '', fxCmd: '', fxVal: '' };
+    }
+
+    function createEmptyPattern(length, numChannels) {
+        const channels = [];
+        for (let c = 0; c < numChannels; c++) {
+            const rows = [];
+            for (let r = 0; r < length; r++) rows.push(emptyStep());
+            channels.push(rows);
+        }
+        return { channels, length };
+    }
+
+    function setStep(pattern, ch, row, note, vol, fxCmd, fxVal) {
+        const step = pattern.channels[ch][row];
+        step.note = note;
+        step.vol = vol || '';
+        step.fxCmd = fxCmd || '';
+        step.fxVal = fxVal || '';
+    }
+
+    function fillBreakbeat(pat, length, seed, intensityPct) {
+        const scale = (intensityPct || 100) / 100;
+        const rnd = (i) => ((seed * 31 + i) * 17) % 100;
+        const thresh = (base) => Math.min(99, Math.round(base * scale));
+        for (let r = 0; r < length; r += 4) {
+            if (rnd(r) < thresh(75)) setStep(pat, 2, r, midiToNote(KICK), 'A0');
+        }
+        if (length >= 32) {
+            if (rnd(1) < thresh(50)) setStep(pat, 2, 12, midiToNote(KICK), '90');
+            if (rnd(2) < thresh(40)) setStep(pat, 2, 20, midiToNote(KICK), '88');
+        }
+        for (let r = 8; r < length; r += 16) {
+            setStep(pat, 3, r, midiToNote(SNARE), 'A0');
+            if (r + 8 < length && rnd(r + 8) < thresh(70)) setStep(pat, 3, r + 8, midiToNote(SNARE), '88');
+        }
+        for (let r = 4; r < length; r += 4) {
+            if (rnd(r + 3) < thresh(55)) setStep(pat, 4, r, midiToNote(HIHAT), '70');
+        }
+        for (let r = 0; r < length; r += 16) {
+            if (r + 12 < length) setStep(pat, 5, r + 12, midiToNote(OPENHAT), '60');
+        }
+    }
+
+    function fill303Bass(pat, length, seed) {
+        const notes = [28, 31, 33, 35, 36, 38, 40];
+        for (let r = 0; r < length; r += 4) {
+            const n = notes[(seed + Math.floor(r / 4)) % notes.length];
+            setStep(pat, 0, r, midiToNote(n), '90');
+        }
+    }
+
+    function fillSynthStab(pat, length, seed, densityPct) {
+        const notes = [48, 50, 52, 55, 57, 60];
+        const scale = (densityPct || 100) / 100;
+        for (let r = 0; r < length; r += 8) {
+            const skip = (seed + r) % 3 === 0;
+            if (!skip && (scale >= 1 || Math.random() < scale))
+                setStep(pat, 1, r, midiToNote(notes[(seed + Math.floor(r / 8)) % notes.length]), '70');
+        }
+    }
+
+    function getParams() {
+        const numPatterns = Math.max(4, Math.min(64, parseInt(document.getElementById('numPatterns').value, 10) || 24));
+        const patternLength = Math.max(32, Math.min(128, parseInt(document.getElementById('patternLength').value, 10) || 64));
+        const bpm = Math.max(80, Math.min(200, parseInt(document.getElementById('bpmSlider').value, 10) || 148));
+        const seed = Math.max(0, parseInt(document.getElementById('seedInput').value, 10) || 1);
+        const breakbeatIntensity = Math.max(0, Math.min(100, parseInt(document.getElementById('breakbeatIntensity').value, 10) || 100));
+        const enable303 = document.getElementById('toggle303').value === '1';
+        const stabDensity = Math.max(0, Math.min(100, parseInt(document.getElementById('stabDensity').value, 10) || 100));
+        return { numPatterns, patternLength, bpm, seed, breakbeatIntensity, enable303, stabDensity };
+    }
+
+    function buildSongContent(params) {
+        const { numPatterns, patternLength, bpm, seed, breakbeatIntensity, enable303, stabDensity } = params;
+        const patterns = [];
+        const order = [];
+        for (let i = 0; i < numPatterns; i++) {
+            const pat = createEmptyPattern(patternLength, 16);
+            fillBreakbeat(pat, patternLength, i * 7 + seed, breakbeatIntensity);
+            if (enable303 && i % 4 !== 2) fill303Bass(pat, patternLength, i);
+            if (stabDensity > 0 && (i % 5 === 0 || i % 7 === 3)) fillSynthStab(pat, patternLength, i + 11, stabDensity);
+            if (i % 6 === 0) {
+                for (let r = 4; r < patternLength; r += 8) setStep(pat, 6, r, midiToNote(CLAP), '60');
+            }
+            if (i % 8 === 1) {
+                setStep(pat, 7, 0, midiToNote(LOWTOM), '80');
+                setStep(pat, 7, 8, midiToNote(MIDTOM), '70');
+                setStep(pat, 7, 16, midiToNote(HITOM), '78');
+            }
+            patterns.push(pat);
+            order.push(i);
+        }
+        const songOrder = [];
+        for (let block = 0; block < Math.ceil(numPatterns / 8); block++) {
+            const start = (block * 8) % numPatterns;
+            for (let i = 0; i < 8 && start + i < numPatterns; i++) songOrder.push(start + i);
+            if (block % 3 === 1 && numPatterns > 20) {
+                songOrder.push((start + 4) % numPatterns);
+                songOrder.push((start + 2) % numPatterns);
+            }
+        }
+        const packedPatterns = patterns.map(p => packPattern(p));
+        const trackNames = ['Kick', 'Snare', 'Hat', 'OHat', 'Clap', 'Tom', '303', 'Synth', '8', '9', '10', '11', '12', '13', '14', '15'].slice(0, 16);
+        const trackInstruments = {
+            '0': '303', '1': 'saw', '2': '808', '3': '808', '4': '808', '5': '808', '6': '808', '7': '808',
+            '8': 'sine', '9': 'triangle', '10': '808', '11': '909', '12': 'pad', '13': 'noise', '14': 'pluck', '15': 'square'
+        };
+        return {
+            v: TRACKER_SONG_SCHEMA_VERSION,
+            patterns: packedPatterns,
+            order: songOrder.length ? songOrder : order,
+            currentPattern: 0,
+            channels: 16,
+            patternLength,
+            bpm,
+            playbackMode: 'song',
+            stepSize: 1,
+            trackNames,
+            trackDevices: [],
+            trackInstruments,
+            currentOctave: 4,
+            mutedTracks: [],
+            soloedTracks: [],
+            globalFx: { delayTime: 0.25, delayFeedback: 0.35, reverbAmount: 0.2, masterVolume: 0.7 }
+        };
+    }
+
+    function packStep(step) {
+        if (!step) return null;
+        const n = (step.note != null && step.note !== '') ? String(step.note) : '';
+        const v = (step.vol != null && step.vol !== '') ? String(step.vol) : '';
+        const fx = (step.fxCmd != null && step.fxCmd !== '') ? String(step.fxCmd) : '';
+        const fv = (step.fxVal != null && step.fxVal !== '') ? String(step.fxVal) : '';
+        const out = {};
+        if (n) out.n = n;
+        if (v) out.v = v;
+        if (fx) out.fx = fx;
+        if (fv) out.fv = fv;
+        return Object.keys(out).length > 0 ? out : null;
+    }
+
+    function packPattern(pattern) {
+        if (!pattern || !pattern.channels) return { channels: [], length: pattern?.length ?? 64 };
+        const channels = [];
+        for (let ci = 0; ci < pattern.channels.length; ci++) {
+            const ch = pattern.channels[ci];
+            if (!Array.isArray(ch)) { channels.push(null); continue; }
+            const sparse = {};
+            for (let ri = 0; ri < ch.length; ri++) {
+                const packed = packStep(ch[ri]);
+                if (packed) sparse[ri] = packed;
+            }
+            channels.push(Object.keys(sparse).length > 0 ? sparse : null);
+        }
+        while (channels.length > 0 && channels[channels.length - 1] === null) channels.pop();
+        return { channels, length: pattern.length ?? 64 };
+    }
+
+    // In-memory song state (unpacked for transform/playback)
+    let songState = null;
+
+    function hasSong() {
+        return songState && songState.patterns && songState.patterns.length > 0;
+    }
+
+    function unpackPatternLocal(packed) {
+        if (!packed || !packed.channels) return { channels: [], length: 64 };
+        const patLen = packed.length ?? 64;
+        const STEP_EMPTY = { note: '', vol: '', fxCmd: '', fxVal: '' };
+        function unpackStep(s) {
+            if (!s) return { ...STEP_EMPTY };
+            return {
+                note: (s.n != null ? s.n : s.note != null ? s.note : ''),
+                vol: (s.v != null ? s.v : s.vol != null ? s.vol : ''),
+                fxCmd: (s.fx != null ? s.fx : s.fxCmd != null ? s.fxCmd : ''),
+                fxVal: (s.fv != null ? s.fv : s.fxVal != null ? s.fxVal : '')
+            };
+        }
+        return {
+            channels: packed.channels.map((ch) => {
+                if (!ch) {
+                    return Array.from({ length: patLen }, () => ({ ...STEP_EMPTY }));
+                }
+                if (Array.isArray(ch)) return ch.map(unpackStep);
+                const rows = [];
+                for (let i = 0; i < patLen; i++)
+                    rows.push(ch[i] ? unpackStep(ch[i]) : { ...STEP_EMPTY });
+                return rows;
+            }),
+            length: patLen
+        };
+    }
+
+    function applyGenerated(content) {
+        const unpack = typeof unpackPattern !== 'undefined' ? unpackPattern : unpackPatternLocal;
+        if (typeof applySongContent !== 'undefined') {
+            songState = songState || {};
+            applySongContent(content, songState);
+        } else {
+            songState = {
+                patterns: (content.patterns || []).map(unpack),
+                order: content.order || [],
+                currentPattern: content.currentPattern ?? 0,
+                channels: content.channels || 16,
+                patternLength: content.patternLength || 64,
+                bpm: content.bpm || 148,
+                playbackMode: content.playbackMode || 'song',
+                stepSize: 1,
+                trackNames: content.trackNames || [],
+                trackDevices: content.trackDevices || [],
+                trackInstruments: content.trackInstruments || {},
+                currentOctave: 4,
+                mutedTracks: content.mutedTracks || [],
+                soloedTracks: content.soloedTracks || [],
+                globalFx: content.globalFx || {}
+            };
+        }
+        updateSummary();
+        setExportEnabled(true);
+        setTransformEnabled(true);
+    }
+
+    function updateSummary() {
+        const el = document.getElementById('summary');
+        if (!hasSong()) {
+            el.textContent = 'No song yet. Generate or load from Nostr.';
+            return;
+        }
+        const n = songState.patterns.length;
+        const len = songState.patternLength || 64;
+        const bpm = songState.bpm || 148;
+        el.textContent = n + ' patterns, length ' + len + ', ' + bpm + ' BPM';
+    }
+
+    function setExportEnabled(on) {
+        document.getElementById('copyBtn').disabled = !on;
+        document.getElementById('downloadBtn').disabled = !on;
+        document.getElementById('openTrackerBtn').disabled = !on;
+    }
+
+    function setTransformEnabled(on) {
+        document.getElementById('appendBtn').disabled = !on;
+        document.getElementById('add303Btn').disabled = !on;
+        document.getElementById('addBreakbeatBtn').disabled = !on;
+        document.getElementById('regenDrumsBtn').disabled = !on;
+    }
+
+    function showToast(msg, duration) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(window._toastId);
+        window._toastId = setTimeout(() => t.classList.remove('show'), duration || 2000);
+    }
+
+    // Presets
+    document.getElementById('presetGlitch').addEventListener('click', () => {
+        document.getElementById('bpmSlider').value = 165;
+        document.getElementById('patternLength').value = 64;
+        document.getElementById('numPatterns').value = 50;
+        document.getElementById('bpmVal').textContent = '165';
+        document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+        document.getElementById('presetGlitch').classList.add('active');
+    });
+    document.getElementById('presetBreak').addEventListener('click', () => {
+        document.getElementById('bpmSlider').value = 148;
+        document.getElementById('patternLength').value = 64;
+        document.getElementById('numPatterns').value = 52;
+        document.getElementById('bpmVal').textContent = '148';
+        document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+        document.getElementById('presetBreak').classList.add('active');
+    });
+    document.getElementById('presetDrill').addEventListener('click', () => {
+        document.getElementById('bpmSlider').value = 172;
+        document.getElementById('patternLength').value = 32;
+        document.getElementById('numPatterns').value = 55;
+        document.getElementById('bpmVal').textContent = '172';
+        document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+        document.getElementById('presetDrill').classList.add('active');
+    });
+
+    document.getElementById('bpmSlider').addEventListener('input', function() {
+        document.getElementById('bpmVal').textContent = this.value;
+    });
+    document.getElementById('breakbeatIntensity').addEventListener('input', function() {
+        document.getElementById('breakbeatVal').textContent = this.value + '%';
+    });
+    document.getElementById('stabDensity').addEventListener('input', function() {
+        document.getElementById('stabVal').textContent = this.value + '%';
+    });
+
+    document.getElementById('patternsDown').addEventListener('click', () => {
+        const inp = document.getElementById('numPatterns');
+        inp.value = Math.max(4, parseInt(inp.value, 10) - 1);
+    });
+    document.getElementById('patternsUp').addEventListener('click', () => {
+        const inp = document.getElementById('numPatterns');
+        inp.value = Math.min(64, parseInt(inp.value, 10) + 1);
+    });
+
+    document.getElementById('generateBtn').addEventListener('click', () => {
+        const params = getParams();
+        const content = buildSongContent(params);
+        applyGenerated(content);
+        if (window.player) window.player.setBpm(songState.bpm);
+        showToast('Generated ' + params.numPatterns + ' patterns');
+    });
+
+    // Transform
+    document.getElementById('appendBtn').addEventListener('click', () => {
+        if (!hasSong()) return;
+        const params = getParams();
+        params.numPatterns = 10;
+        const content = buildSongContent(params);
+        const unpack = typeof unpackPattern !== 'undefined' ? unpackPattern : unpackPatternLocal;
+        const newPats = content.patterns.map(unpack);
+        const start = songState.patterns.length;
+        newPats.forEach(p => songState.patterns.push(p));
+        for (let i = 0; i < 10; i++) songState.order.push(start + i);
+        updateSummary();
+        showToast('Appended 10 patterns');
+    });
+
+    document.getElementById('add303Btn').addEventListener('click', () => {
+        if (!hasSong()) return;
+        const len = songState.patternLength || 64;
+        songState.patterns.forEach((pat, i) => {
+            if (!pat.channels) return;
+            fill303Bass(pat, pat.length || len, i);
+        });
+        updateSummary();
+        showToast('303 added to all patterns');
+    });
+
+    document.getElementById('addBreakbeatBtn').addEventListener('click', () => {
+        if (!hasSong()) return;
+        const len = songState.patternLength || 64;
+        const intensity = parseInt(document.getElementById('breakbeatIntensity').value, 10) || 100;
+        songState.patterns.forEach((pat, i) => {
+            if (!pat.channels) return;
+            fillBreakbeat(pat, pat.length || len, i * 7 + 1, intensity);
+        });
+        updateSummary();
+        showToast('Breakbeats added to all patterns');
+    });
+
+    document.getElementById('regenDrumsBtn').addEventListener('click', () => {
+        if (!hasSong()) return;
+        const len = songState.patternLength || 64;
+        const intensity = parseInt(document.getElementById('breakbeatIntensity').value, 10) || 100;
+        songState.patterns.forEach((pat, i) => {
+            if (!pat.channels) return;
+            for (let ch = 2; ch <= 7; ch++) {
+                if (pat.channels[ch])
+                    for (let r = 0; r < pat.channels[ch].length; r++)
+                        pat.channels[ch][r] = emptyStep();
+            }
+            fillBreakbeat(pat, pat.length || len, i * 7 + 1, intensity);
+        });
+        updateSummary();
+        showToast('Drums regenerated');
+    });
+
+    // Export: tracker expects unpacked patterns and order as numbers or {pattern,repeat}
+    function buildTrackerPayload() {
+        if (!hasSong()) return null;
+        return {
+            patterns: songState.patterns,
+            order: songState.order,
+            currentPattern: songState.currentPattern ?? 0,
+            channels: songState.channels ?? 16,
+            patternLength: songState.patternLength ?? 64,
+            bpm: songState.bpm ?? 148,
+            playbackMode: songState.playbackMode ?? 'song',
+            stepSize: songState.stepSize ?? 1,
+            trackNames: songState.trackNames || [],
+            trackDevices: songState.trackDevices || [],
+            trackInstruments: songState.trackInstruments || {},
+            currentOctave: songState.currentOctave ?? 4,
+            mutedTracks: songState.mutedTracks || [],
+            soloedTracks: songState.soloedTracks || [],
+            globalFx: songState.globalFx || {}
+        };
+    }
+
+    document.getElementById('copyBtn').addEventListener('click', () => {
+        const payload = buildTrackerPayload();
+        if (!payload) { showToast('No song to copy'); return; }
+        try {
+            navigator.clipboard.writeText(JSON.stringify(payload));
+            showToast('Copied to clipboard');
+        } catch (e) {
+            showToast('Copy failed');
+        }
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+        const payload = buildTrackerPayload();
+        if (!payload) { showToast('No song to download'); return; }
+        const a = document.createElement('a');
+        a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(payload));
+        a.download = 'noistrip-song.json';
+        a.click();
+        showToast('Download started');
+    });
+
+    document.getElementById('openTrackerBtn').addEventListener('click', () => {
+        const payload = buildTrackerPayload();
+        if (!payload) { showToast('No song to open'); return; }
+        try {
+            localStorage.setItem('tracker3_patterns', JSON.stringify(payload));
+            window.location.href = 'noistracker3.html';
+        } catch (e) {
+            showToast('Failed to open tracker');
+        }
+    });
+
+    setExportEnabled(false);
+    setTransformEnabled(false);
+
+    // Hash location: #room=xyz
+    function parseHash() {
+        const hash = (location.hash || '').replace(/^#/, '');
+        if (!hash) return null;
+        const m = hash.match(/room=([^&]+)/);
+        try { return m ? decodeURIComponent(m[1]) : null; } catch (_) { return m ? m[1] : null; }
+    }
+    const hashRoom = parseHash();
+    if (hashRoom) {
+        document.getElementById('nostrRoomInput').value = hashRoom;
+    }
+
+    // Nostr load
+    let nostrPool = null;
+    document.getElementById('nostrLoadBtn').addEventListener('click', async () => {
+        const roomId = (document.getElementById('nostrRoomInput').value || '').trim();
+        if (!roomId) {
+            document.getElementById('nostrStatus').textContent = 'Enter a room id';
+            return;
+        }
+        document.getElementById('nostrStatus').textContent = 'Loading…';
+        try {
+            if (typeof NostrTools === 'undefined') {
+                const mod = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2/+esm');
+                window.NostrTools = mod.default || mod;
+            }
+            const NostrTools = window.NostrTools;
+            if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+            const relay = (typeof NostrLib !== 'undefined' && NostrLib.NOISTRACKER_RELAY) ? NostrLib.NOISTRACKER_RELAY : 'wss://relay.nomadwiki.org';
+            const kind = (typeof NostrLib !== 'undefined' && NostrLib.NOSTR_TRACKER_KIND_SONG) ? NostrLib.NOSTR_TRACKER_KIND_SONG : 30303;
+            const events = await nostrPool.querySync([relay], { kinds: [kind], limit: 50 });
+            let latest = null;
+            for (const ev of events) {
+                const r = (ev.tags || []).find(t => t[0] === 'r');
+                if (r && r[1] === roomId) {
+                    if (!latest || ev.created_at > latest.created_at) latest = ev;
+                }
+            }
+            if (!latest) {
+                document.getElementById('nostrStatus').textContent = 'No song found for room "' + roomId + '"';
+                return;
+            }
+            const content = JSON.parse(latest.content);
+            const unpack = typeof unpackPattern !== 'undefined' ? unpackPattern : unpackPatternLocal;
+            if (typeof applySongContent !== 'undefined') {
+                songState = songState || {};
+                applySongContent(content, songState);
+            } else {
+                songState = {
+                    patterns: (content.patterns || []).map(unpack),
+                    order: content.order || [],
+                    currentPattern: content.currentPattern ?? 0,
+                    channels: content.channels || 16,
+                    patternLength: content.patternLength || 64,
+                    bpm: content.bpm || 148,
+                    playbackMode: content.playbackMode || 'song',
+                    stepSize: 1,
+                    trackNames: content.trackNames || [],
+                    trackDevices: content.trackDevices || [],
+                    trackInstruments: content.trackInstruments || {},
+                    currentOctave: 4,
+                    mutedTracks: content.mutedTracks || [],
+                    soloedTracks: content.soloedTracks || [],
+                    globalFx: content.globalFx || {}
+                };
+            }
+            updateSummary();
+            setExportEnabled(true);
+            setTransformEnabled(true);
+            if (window.player) window.player.setBpm(songState.bpm);
+            try { location.hash = 'room=' + encodeURIComponent(roomId); } catch (_) {}
+            document.getElementById('nostrStatus').textContent = 'Loaded ' + songState.patterns.length + ' patterns from room';
+            showToast('Loaded from Nostr');
+        } catch (e) {
+            console.error(e);
+            document.getElementById('nostrStatus').textContent = 'Error: ' + (e.message || 'load failed');
+        }
+    });
+
+    // Minimal player (step-only, 808 + 303 + saw)
+    const noteNameMap = { 'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11 };
+    function parseNote(noteStr) {
+        if (!noteStr || !noteStr.trim()) return null;
+        const match = noteStr.trim().match(/^([A-G][#Bb]?)(-?)(\d+)$/);
+        if (!match) return null;
+        const noteNum = noteNameMap[match[1].toUpperCase()];
+        if (noteNum === undefined) return null;
+        const octaveNum = parseInt(match[3], 10);
+        return (octaveNum + 1) * 12 + noteNum;
+    }
+    function stepVolToVelocity(step) {
+        const raw = step && (step.vol != null && step.vol !== '' ? step.vol : step.v);
+        if (raw == null || String(raw).trim() === '') return 64;
+        const s = String(raw).trim();
+        if (/^[0-9][0-9]$/.test(s)) return Math.round(parseInt(s, 10) * 127 / 100);
+        const hex = parseInt(s, 16);
+        return isNaN(hex) ? 64 : Math.round(hex * 127 / 255);
+    }
+    const DRUM_MAP_808 = { 36: 'kick', 38: 'snare', 42: 'hihat', 46: 'openHihat', 39: 'clap', 43: 'lowTom', 47: 'midTom', 50: 'hiTom' };
+
+    function makeNoise(ctx, dur) {
+        const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        return src;
+    }
+
+    function play808Drum(drumType, velocity, ctx, dest) {
+        const now = ctx.currentTime;
+        const vol = velocity / 127;
+        switch (drumType) {
+            case 'kick': {
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(52, now + 0.008);
+                osc.frequency.exponentialRampToValueAtTime(46, now + 0.45);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(vol * 0.95, now + 0.0015);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+                osc.connect(gain);
+                gain.connect(dest);
+                osc.start(now);
+                osc.stop(now + 0.58);
+                return { gainNode: gain };
+            }
+            case 'snare': {
+                const bodyLow = ctx.createOscillator();
+                const bodyHigh = ctx.createOscillator();
+                bodyLow.type = 'triangle'; bodyLow.frequency.value = 182;
+                bodyHigh.type = 'triangle'; bodyHigh.frequency.value = 352;
+                const bodyGain = ctx.createGain();
+                bodyGain.gain.setValueAtTime(vol * 0.5, now);
+                bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+                bodyLow.connect(bodyGain); bodyHigh.connect(bodyGain); bodyGain.connect(dest);
+                const noise = makeNoise(ctx, 0.28);
+                const nHP = ctx.createBiquadFilter();
+                nHP.type = 'highpass'; nHP.frequency.value = 1800;
+                const nGain = ctx.createGain();
+                nGain.gain.setValueAtTime(vol * 0.55, now);
+                nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                noise.connect(nHP); nHP.connect(nGain); nGain.connect(dest);
+                bodyLow.start(now); bodyLow.stop(now + 0.16);
+                bodyHigh.start(now); bodyHigh.stop(now + 0.16);
+                noise.start(now); noise.stop(now + 0.28);
+                return { gainNode: nGain };
+            }
+            case 'hihat': {
+                const dur = 0.06;
+                const freqs = [205.3, 304.4, 369.6, 522.7, 540, 800];
+                const merger = ctx.createGain();
+                merger.gain.value = vol * 0.16;
+                const hatGain = ctx.createGain();
+                hatGain.gain.setValueAtTime(1, now);
+                hatGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                freqs.forEach(f => {
+                    const o = ctx.createOscillator();
+                    o.type = 'square'; o.frequency.value = f;
+                    o.connect(merger); o.start(now); o.stop(now + dur + 0.01);
+                });
+                merger.connect(hatGain); hatGain.connect(dest);
+                return { gainNode: hatGain };
+            }
+            case 'openHihat': {
+                const dur = 0.7;
+                const freqs = [205.3, 304.4, 369.6, 522.7, 540, 800];
+                const merger = ctx.createGain();
+                merger.gain.value = vol * 0.15;
+                const hatGain = ctx.createGain();
+                hatGain.gain.setValueAtTime(1, now);
+                hatGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                freqs.forEach(f => {
+                    const o = ctx.createOscillator();
+                    o.type = 'square'; o.frequency.value = f;
+                    o.connect(merger); o.start(now); o.stop(now + dur + 0.01);
+                });
+                merger.connect(hatGain); hatGain.connect(dest);
+                return { gainNode: hatGain };
+            }
+            case 'clap': {
+                const noise = makeNoise(ctx, 0.15);
+                const bp = ctx.createBiquadFilter();
+                bp.type = 'bandpass'; bp.frequency.value = 1000;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(vol * 0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+                noise.connect(bp); bp.connect(gain); gain.connect(dest);
+                noise.start(now); noise.stop(now + 0.15);
+                return { gainNode: gain };
+            }
+            case 'lowTom': case 'midTom': case 'hiTom': {
+                const freq = drumType === 'lowTom' ? 90 : drumType === 'midTom' ? 135 : 185;
+                const decay = drumType === 'lowTom' ? 0.2 : drumType === 'midTom' ? 0.13 : 0.1;
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq * 2.2, now);
+                osc.frequency.exponentialRampToValueAtTime(freq, now + 0.008);
+                osc.frequency.exponentialRampToValueAtTime(freq * 0.95, now + decay);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(vol * 0.7, now + 0.002);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + decay);
+                osc.connect(gain); gain.connect(dest);
+                osc.start(now); osc.stop(now + decay + 0.01);
+                return { gainNode: gain };
+            }
+            default:
+                return null;
+        }
+    }
+
+    function play303Note(note, velocity, ctx, dest) {
+        const now = ctx.currentTime;
+        const freq = 440 * Math.pow(2, (note - 69) / 12);
+        const vol = (velocity / 127) * 0.45;
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.Q.value = 12;
+        filter.frequency.setValueAtTime(3000, now);
+        filter.frequency.exponentialRampToValueAtTime(250, now + 0.15);
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(vol, now + 0.005);
+        gainNode.gain.linearRampToValueAtTime(vol * 0.7, now + 0.05);
+        osc.connect(filter); filter.connect(gainNode); gainNode.connect(dest);
+        osc.start(now);
+        return { oscillator: osc, gainNode, filter };
+    }
+
+    function playSawNote(note, velocity, ctx, dest) {
+        const now = ctx.currentTime;
+        const freq = 440 * Math.pow(2, (note - 69) / 12);
+        const vol = (velocity / 127) * 0.35;
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(vol, now + 0.01);
+        gainNode.gain.linearRampToValueAtTime(vol * 0.6, now + 0.15);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.connect(gainNode); gainNode.connect(dest);
+        osc.start(now);
+        return { oscillator: osc, gainNode };
+    }
+
+    function getInstrumentForChannel(ch) {
+        const id = (songState && songState.trackInstruments && songState.trackInstruments[String(ch)]) || '808';
+        if (id === '303') return { engine: '303' };
+        if (id === 'saw') return { waveType: 'sawtooth' };
+        if (id === '808' || id === '909') return { engine: '808' };
+        return { engine: '808' };
+    }
+
+    let audioContext = null;
+    let masterGain = null;
+    const activeNotes = new Map();
+
+    function playAudioNote(ch, note, velocity) {
+        if (!audioContext || !masterGain) return null;
+        const inst = getInstrumentForChannel(ch);
+        if (inst.engine === '303') return play303Note(note, velocity, audioContext, masterGain);
+        if (inst.waveType === 'sawtooth') return playSawNote(note, velocity, audioContext, masterGain);
+        const drumType = DRUM_MAP_808[note] || 'kick';
+        return play808Drum(drumType, velocity, audioContext, masterGain);
+    }
+
+    function stopAudioNote(noteInfo) {
+        if (!noteInfo) return;
+        try {
+            if (noteInfo.gainNode) noteInfo.gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            if (noteInfo.oscillator) try { noteInfo.oscillator.stop(audioContext.currentTime); } catch (_) {}
+        } catch (_) {}
+    }
+
+    const STEP_INDEX_PER_BEAT = 4;
+    let isPlaying = false;
+    let timingLoopId = null;
+    let playbackStartTime = 0;
+    let totalStepsSinceStart = 0;
+    let currentOrderIndex = 0;
+    let currentOrderRepeat = 0;
+
+    function getCurrentPatternLength() {
+        if (!songState || !songState.patterns) return 64;
+        const pat = songState.patterns[songState.currentPattern];
+        return (pat && pat.length) || songState.patternLength || 64;
+    }
+
+    function playStep() {
+        if (!songState || !songState.patterns.length) return;
+        const pattern = songState.patterns[songState.currentPattern];
+        if (!pattern || !pattern.channels) return;
+        const stepIndex = songState.currentStep;
+        const channels = songState.channels || 16;
+
+        for (let ch = 0; ch < channels; ch++) {
+            if (!pattern.channels[ch]) continue;
+            const step = pattern.channels[ch][stepIndex];
+            if (!step || !step.note || step.note.trim() === '' || step.note === '===' || step.note === '==') continue;
+            const midiNote = parseNote(step.note);
+            if (midiNote == null) continue;
+            const velocity = stepVolToVelocity(step);
+            const key = ch + '-' + stepIndex;
+            if (activeNotes.has(key)) {
+                stopAudioNote(activeNotes.get(key));
+                activeNotes.delete(key);
+            }
+            const noteInfo = playAudioNote(ch, midiNote, velocity);
+            if (noteInfo) activeNotes.set(key, noteInfo);
+        }
+
+        songState.currentStep++;
+        const patLen = getCurrentPatternLength();
+        if (songState.currentStep >= patLen) {
+            songState.currentStep = 0;
+            const order = songState.order && songState.order.length ? songState.order : null;
+            if (order) {
+                currentOrderRepeat++;
+                const entry = order[currentOrderIndex];
+                const pat = typeof entry === 'number' ? entry : entry.pattern;
+                const rep = typeof entry === 'number' ? 1 : (entry.repeat || 1);
+                const len = songState.patterns[pat] && songState.patterns[pat].length ? songState.patterns[pat].length : 64;
+                if (currentOrderRepeat >= rep) {
+                    currentOrderIndex = (currentOrderIndex + 1) % order.length;
+                    currentOrderRepeat = 0;
+                }
+                const nextEntry = order[currentOrderIndex];
+                songState.currentPattern = typeof nextEntry === 'number' ? nextEntry : nextEntry.pattern;
+            }
+        }
+        document.getElementById('playerStatus').textContent = 'Pat ' + songState.currentPattern + ' row ' + songState.currentStep;
+    }
+
+    function runTimingLoop() {
+        if (!isPlaying || !songState) return;
+        const now = performance.now();
+        const elapsed = now - playbackStartTime;
+        const stepIntervalMs = 60000 / songState.bpm / STEP_INDEX_PER_BEAT;
+        const targetStep = Math.floor(elapsed / stepIntervalMs);
+        const stepDelta = targetStep - totalStepsSinceStart;
+        if (stepDelta > 0) {
+            const cap = Math.min(stepDelta, 8);
+            for (let i = 0; i < cap; i++) {
+                if (!isPlaying) break;
+                playStep();
+                totalStepsSinceStart++;
+            }
+            if (stepDelta > 8) totalStepsSinceStart = targetStep;
+        }
+        if (isPlaying) timingLoopId = requestAnimationFrame(runTimingLoop);
+    }
+
+    window.player = {
+        setBpm(bpm) {
+            if (songState) songState.bpm = bpm;
+        },
+        start() {
+            if (!songState || !songState.patterns.length) return;
+            if (!audioContext) {
+                document.getElementById('audioUnlockOverlay').classList.add('visible');
+                return;
+            }
+            if (audioContext.state !== 'running') {
+                document.getElementById('audioUnlockOverlay').classList.add('visible');
+                return;
+            }
+            activeNotes.forEach(n => stopAudioNote(n));
+            activeNotes.clear();
+            isPlaying = true;
+            songState.currentStep = 0;
+            songState.currentPattern = songState.order && songState.order.length ? songState.order[0] : 0;
+            currentOrderIndex = 0;
+            currentOrderRepeat = 0;
+            playbackStartTime = performance.now();
+            totalStepsSinceStart = 0;
+            document.getElementById('playBtn').classList.add('playing');
+            document.getElementById('playBtn').textContent = 'Playing';
+            timingLoopId = requestAnimationFrame(runTimingLoop);
+        },
+        stop() {
+            isPlaying = false;
+            if (timingLoopId) {
+                cancelAnimationFrame(timingLoopId);
+                timingLoopId = null;
+            }
+            activeNotes.forEach(n => stopAudioNote(n));
+            activeNotes.clear();
+            document.getElementById('playBtn').classList.remove('playing');
+            document.getElementById('playBtn').textContent = 'Play';
+            document.getElementById('playerStatus').textContent = '—';
+        }
+    };
+
+    document.getElementById('playBtn').addEventListener('click', () => window.player.start());
+    document.getElementById('stopBtn').addEventListener('click', () => window.player.stop());
+
+    document.getElementById('audioUnlockBtn').addEventListener('click', () => {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioContext.createGain();
+            masterGain.gain.value = 0.7;
+            masterGain.connect(audioContext.destination);
+        }
+        audioContext.resume().then(() => {
+            document.getElementById('audioUnlockOverlay').classList.remove('visible');
+            showToast('Sound enabled');
+        });
+    });
+
+    // On first touch/click, show unlock if needed
+    document.body.addEventListener('click', function once() {
+        if (!audioContext && (window.AudioContext || window.webkitAudioContext)) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioContext.createGain();
+            masterGain.gain.value = 0.7;
+            masterGain.connect(audioContext.destination);
+            if (audioContext.state !== 'running')
+                document.getElementById('audioUnlockOverlay').classList.add('visible');
+        }
+        document.body.removeEventListener('click', once);
+    }, { once: true });
+
+})();
+    </script>
+</body>
+</html>

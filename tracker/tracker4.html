@@ -1,0 +1,2626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tracker4 - ChasmTracker</title>
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', 'Consolas', monospace;
+            background: #000;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            background: #1a1a1a;
+            padding: 10px;
+            border-bottom: 2px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            height: 50px;
+            display: flex;
+            align-items: center;
+            margin-right: 10px;
+        }
+
+        .logo svg {
+            height: 100%;
+            width: auto;
+        }
+
+        .header-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header label {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .header input, .header select, .header button {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 5px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .header button {
+            cursor: pointer;
+            min-width: 60px;
+        }
+
+        .header button:hover {
+            background: #3a3a3a;
+        }
+
+        .header button.active {
+            background: #4a4a4a;
+        }
+
+        .pattern-editor-container {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        .pattern-editor {
+            border-collapse: collapse;
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 13px;
+            width: 100%;
+        }
+
+        .pattern-editor th {
+            background: #1a1a1a;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            padding: 5px;
+            border: 1px solid #333;
+            text-align: center;
+            font-weight: normal;
+        }
+
+        .pattern-editor th.row-header {
+            width: 40px;
+            background: #1a1a1a;
+            color: #666;
+        }
+
+        .pattern-editor th.channel-header {
+            background: #2a2a2a;
+            color: #fff;
+            min-width: 120px;
+        }
+
+        .pattern-editor td {
+            border: 1px solid #222;
+            padding: 0;
+            height: 20px;
+        }
+
+        .pattern-editor td.row-number {
+            background: #1a1a1a;
+            color: #666;
+            text-align: right;
+            padding: 0 5px;
+            width: 40px;
+            font-size: 11px;
+        }
+
+        .pattern-editor td.cell {
+            background: #0a0a0a;
+            padding: 0;
+            cursor: text;
+        }
+
+        .pattern-editor td.cell:hover {
+            background: #1a1a1a;
+        }
+
+        .pattern-editor td.cell.active {
+            background: #004080;
+            border: 1px solid #0066cc;
+        }
+
+        .pattern-editor td.cell.playing {
+            background: #400040;
+            border: 1px solid #800080;
+        }
+
+        .pattern-editor td.cell.active.playing {
+            background: #404080;
+            border: 1px solid #6666cc;
+        }
+
+        .cell-content {
+            display: flex;
+            height: 100%;
+        }
+
+        .cell-field {
+            flex: 1;
+            padding: 2px 3px;
+            border: none;
+            background: transparent;
+            color: #fff;
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+
+        .cell-field:focus {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .note-field {
+            width: 35px;
+            text-align: center;
+        }
+
+        .inst-field, .vol-field {
+            width: 25px;
+            text-align: center;
+        }
+
+        .eff-field, .param-field {
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: #1a1a1a;
+            border-left: 2px solid #333;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 11px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 20px;
+        }
+
+        .sidebar-title {
+            color: #aaa;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .pattern-order {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .pattern-order-item {
+            background: #2a2a2a;
+            padding: 5px 10px;
+            cursor: pointer;
+            border: 1px solid #444;
+        }
+
+        .pattern-order-item.active {
+            background: #4a4a4a;
+            border-color: #666;
+        }
+
+        .status {
+            padding: 5px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            margin-top: 10px;
+        }
+
+
+        .help {
+            margin-top: 20px;
+            font-size: 10px;
+            color: #666;
+        }
+
+        .help-key {
+            display: inline-block;
+            background: #2a2a2a;
+            padding: 2px 5px;
+            border: 1px solid #444;
+            margin: 2px;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        /* Instrument Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background-color: #1a1a1a;
+            margin: 50px auto;
+            padding: 20px;
+            border: 2px solid #444;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            font-family: 'Courier New', 'Consolas', monospace;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #333;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            color: #fff;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .close:hover {
+            color: #fff;
+        }
+
+        .instrument-list {
+            margin-bottom: 20px;
+        }
+
+        .instrument-item {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .instrument-item:hover {
+            background: #3a3a3a;
+        }
+
+        .instrument-item.active {
+            background: #004080;
+            border-color: #0066cc;
+        }
+
+        .instrument-params {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #333;
+        }
+
+        .param-group {
+            margin-bottom: 15px;
+        }
+
+        .param-group label {
+            display: block;
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .param-group input[type="range"] {
+            width: 100%;
+        }
+
+        .param-group select {
+            width: 100%;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 5px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .param-value {
+            display: inline-block;
+            color: #4caf50;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+
+        .instrument-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .instrument-actions button {
+            padding: 8px 15px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+
+        .instrument-actions button:hover {
+            background: #3a3a3a;
+        }
+
+        .pattern-quick-switch {
+            display: flex;
+            gap: 2px;
+        }
+
+        .pattern-quick-btn {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 3px 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            min-width: 30px;
+        }
+
+        .pattern-quick-btn:hover {
+            background: #3a3a3a;
+        }
+
+        .pattern-quick-btn.active {
+            background: #004080;
+            border-color: #0066cc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80" width="400" height="80">
+                    <defs>
+                        <linearGradient id="chasmGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#0066cc;stop-opacity:1" />
+                            <stop offset="50%" style="stop-color:#4a90e2;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#0066cc;stop-opacity:1" />
+                        </linearGradient>
+                        <linearGradient id="trackerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#888;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#fff;stop-opacity:1" />
+                        </linearGradient>
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    
+                    <!-- Background chasm effect -->
+                    <rect x="0" y="0" width="400" height="80" fill="#000"/>
+                    
+                    <!-- Chasm depth lines -->
+                    <path d="M 0 40 L 100 20 L 200 35 L 300 25 L 400 40" 
+                          stroke="#0066cc" 
+                          stroke-width="2" 
+                          fill="none" 
+                          opacity="0.3"/>
+                    <path d="M 0 50 L 100 30 L 200 45 L 300 35 L 400 50" 
+                          stroke="#0066cc" 
+                          stroke-width="1.5" 
+                          fill="none" 
+                          opacity="0.2"/>
+                    
+                    <!-- Main "CHASM" text with 3D effect -->
+                    <text x="20" y="50" 
+                          font-family="'Courier New', 'Consolas', monospace" 
+                          font-size="42" 
+                          font-weight="bold" 
+                          fill="url(#chasmGradient)"
+                          filter="url(#glow)"
+                          letter-spacing="2">CHASM</text>
+                    
+                    <!-- "TRACKER" text -->
+                    <text x="20" y="70" 
+                          font-family="'Courier New', 'Consolas', monospace" 
+                          font-size="18" 
+                          fill="url(#trackerGradient)"
+                          letter-spacing="4">TRACKER</text>
+                    
+                    <!-- Musical note accent -->
+                    <g transform="translate(320, 20)">
+                        <!-- Note head -->
+                        <ellipse cx="0" cy="20" rx="6" ry="8" fill="#4a90e2"/>
+                        <ellipse cx="0" cy="20" rx="4" ry="6" fill="#0066cc"/>
+                        
+                        <!-- Note stem -->
+                        <rect x="4" y="0" width="2" height="20" fill="#4a90e2"/>
+                        
+                        <!-- Note flag -->
+                        <path d="M 6 0 Q 12 -4 14 0 Q 12 4 6 0" fill="#4a90e2"/>
+                    </g>
+                    
+                    <!-- Pattern grid accent (tracker style) -->
+                    <g transform="translate(350, 45)" opacity="0.4">
+                        <rect x="0" y="0" width="3" height="3" fill="#4a90e2"/>
+                        <rect x="4" y="0" width="3" height="3" fill="#4a90e2"/>
+                        <rect x="8" y="0" width="3" height="3" fill="#4a90e2"/>
+                        <rect x="0" y="4" width="3" height="3" fill="#0066cc"/>
+                        <rect x="4" y="4" width="3" height="3" fill="#4a90e2"/>
+                        <rect x="8" y="4" width="3" height="3" fill="#0066cc"/>
+                        <rect x="0" y="8" width="3" height="3" fill="#4a90e2"/>
+                        <rect x="4" y="8" width="3" height="3" fill="#0066cc"/>
+                        <rect x="8" y="8" width="3" height="3" fill="#4a90e2"/>
+                    </g>
+                </svg>
+            </div>
+            <div class="header-group">
+                <button id="playBtn">Play</button>
+                <button id="stopBtn">Stop</button>
+            </div>
+            <div class="header-group">
+                <label>Tempo:</label>
+                <input type="number" id="tempoInput" value="125" min="32" max="255" style="width: 60px;">
+            </div>
+            <div class="header-group">
+                <label>Speed:</label>
+                <input type="number" id="speedInput" value="6" min="1" max="32" style="width: 50px;">
+            </div>
+            <div class="header-group">
+                <label>Octave:</label>
+                <input type="number" id="octaveInput" value="4" min="0" max="9" style="width: 50px;">
+            </div>
+            <div class="header-group">
+                <label>Pattern:</label>
+                <input type="number" id="patternInput" value="0" min="0" style="width: 60px;">
+                <div class="pattern-quick-switch" id="patternQuickSwitch" style="display: flex; gap: 2px; margin-left: 5px;">
+                    <!-- Quick pattern buttons will be added here -->
+                </div>
+            </div>
+            <div class="header-group">
+                <label>Length:</label>
+                <input type="number" id="patternLengthInput" value="64" min="1" max="256" style="width: 60px;">
+            </div>
+            <div class="header-group">
+                <label>Output Mode:</label>
+                <select id="outputModeSelect" style="width: 120px;">
+                    <option value="midi">MIDI</option>
+                    <option value="webaudio">Web Audio</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="editor-wrapper">
+                <div class="pattern-editor-container">
+                    <table class="pattern-editor" id="patternTable">
+                        <thead id="patternHeader"></thead>
+                        <tbody id="patternBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Pattern Order</div>
+                    <div class="pattern-order" id="patternOrder"></div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Info</div>
+                    <div>Current: <span id="currentPattern">0</span></div>
+                    <div>Step: <span id="currentStep">0</span></div>
+                    <div>Channels: <span id="channelCount">1</span></div>
+                    <div>Octave: <span id="currentOctaveDisplay">4</span></div>
+                </div>
+                <div class="sidebar-section">
+                    <button id="addChannelBtn" style="width: 100%; padding: 5px; margin-bottom: 5px;">Add Channel</button>
+                    <button id="addPatternBtn" style="width: 100%; padding: 5px; margin-bottom: 5px;">Add Pattern</button>
+                    <button id="amenBreakBtn" style="width: 100%; padding: 5px; margin-bottom: 5px;">Add Amen Break</button>
+                    <button id="instrumentsBtn" style="width: 100%; padding: 5px;">Instruments</button>
+                </div>
+                <div class="sidebar-section help">
+                    <div class="sidebar-title">Shortcuts</div>
+                    <div><span class="help-key">Space</span> or <span class="help-key">P</span> Play/Stop</div>
+                    <div><span class="help-key">S</span> Stop</div>
+                    <div><span class="help-key">↑↓←→</span> Navigate</div>
+                    <div><span class="help-key">Enter</span> Step down</div>
+                    <div><span class="help-key">Tab</span> Next channel</div>
+                    <div><span class="help-key">Del</span> Clear cell</div>
+                    <div><span class="help-key">Ctrl+C/V</span> Copy/Paste</div>
+                    <div><span class="help-key">Ctrl+1-8</span> Switch pattern</div>
+                    <div><span class="help-key">Ctrl+←→</span> Prev/Next pattern</div>
+                    <div><span class="help-key">QWERTY</span> Note entry</div>
+                    <div><span class="help-key">0-9</span> Octave</div>
+                    <div><span class="help-key">/</span> <span class="help-key">*</span> Decrease/Increase Octave</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instrument Modal -->
+    <div id="instrumentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Instrument Configuration</div>
+                <button class="close" id="closeModal">&times;</button>
+            </div>
+            <div class="instrument-list" id="instrumentList"></div>
+            <div class="instrument-params" id="instrumentParams"></div>
+            <div class="instrument-actions">
+                <button id="saveInstrument">Save</button>
+                <button id="deleteInstrument">Delete</button>
+                <button id="newInstrument">New Instrument</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        const state = {
+            patterns: [],
+            currentPattern: 0,
+            currentStep: 0,
+            isPlaying: false,
+            tempo: 125,
+            speed: 6,
+            channels: 8, // Start with 8 channels visible (like Schism Tracker)
+            order: [0],
+            midiAccess: null,
+            midiOutput: null,
+            // Web Audio state
+            audioContext: null,
+            masterGain: null,
+            delayNode: null,
+            delayFeedbackGain: null,
+            convolverNode: null,
+            reverbGain: null,
+            filterNode: null,
+            outputMode: 'midi', // 'midi' or 'webaudio'
+            activeWebAudioNotes: new Map(), // Track active Web Audio notes per channel
+            instruments: [], // Instrument presets
+            currentInstrument: null, // Currently selected instrument for editing
+            activeCell: { row: 0, channel: 0, field: 'note' },
+            clipboard: null,
+            activeNotes: new Map(), // Track active MIDI notes per channel
+            lastTickTime: 0,
+            tickCounter: 0,
+            animationFrame: null,
+            maxChannels: 256, // Maximum channels like Schism Tracker
+            currentOctave: 4, // Default octave for note entry
+            noteEntryBuffer: '', // Buffer for note entry (e.g., "C#4")
+            patternLength: 64 // Pattern length in rows
+        };
+
+        // QWERTY keyboard to note mapping (Schism Tracker style)
+        // Q = C, W = C#, E = D, R = D#, T = E, Y = F, U = F#, I = G, O = G#, P = A, [ = A#, ] = B
+        const qwertyNoteMap = {
+            'q': 'C', 'w': 'C#', 'e': 'D', 'r': 'D#', 't': 'E',
+            'y': 'F', 'u': 'F#', 'i': 'G', 'o': 'G#', 'p': 'A',
+            '[': 'A#', ']': 'B',
+            // Also support direct note names
+            'c': 'C', 'd': 'D', 'e': 'E', 'f': 'F', 'g': 'G', 'a': 'A', 'b': 'B'
+        };
+
+        // Note name mapping
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const noteNameMap = {
+            'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3,
+            'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8,
+            'A': 9, 'A#': 10, 'BB': 10, 'B': 11
+        };
+
+        // Initialize first pattern
+        function initPattern(patternIndex = null) {
+            const idx = patternIndex !== null ? patternIndex : state.patterns.length;
+            if (state.patterns[idx]) {
+                // Pattern exists, just ensure it has correct number of channels and length
+                resizePattern(idx);
+                return;
+            }
+            const pattern = {
+                channels: []
+            };
+            for (let ch = 0; ch < state.channels; ch++) {
+                const channel = [];
+                for (let row = 0; row < state.patternLength; row++) {
+                    channel.push({
+                        note: '',
+                        inst: '',
+                        vol: '',
+                        effect: '',
+                        param: ''
+                    });
+                }
+                pattern.channels.push(channel);
+            }
+            state.patterns[idx] = pattern;
+        }
+
+        // Resize pattern to current patternLength
+        function resizePattern(patternIndex) {
+            const pattern = state.patterns[patternIndex];
+            if (!pattern) return;
+
+            for (let ch = 0; ch < pattern.channels.length; ch++) {
+                const channel = pattern.channels[ch] || [];
+                const currentLength = channel.length;
+                
+                if (currentLength < state.patternLength) {
+                    // Add empty steps
+                    for (let row = currentLength; row < state.patternLength; row++) {
+                        channel.push(createEmptyStep());
+                    }
+                } else if (currentLength > state.patternLength) {
+                    // Remove excess steps
+                    channel.splice(state.patternLength);
+                }
+            }
+        }
+
+        // Resize all patterns to current patternLength
+        function resizeAllPatterns() {
+            for (let i = 0; i < state.patterns.length; i++) {
+                resizePattern(i);
+            }
+        }
+
+        // Create empty step
+        function createEmptyStep() {
+            return {
+                note: '',
+                inst: '',
+                vol: '',
+                effect: '',
+                param: ''
+            };
+        }
+
+        // Initialize first pattern with 8 channels
+        initPattern(0);
+
+
+        function sendMIDINote(channel, note, velocity, on = true) {
+            if (!state.midiOutput) return;
+            
+            const midiChannel = Math.min(channel, 15); // MIDI channels are 0-15
+            const status = on ? 0x90 : 0x80;
+            state.midiOutput.send([status + midiChannel, note, velocity]);
+        }
+
+        function sendMIDICC(channel, cc, value) {
+            if (!state.midiOutput) return;
+            
+            const midiChannel = Math.min(channel, 15);
+            state.midiOutput.send([0xB0 + midiChannel, cc, value]);
+        }
+
+        // Web Audio Functions
+        async function initAudioContext() {
+            if (!state.audioContext) {
+                state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create master gain
+                state.masterGain = state.audioContext.createGain();
+                state.masterGain.gain.value = 0.7; // Master volume
+                state.masterGain.connect(state.audioContext.destination);
+                
+                // Create delay
+                state.delayNode = state.audioContext.createDelay(1.0);
+                state.delayNode.delayTime.value = 0.3;
+                state.delayFeedbackGain = state.audioContext.createGain();
+                state.delayFeedbackGain.gain.value = 0.3;
+                state.delayNode.connect(state.delayFeedbackGain);
+                state.delayFeedbackGain.connect(state.delayNode); // Feedback loop
+                state.delayFeedbackGain.connect(state.masterGain);
+                
+                // Create reverb
+                state.convolverNode = state.audioContext.createConvolver();
+                state.convolverNode.buffer = createReverbImpulse(state.audioContext, 2, 2);
+                state.reverbGain = state.audioContext.createGain();
+                state.reverbGain.gain.value = 0.3;
+                state.convolverNode.connect(state.reverbGain);
+                state.reverbGain.connect(state.masterGain);
+                
+                // Create filter
+                state.filterNode = state.audioContext.createBiquadFilter();
+                state.filterNode.type = 'lowpass';
+                state.filterNode.frequency.value = 2000;
+                state.filterNode.Q.value = 5;
+            }
+            // Resume audio context if suspended (Chrome autoplay policy)
+            if (state.audioContext.state === 'suspended') {
+                await state.audioContext.resume();
+            }
+        }
+
+        // Create reverb impulse response
+        function createReverbImpulse(audioContext, duration = 2, decay = 2) {
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * duration;
+            const impulse = audioContext.createBuffer(2, length, sampleRate);
+            
+            for (let channel = 0; channel < 2; channel++) {
+                const channelData = impulse.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    const n = length - i;
+                    channelData[i] = (Math.random() * 2 - 1) * Math.pow(n / length, decay);
+                }
+            }
+            
+            return impulse;
+        }
+
+        // Get instrument for channel (or default)
+        function getInstrumentForChannel(channel, instHex = null) {
+            // If instHex is provided, use that instrument index
+            if (instHex !== null && instHex !== '') {
+                const instIndex = parseInt(instHex, 16);
+                if (!isNaN(instIndex) && instIndex >= 0 && instIndex < state.instruments.length) {
+                    return state.instruments[instIndex];
+                }
+            }
+            
+            // Check if channel has a specific instrument assigned
+            // For now, use default instrument or channel-based instrument
+            const instIndex = channel < state.instruments.length ? channel : 0;
+            if (state.instruments.length > 0 && state.instruments[instIndex]) {
+                return state.instruments[instIndex];
+            }
+            // Return default instrument
+            return {
+                name: 'Default',
+                waveType: ['sine', 'triangle', 'sawtooth'][channel % 3],
+                attack: 0.01,
+                decay: 0.1,
+                sustain: 0.7,
+                release: 0.3,
+                filterFreq: 2000,
+                filterQ: 5,
+                filterType: 'lowpass',
+                volume: 0.5
+            };
+        }
+
+        // 808 Drum Kit Mapping (Standard MIDI drum mapping)
+        const DRUM_MAP = {
+            36: 'kick',      // C1
+            38: 'snare',     // D1
+            40: 'rim',       // E1
+            41: 'lowTom',    // F1
+            43: 'midTom',    // G1
+            45: 'hiTom',    // A1
+            46: 'crash',     // A#1
+            48: 'hihat',     // C2
+            49: 'openHihat', // C#2
+            50: 'ride'       // D2
+        };
+
+        // Create 808-style drum sounds
+        function play808Drum(drumType, velocity, audioContext, masterGain) {
+            const now = audioContext.currentTime;
+            const volume = velocity / 127;
+            
+            switch (drumType) {
+                case 'kick':
+                    // 808 Kick: Low sine with pitch sweep
+                    const kickOsc = audioContext.createOscillator();
+                    const kickGain = audioContext.createGain();
+                    kickOsc.type = 'sine';
+                    kickOsc.frequency.setValueAtTime(60, now);
+                    kickOsc.frequency.exponentialRampToValueAtTime(30, now + 0.1);
+                    kickGain.gain.setValueAtTime(0, now);
+                    kickGain.gain.linearRampToValueAtTime(volume * 0.8, now + 0.01);
+                    kickGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    kickOsc.connect(kickGain);
+                    kickGain.connect(masterGain);
+                    kickOsc.start(now);
+                    kickOsc.stop(now + 0.3);
+                    return { oscillator: kickOsc, gainNode: kickGain };
+                    
+                case 'snare':
+                    // 808 Snare: White noise with short decay + low sine
+                    const snareNoise = audioContext.createBufferSource();
+                    const snareBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.2, audioContext.sampleRate);
+                    const snareData = snareBuffer.getChannelData(0);
+                    for (let i = 0; i < snareData.length; i++) {
+                        snareData[i] = Math.random() * 2 - 1;
+                    }
+                    snareNoise.buffer = snareBuffer;
+                    
+                    const snareFilter = audioContext.createBiquadFilter();
+                    snareFilter.type = 'bandpass';
+                    snareFilter.frequency.value = 2000;
+                    snareFilter.Q.value = 1;
+                    
+                    const snareGain = audioContext.createGain();
+                    snareGain.gain.setValueAtTime(0, now);
+                    snareGain.gain.linearRampToValueAtTime(volume * 0.6, now + 0.01);
+                    snareGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    
+                    // Add low sine for body
+                    const snareBody = audioContext.createOscillator();
+                    const snareBodyGain = audioContext.createGain();
+                    snareBody.type = 'sine';
+                    snareBody.frequency.value = 200;
+                    snareBodyGain.gain.setValueAtTime(0, now);
+                    snareBodyGain.gain.linearRampToValueAtTime(volume * 0.3, now + 0.01);
+                    snareBodyGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    
+                    snareNoise.connect(snareFilter);
+                    snareFilter.connect(snareGain);
+                    snareGain.connect(masterGain);
+                    snareBody.connect(snareBodyGain);
+                    snareBodyGain.connect(masterGain);
+                    
+                    snareNoise.start(now);
+                    snareNoise.stop(now + 0.2);
+                    snareBody.start(now);
+                    snareBody.stop(now + 0.1);
+                    return { oscillator: snareNoise, gainNode: snareGain };
+                    
+                case 'hihat':
+                case 'openHihat':
+                    // 808 Hi-Hat: High frequency noise
+                    const hihatNoise = audioContext.createBufferSource();
+                    const hihatBuffer = audioContext.createBuffer(1, audioContext.sampleRate * (drumType === 'openHihat' ? 0.3 : 0.1), audioContext.sampleRate);
+                    const hihatData = hihatBuffer.getChannelData(0);
+                    for (let i = 0; i < hihatData.length; i++) {
+                        hihatData[i] = Math.random() * 2 - 1;
+                    }
+                    hihatNoise.buffer = hihatBuffer;
+                    
+                    const hihatFilter = audioContext.createBiquadFilter();
+                    hihatFilter.type = 'highpass';
+                    hihatFilter.frequency.value = 8000;
+                    hihatFilter.Q.value = 1;
+                    
+                    const hihatGain = audioContext.createGain();
+                    hihatGain.gain.setValueAtTime(0, now);
+                    hihatGain.gain.linearRampToValueAtTime(volume * 0.5, now + 0.001);
+                    hihatGain.gain.exponentialRampToValueAtTime(0.01, now + (drumType === 'openHihat' ? 0.2 : 0.05));
+                    
+                    hihatNoise.connect(hihatFilter);
+                    hihatFilter.connect(hihatGain);
+                    hihatGain.connect(masterGain);
+                    
+                    hihatNoise.start(now);
+                    hihatNoise.stop(now + (drumType === 'openHihat' ? 0.3 : 0.1));
+                    return { oscillator: hihatNoise, gainNode: hihatGain };
+                    
+                case 'crash':
+                case 'ride':
+                    // 808 Crash/Ride: Metallic noise
+                    const cymbalNoise = audioContext.createBufferSource();
+                    const cymbalBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.5, audioContext.sampleRate);
+                    const cymbalData = cymbalBuffer.getChannelData(0);
+                    for (let i = 0; i < cymbalData.length; i++) {
+                        cymbalData[i] = Math.random() * 2 - 1;
+                    }
+                    cymbalNoise.buffer = cymbalBuffer;
+                    
+                    const cymbalFilter = audioContext.createBiquadFilter();
+                    cymbalFilter.type = 'bandpass';
+                    cymbalFilter.frequency.value = drumType === 'crash' ? 4000 : 3000;
+                    cymbalFilter.Q.value = 2;
+                    
+                    const cymbalGain = audioContext.createGain();
+                    cymbalGain.gain.setValueAtTime(0, now);
+                    cymbalGain.gain.linearRampToValueAtTime(volume * 0.4, now + 0.01);
+                    cymbalGain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    
+                    cymbalNoise.connect(cymbalFilter);
+                    cymbalFilter.connect(cymbalGain);
+                    cymbalGain.connect(masterGain);
+                    
+                    cymbalNoise.start(now);
+                    cymbalNoise.stop(now + 0.5);
+                    return { oscillator: cymbalNoise, gainNode: cymbalGain };
+                    
+                case 'lowTom':
+                case 'midTom':
+                case 'hiTom':
+                case 'rim':
+                    // 808 Toms: Tuned sine with decay
+                    const tomFreqs = { lowTom: 80, midTom: 120, hiTom: 180, rim: 300 };
+                    const tomOsc = audioContext.createOscillator();
+                    const tomGain = audioContext.createGain();
+                    tomOsc.type = 'sine';
+                    tomOsc.frequency.value = tomFreqs[drumType];
+                    tomGain.gain.setValueAtTime(0, now);
+                    tomGain.gain.linearRampToValueAtTime(volume * 0.7, now + 0.01);
+                    tomGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    tomOsc.connect(tomGain);
+                    tomGain.connect(masterGain);
+                    tomOsc.start(now);
+                    tomOsc.stop(now + 0.2);
+                    return { oscillator: tomOsc, gainNode: tomGain };
+                    
+                default:
+                    return null;
+            }
+        }
+
+        // Play note using Web Audio
+        function playWebAudioNote(channel, note, velocity, duration = null, instHex = null) {
+            if (!state.audioContext || state.audioContext.state !== 'running') return null;
+            
+            try {
+                const instrument = getInstrumentForChannel(channel, instHex);
+                
+                // Check if instrument is 808 drums
+                if (instrument.is808 || instrument.waveType === '808') {
+                    // Map note to 808 drum sound
+                    const drumType = DRUM_MAP[note];
+                    if (drumType) {
+                        const drumSound = play808Drum(drumType, velocity, state.audioContext, state.masterGain);
+                        if (drumSound) {
+                            return { ...drumSound, note, channel, isDrum: true };
+                        }
+                    }
+                    // If note doesn't map to a drum, try to find closest drum or use kick as default
+                    const closestDrum = DRUM_MAP[36] || 'kick'; // Default to kick
+                    const drumSound = play808Drum(closestDrum, velocity, state.audioContext, state.masterGain);
+                    if (drumSound) {
+                        return { ...drumSound, note, channel, isDrum: true };
+                    }
+                }
+                
+                // Check if this is a drum note (808 style) - legacy support
+                const drumType = DRUM_MAP[note];
+                if (drumType) {
+                    const drumSound = play808Drum(drumType, velocity, state.audioContext, state.masterGain);
+                    if (drumSound) {
+                        return { ...drumSound, note, channel, isDrum: true };
+                    }
+                }
+                
+                // Regular instrument note
+                const oscillator = state.audioContext.createOscillator();
+                const gainNode = state.audioContext.createGain();
+                const filter = state.audioContext.createBiquadFilter();
+                
+                // Set oscillator type
+                oscillator.type = instrument.waveType || 'sine';
+                
+                const frequency = 440 * Math.pow(2, (note - 69) / 12);
+                oscillator.frequency.value = frequency;
+                
+                // Set filter parameters - ensure we use actual values, not defaults
+                const filterType = instrument.filterType !== undefined ? instrument.filterType : 'lowpass';
+                const filterFreq = instrument.filterFreq !== undefined && !isNaN(instrument.filterFreq) ? instrument.filterFreq : 2000;
+                const filterQ = instrument.filterQ !== undefined && !isNaN(instrument.filterQ) ? instrument.filterQ : 5;
+                
+                // Clamp filter frequency to valid range
+                const clampedFreq = Math.max(20, Math.min(20000, filterFreq));
+                const clampedQ = Math.max(0.1, Math.min(30, filterQ));
+                
+                filter.type = filterType;
+                filter.frequency.value = clampedFreq;
+                filter.Q.value = clampedQ;
+                
+                const volume = (velocity / 127) * (instrument.volume !== undefined ? instrument.volume : 0.5);
+                const now = state.audioContext.currentTime;
+                
+                // ADSR Envelope
+                const attackTime = instrument.attack !== undefined ? instrument.attack : 0.01;
+                const decayTime = instrument.decay !== undefined ? instrument.decay : 0.1;
+                const sustainLevel = instrument.sustain !== undefined ? instrument.sustain : 0.7;
+                const releaseTime = instrument.release !== undefined ? instrument.release : 0.3;
+                
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(volume, now + attackTime);
+                gainNode.gain.linearRampToValueAtTime(volume * sustainLevel, now + attackTime + decayTime);
+                
+                if (duration) {
+                    const releaseStart = now + (duration / 1000) - releaseTime;
+                    if (releaseStart > now + attackTime + decayTime) {
+                        gainNode.gain.setValueAtTime(volume * sustainLevel, releaseStart);
+                    }
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration / 1000);
+                    oscillator.stop(now + duration / 1000);
+                } else {
+                    // Sustain until note off
+                    gainNode.gain.setValueAtTime(volume * sustainLevel, now + attackTime + decayTime);
+                }
+                
+                // Connect: oscillator -> gain -> filter -> effects -> master
+                oscillator.connect(gainNode);
+                gainNode.connect(filter);
+                filter.connect(state.delayNode);
+                filter.connect(state.convolverNode);
+                filter.connect(state.masterGain);
+                
+                oscillator.start(now);
+                
+                return { oscillator, gainNode, filter, note, channel, isDrum: false };
+            } catch (error) {
+                console.error('Error playing Web Audio note:', error);
+                return null;
+            }
+        }
+
+        // Stop Web Audio note
+        function stopWebAudioNote(noteInfo) {
+            if (!noteInfo) return;
+            
+            try {
+                // Drums are one-shot, so they stop automatically
+                if (noteInfo.isDrum) {
+                    return;
+                }
+                
+                const instrument = getInstrumentForChannel(noteInfo.channel);
+                const releaseTime = instrument.release || 0.3;
+                const now = state.audioContext.currentTime;
+                
+                noteInfo.gainNode.gain.cancelScheduledValues(now);
+                const currentGain = noteInfo.gainNode.gain.value;
+                noteInfo.gainNode.gain.setValueAtTime(currentGain, now);
+                noteInfo.gainNode.gain.exponentialRampToValueAtTime(0.01, now + releaseTime);
+                noteInfo.oscillator.stop(now + releaseTime);
+            } catch (error) {
+                console.error('Error stopping Web Audio note:', error);
+            }
+        }
+
+        // Instrument Management
+        function createDefaultInstruments() {
+            if (state.instruments.length === 0) {
+                // Create some default instruments
+                state.instruments = [
+                    {
+                        id: 0,
+                        name: 'Sine Lead',
+                        waveType: 'sine',
+                        attack: 0.01,
+                        decay: 0.1,
+                        sustain: 0.7,
+                        release: 0.3,
+                        filterFreq: 2000,
+                        filterQ: 5,
+                        filterType: 'lowpass',
+                        volume: 0.5
+                    },
+                    {
+                        id: 1,
+                        name: 'Triangle Pad',
+                        waveType: 'triangle',
+                        attack: 0.2,
+                        decay: 0.3,
+                        sustain: 0.8,
+                        release: 0.5,
+                        filterFreq: 1500,
+                        filterQ: 3,
+                        filterType: 'lowpass',
+                        volume: 0.4
+                    },
+                    {
+                        id: 2,
+                        name: 'Sawtooth Bass',
+                        waveType: 'sawtooth',
+                        attack: 0.01,
+                        decay: 0.1,
+                        sustain: 0.6,
+                        release: 0.2,
+                        filterFreq: 800,
+                        filterQ: 8,
+                        filterType: 'lowpass',
+                        volume: 0.6
+                    },
+                    {
+                        id: 3,
+                        name: '808 Drums',
+                        waveType: '808',
+                        attack: 0.01,
+                        decay: 0.1,
+                        sustain: 0.0,
+                        release: 0.3,
+                        filterFreq: 2000,
+                        filterQ: 5,
+                        filterType: 'lowpass',
+                        volume: 0.8,
+                        is808: true
+                    }
+                ];
+            }
+        }
+
+        function renderInstrumentList() {
+            const list = document.getElementById('instrumentList');
+            list.innerHTML = '';
+            
+            state.instruments.forEach((inst, index) => {
+                const item = document.createElement('div');
+                item.className = 'instrument-item';
+                if (state.currentInstrument && state.currentInstrument.id === inst.id) {
+                    item.classList.add('active');
+                }
+                item.textContent = `${index}: ${inst.name}`;
+                item.addEventListener('click', () => {
+                    selectInstrument(inst);
+                });
+                list.appendChild(item);
+            });
+        }
+
+        function selectInstrument(instrument) {
+            state.currentInstrument = { ...instrument };
+            renderInstrumentParams();
+            renderInstrumentList();
+        }
+
+        function renderInstrumentParams() {
+            const params = document.getElementById('instrumentParams');
+            if (!state.currentInstrument) {
+                params.innerHTML = '<div style="color: #666;">Select or create an instrument</div>';
+                return;
+            }
+            
+            const inst = state.currentInstrument;
+            params.innerHTML = `
+                <div class="param-group">
+                    <label>Name: <input type="text" id="instName" value="${inst.name}" style="width: 200px; background: #2a2a2a; border: 1px solid #444; color: #fff; padding: 5px; font-family: 'Courier New', monospace;"></label>
+                </div>
+                <div class="param-group">
+                    <label>Wave Type: 
+                        <select id="instWaveType">
+                            <option value="sine" ${inst.waveType === 'sine' ? 'selected' : ''}>Sine</option>
+                            <option value="triangle" ${inst.waveType === 'triangle' ? 'selected' : ''}>Triangle</option>
+                            <option value="sawtooth" ${inst.waveType === 'sawtooth' ? 'selected' : ''}>Sawtooth</option>
+                            <option value="square" ${inst.waveType === 'square' ? 'selected' : ''}>Square</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="param-group">
+                    <label>Attack: <span class="param-value" id="attackValue">${inst.attack.toFixed(2)}</span>s</label>
+                    <input type="range" id="instAttack" min="0" max="2" step="0.01" value="${inst.attack}">
+                </div>
+                <div class="param-group">
+                    <label>Decay: <span class="param-value" id="decayValue">${inst.decay.toFixed(2)}</span>s</label>
+                    <input type="range" id="instDecay" min="0" max="2" step="0.01" value="${inst.decay}">
+                </div>
+                <div class="param-group">
+                    <label>Sustain: <span class="param-value" id="sustainValue">${(inst.sustain * 100).toFixed(0)}</span>%</label>
+                    <input type="range" id="instSustain" min="0" max="1" step="0.01" value="${inst.sustain}">
+                </div>
+                <div class="param-group">
+                    <label>Release: <span class="param-value" id="releaseValue">${inst.release.toFixed(2)}</span>s</label>
+                    <input type="range" id="instRelease" min="0" max="2" step="0.01" value="${inst.release}">
+                </div>
+                <div class="param-group">
+                    <label>Filter Type: 
+                        <select id="instFilterType">
+                            <option value="lowpass" ${inst.filterType === 'lowpass' ? 'selected' : ''}>Lowpass</option>
+                            <option value="highpass" ${inst.filterType === 'highpass' ? 'selected' : ''}>Highpass</option>
+                            <option value="bandpass" ${inst.filterType === 'bandpass' ? 'selected' : ''}>Bandpass</option>
+                            <option value="notch" ${inst.filterType === 'notch' ? 'selected' : ''}>Notch</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="param-group">
+                    <label>Filter Frequency: <span class="param-value" id="filterFreqValue">${inst.filterFreq}</span>Hz</label>
+                    <input type="range" id="instFilterFreq" min="20" max="20000" step="10" value="${inst.filterFreq}">
+                </div>
+                <div class="param-group">
+                    <label>Filter Q: <span class="param-value" id="filterQValue">${inst.filterQ.toFixed(1)}</span></label>
+                    <input type="range" id="instFilterQ" min="0.1" max="30" step="0.1" value="${inst.filterQ}">
+                </div>
+                <div class="param-group">
+                    <label>Volume: <span class="param-value" id="volumeValue">${(inst.volume * 100).toFixed(0)}</span>%</label>
+                    <input type="range" id="instVolume" min="0" max="1" step="0.01" value="${inst.volume}">
+                </div>
+            `;
+            
+            // Add event listeners for real-time updates
+            ['Attack', 'Decay', 'Sustain', 'Release', 'FilterFreq', 'FilterQ', 'Volume'].forEach(param => {
+                const input = document.getElementById(`inst${param}`);
+                const valueSpan = document.getElementById(`${param.toLowerCase()}Value`);
+                if (input && valueSpan) {
+                    input.addEventListener('input', (e) => {
+                        const value = parseFloat(e.target.value);
+                        if (param === 'Sustain' || param === 'Volume') {
+                            valueSpan.textContent = `${(value * 100).toFixed(0)}%`;
+                        } else if (param === 'FilterFreq') {
+                            valueSpan.textContent = `${value}Hz`;
+                        } else if (param === 'FilterQ') {
+                            valueSpan.textContent = value.toFixed(1);
+                        } else {
+                            valueSpan.textContent = `${value.toFixed(2)}s`;
+                        }
+                        updateCurrentInstrument();
+                    });
+                }
+            });
+            
+            document.getElementById('instName')?.addEventListener('input', updateCurrentInstrument);
+            document.getElementById('instWaveType')?.addEventListener('change', updateCurrentInstrument);
+            document.getElementById('instFilterType')?.addEventListener('change', updateCurrentInstrument);
+        }
+
+        function updateCurrentInstrument() {
+            if (!state.currentInstrument) return;
+            
+            const nameEl = document.getElementById('instName');
+            const attackEl = document.getElementById('instAttack');
+            const decayEl = document.getElementById('instDecay');
+            const sustainEl = document.getElementById('instSustain');
+            const releaseEl = document.getElementById('instRelease');
+            const waveTypeEl = document.getElementById('instWaveType');
+            const filterTypeEl = document.getElementById('instFilterType');
+            const filterFreqEl = document.getElementById('instFilterFreq');
+            const filterQEl = document.getElementById('instFilterQ');
+            const volumeEl = document.getElementById('instVolume');
+            
+            state.currentInstrument.name = nameEl?.value || 'Unnamed';
+            state.currentInstrument.waveType = waveTypeEl?.value || 'sine';
+            state.currentInstrument.attack = attackEl ? parseFloat(attackEl.value) : 0.01;
+            state.currentInstrument.decay = decayEl ? parseFloat(decayEl.value) : 0.1;
+            state.currentInstrument.sustain = sustainEl ? parseFloat(sustainEl.value) : 0.7;
+            state.currentInstrument.release = releaseEl ? parseFloat(releaseEl.value) : 0.3;
+            state.currentInstrument.filterType = filterTypeEl?.value || 'lowpass';
+            state.currentInstrument.filterFreq = filterFreqEl ? parseFloat(filterFreqEl.value) : 2000;
+            state.currentInstrument.filterQ = filterQEl ? parseFloat(filterQEl.value) : 5;
+            state.currentInstrument.volume = volumeEl ? parseFloat(volumeEl.value) : 0.5;
+            
+            // Ensure values are valid numbers
+            if (isNaN(state.currentInstrument.attack)) state.currentInstrument.attack = 0.01;
+            if (isNaN(state.currentInstrument.decay)) state.currentInstrument.decay = 0.1;
+            if (isNaN(state.currentInstrument.sustain)) state.currentInstrument.sustain = 0.7;
+            if (isNaN(state.currentInstrument.release)) state.currentInstrument.release = 0.3;
+            if (isNaN(state.currentInstrument.filterFreq)) state.currentInstrument.filterFreq = 2000;
+            if (isNaN(state.currentInstrument.filterQ)) state.currentInstrument.filterQ = 5;
+            if (isNaN(state.currentInstrument.volume)) state.currentInstrument.volume = 0.5;
+            
+            // Update in instruments array
+            const index = state.instruments.findIndex(i => i.id === state.currentInstrument.id);
+            if (index >= 0) {
+                state.instruments[index] = { ...state.currentInstrument };
+            }
+            
+            renderInstrumentList();
+            
+            // Auto-save to localStorage whenever parameters change
+            saveInstrumentsToStorage();
+        }
+
+        function saveInstrument() {
+            if (!state.currentInstrument) return;
+            updateCurrentInstrument();
+            // updateCurrentInstrument() already saves to localStorage
+        }
+
+        function deleteInstrument() {
+            if (!state.currentInstrument) return;
+            const index = state.instruments.findIndex(i => i.id === state.currentInstrument.id);
+            if (index >= 0) {
+                state.instruments.splice(index, 1);
+                state.currentInstrument = null;
+                renderInstrumentList();
+                renderInstrumentParams();
+                saveInstrumentsToStorage();
+            }
+        }
+
+        function newInstrument() {
+            const newId = state.instruments.length > 0 
+                ? Math.max(...state.instruments.map(i => i.id)) + 1 
+                : 0;
+            const newInst = {
+                id: newId,
+                name: `Instrument ${newId}`,
+                waveType: 'sine',
+                attack: 0.01,
+                decay: 0.1,
+                sustain: 0.7,
+                release: 0.3,
+                filterFreq: 2000,
+                filterQ: 5,
+                filterType: 'lowpass',
+                volume: 0.5
+            };
+            state.instruments.push(newInst);
+            selectInstrument(newInst);
+            saveInstrumentsToStorage();
+        }
+
+        function saveInstrumentsToStorage() {
+            try {
+                localStorage.setItem('tracker3_instruments', JSON.stringify(state.instruments));
+            } catch (error) {
+                console.error('Error saving instruments:', error);
+            }
+        }
+
+        function loadInstrumentsFromStorage() {
+            try {
+                const saved = localStorage.getItem('tracker3_instruments');
+                if (saved) {
+                    state.instruments = JSON.parse(saved);
+                } else {
+                    createDefaultInstruments();
+                }
+            } catch (error) {
+                console.error('Error loading instruments:', error);
+                createDefaultInstruments();
+            }
+        }
+
+        // Pattern Storage Functions
+        function savePatternsToStorage() {
+            try {
+                const patternData = {
+                    patterns: state.patterns,
+                    order: state.order,
+                    currentPattern: state.currentPattern,
+                    channels: state.channels,
+                    patternLength: state.patternLength
+                };
+                localStorage.setItem('tracker3_patterns', JSON.stringify(patternData));
+            } catch (error) {
+                console.error('Error saving patterns:', error);
+            }
+        }
+
+        function loadPatternsFromStorage() {
+            try {
+                const saved = localStorage.getItem('tracker3_patterns');
+                if (saved) {
+                    const patternData = JSON.parse(saved);
+                    if (patternData.patterns && patternData.patterns.length > 0) {
+                        state.patterns = patternData.patterns;
+                        state.order = patternData.order || [0];
+                        state.currentPattern = patternData.currentPattern || 0;
+                        state.channels = patternData.channels || 8;
+                        if (patternData.patternLength) {
+                            state.patternLength = patternData.patternLength;
+                            document.getElementById('patternLengthInput').value = state.patternLength;
+                        }
+                        // Resize all patterns to current patternLength
+                        resizeAllPatterns();
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading patterns:', error);
+            }
+            return false;
+        }
+
+        // Update octave display
+        function updateOctaveDisplay() {
+            const display = document.getElementById('currentOctaveDisplay');
+            const octaveInput = document.getElementById('octaveInput');
+            if (display) {
+                display.textContent = state.currentOctave;
+            }
+            if (octaveInput) {
+                octaveInput.value = state.currentOctave;
+            }
+        }
+
+        // Modal functions
+        function openInstrumentModal() {
+            document.getElementById('instrumentModal').style.display = 'block';
+            renderInstrumentList();
+            if (state.instruments.length > 0 && !state.currentInstrument) {
+                selectInstrument(state.instruments[0]);
+            } else {
+                renderInstrumentParams();
+            }
+        }
+
+        function closeInstrumentModal() {
+            document.getElementById('instrumentModal').style.display = 'none';
+        }
+
+        // Parse note string (C-4, C#3, etc.) to MIDI note number
+        function parseNote(noteStr) {
+            if (!noteStr || noteStr.trim() === '') return null;
+            
+            const match = noteStr.match(/^([A-G][#Bb]?)(-?)(\d+)$/);
+            if (!match) return null;
+            
+            const [, noteName, , octave] = match;
+            const noteNum = noteNameMap[noteName.toUpperCase()];
+            if (noteNum === undefined) return null;
+            
+            const octaveNum = parseInt(octave);
+            return (octaveNum + 1) * 12 + noteNum;
+        }
+
+        // Format MIDI note number to note string
+        function formatNote(midiNote) {
+            if (midiNote === null || midiNote === undefined) return '';
+            const octave = Math.floor(midiNote / 12) - 1;
+            const note = midiNote % 12;
+            return noteNames[note] + octave;
+        }
+
+        // Render pattern editor
+        function renderPattern() {
+            // Ensure pattern exists
+            if (!state.patterns[state.currentPattern]) {
+                initPattern(state.currentPattern);
+            }
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern) return;
+            
+            // Ensure pattern has correct number of channels
+            while (pattern.channels.length < state.channels) {
+                const channel = [];
+                for (let row = 0; row < state.patternLength; row++) {
+                    channel.push(createEmptyStep());
+                }
+                pattern.channels.push(channel);
+            }
+
+            const header = document.getElementById('patternHeader');
+            const body = document.getElementById('patternBody');
+            
+            header.innerHTML = '';
+            body.innerHTML = '';
+
+            // Create header
+            const headerRow = document.createElement('tr');
+            const rowHeader = document.createElement('th');
+            rowHeader.className = 'row-header';
+            rowHeader.textContent = '';
+            headerRow.appendChild(rowHeader);
+
+            for (let ch = 0; ch < state.channels; ch++) {
+                const th = document.createElement('th');
+                th.className = 'channel-header';
+                th.textContent = `Ch${ch + 1}`;
+                headerRow.appendChild(th);
+            }
+            header.appendChild(headerRow);
+
+            // Create rows
+            for (let row = 0; row < state.patternLength; row++) {
+                const tr = document.createElement('tr');
+                
+                // Row number
+                const rowNum = document.createElement('td');
+                rowNum.className = 'row-number';
+                rowNum.textContent = String(row).padStart(2, '0');
+                tr.appendChild(rowNum);
+
+                // Channel cells
+                for (let ch = 0; ch < state.channels; ch++) {
+                    const step = pattern.channels[ch] ? pattern.channels[ch][row] : createEmptyStep();
+                    const cell = createCell(row, ch, step);
+                    tr.appendChild(cell);
+                }
+                
+                body.appendChild(tr);
+            }
+
+            updateActiveCell();
+        }
+
+        // Create a cell
+        function createCell(row, channel, step) {
+            const td = document.createElement('td');
+            td.className = 'cell';
+            td.dataset.row = row;
+            td.dataset.channel = channel;
+
+            const content = document.createElement('div');
+            content.className = 'cell-content';
+
+            // Note field
+            const noteField = document.createElement('input');
+            noteField.type = 'text';
+            noteField.className = 'cell-field note-field';
+            noteField.value = step.note || '';
+            noteField.placeholder = '---';
+            noteField.maxLength = 4;
+            noteField.dataset.field = 'note';
+            noteField.addEventListener('input', (e) => handleCellInput(row, channel, 'note', e.target.value));
+            noteField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
+            noteField.addEventListener('focus', () => {
+                state.activeCell.row = row;
+                state.activeCell.channel = channel;
+                state.activeCell.field = 'note';
+            });
+            content.appendChild(noteField);
+
+            // Instrument field
+            const instField = document.createElement('input');
+            instField.type = 'text';
+            instField.className = 'cell-field inst-field';
+            instField.value = step.inst || '';
+            instField.placeholder = '--';
+            instField.maxLength = 2;
+            instField.dataset.field = 'inst';
+            instField.addEventListener('input', (e) => handleCellInput(row, channel, 'inst', e.target.value));
+            instField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
+            instField.addEventListener('focus', () => {
+                state.activeCell.row = row;
+                state.activeCell.channel = channel;
+                state.activeCell.field = 'inst';
+            });
+            content.appendChild(instField);
+
+            // Volume field
+            const volField = document.createElement('input');
+            volField.type = 'text';
+            volField.className = 'cell-field vol-field';
+            volField.value = step.vol || '';
+            volField.placeholder = '--';
+            volField.maxLength = 2;
+            volField.dataset.field = 'vol';
+            volField.addEventListener('input', (e) => handleCellInput(row, channel, 'vol', e.target.value));
+            volField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
+            volField.addEventListener('focus', () => {
+                state.activeCell.row = row;
+                state.activeCell.channel = channel;
+                state.activeCell.field = 'vol';
+            });
+            content.appendChild(volField);
+
+            // Effect field
+            const effField = document.createElement('input');
+            effField.type = 'text';
+            effField.className = 'cell-field eff-field';
+            effField.value = step.effect || '';
+            effField.placeholder = '-';
+            effField.maxLength = 2;
+            effField.dataset.field = 'effect';
+            effField.addEventListener('input', (e) => handleCellInput(row, channel, 'effect', e.target.value));
+            effField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
+            effField.addEventListener('focus', () => {
+                state.activeCell.row = row;
+                state.activeCell.channel = channel;
+                state.activeCell.field = 'effect';
+            });
+            content.appendChild(effField);
+
+            // Parameter field
+            const paramField = document.createElement('input');
+            paramField.type = 'text';
+            paramField.className = 'cell-field param-field';
+            paramField.value = step.param || '';
+            paramField.placeholder = '-';
+            paramField.maxLength = 2;
+            paramField.dataset.field = 'param';
+            paramField.addEventListener('input', (e) => handleCellInput(row, channel, 'param', e.target.value));
+            paramField.addEventListener('keydown', (e) => handleCellKeydown(e, row, channel));
+            paramField.addEventListener('focus', () => {
+                state.activeCell.row = row;
+                state.activeCell.channel = channel;
+                state.activeCell.field = 'param';
+            });
+            content.appendChild(paramField);
+
+            td.appendChild(content);
+            return td;
+        }
+
+        // Handle cell input
+        function handleCellInput(row, channel, field, value) {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern.channels[channel]) {
+                pattern.channels[channel] = [];
+                for (let i = 0; i < state.patternLength; i++) {
+                    pattern.channels[channel].push(createEmptyStep());
+                }
+            }
+            
+            if (!pattern.channels[channel][row]) {
+                pattern.channels[channel][row] = createEmptyStep();
+            }
+
+            // Validate and format input
+            if (field === 'note') {
+                value = value.toUpperCase().replace(/[^A-G#B0-9-]/g, '');
+            } else if (field === 'inst' || field === 'vol' || field === 'effect' || field === 'param') {
+                value = value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+            }
+
+            pattern.channels[channel][row][field] = value;
+            
+            // Play note preview when a valid note is entered
+            if (field === 'note' && value) {
+                const midiNote = parseNote(value);
+                if (midiNote !== null) {
+                    // Get velocity from the step (or default)
+                    const step = pattern.channels[channel][row];
+                    const velocity = step.vol 
+                        ? parseInt(step.vol, 16) * 2 
+                        : 64;
+                    previewNote(channel, midiNote, Math.min(127, velocity));
+                }
+            }
+            
+            savePatternsToStorage(); // Auto-save on edit
+        }
+
+        // Handle keyboard navigation in cells
+        function handleCellKeydown(e, row, channel) {
+            const fields = ['note', 'inst', 'vol', 'effect', 'param'];
+            const currentField = e.target.dataset.field;
+            const currentIndex = fields.indexOf(currentField);
+            
+            // Let QWERTY note keys pass through to global handler
+            const key = e.key.toLowerCase();
+            if (qwertyNoteMap[key] && currentField === 'note') {
+                // Prevent default so input field doesn't capture the key
+                // But don't stop propagation - let it bubble to global handler
+                e.preventDefault();
+                // Global handler will handle it
+                return;
+            }
+
+            if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                e.preventDefault();
+                focusField(row, channel, fields[currentIndex - 1]);
+            } else if (e.key === 'ArrowRight' && currentIndex < fields.length - 1) {
+                e.preventDefault();
+                focusField(row, channel, fields[currentIndex + 1]);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                moveCell(row - 1, channel, currentField);
+                focusField(row - 1, channel, currentField);
+            } else if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                e.preventDefault();
+                moveCell(row + 1, channel, currentField);
+                focusField(row + 1, channel, currentField);
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                moveCell(row, channel + 1, currentField);
+                focusField(row, channel + 1, currentField);
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (e.target.value === '') {
+                    e.preventDefault();
+                    clearCell(row, channel);
+                }
+            }
+        }
+
+        // Focus a specific field
+        function focusField(row, channel, field) {
+            const cell = document.querySelector(`td.cell[data-row="${row}"][data-channel="${channel}"]`);
+            if (cell) {
+                const input = cell.querySelector(`input[data-field="${field}"]`);
+                if (input) {
+                    state.activeCell.row = row;
+                    state.activeCell.channel = channel;
+                    state.activeCell.field = field;
+                    input.focus();
+                    input.select();
+                }
+            }
+        }
+
+        // Move active cell
+        function moveCell(row, channel, field = null) {
+            row = Math.max(0, Math.min(63, row));
+            channel = Math.max(0, Math.min(state.channels - 1, channel));
+            state.activeCell = { row, channel, field: field || state.activeCell.field };
+            updateActiveCell();
+        }
+
+        // Update active cell highlighting
+        function updateActiveCell() {
+            document.querySelectorAll('td.cell').forEach(cell => {
+                cell.classList.remove('active');
+                const row = parseInt(cell.dataset.row);
+                const channel = parseInt(cell.dataset.channel);
+                if (row === state.activeCell.row && channel === state.activeCell.channel) {
+                    cell.classList.add('active');
+                }
+                if (state.isPlaying && row === state.currentStep) {
+                    cell.classList.add('playing');
+                } else {
+                    cell.classList.remove('playing');
+                }
+            });
+
+            // Scroll to active cell
+            const activeCell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
+            if (activeCell) {
+                activeCell.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        }
+
+        // Clear cell
+        function clearCell(row, channel) {
+            const pattern = state.patterns[state.currentPattern];
+            if (pattern.channels[channel] && pattern.channels[channel][row]) {
+                pattern.channels[channel][row] = createEmptyStep();
+                renderPattern();
+                moveCell(row, channel, state.activeCell.field);
+                savePatternsToStorage();
+            }
+        }
+
+        // Preview note (play a short note for feedback)
+        function previewNote(channel, note, velocity = 64, duration = 150, instHex = null) {
+            if (state.outputMode === 'midi' && state.midiOutput) {
+                sendMIDINote(channel, note, velocity);
+                setTimeout(() => {
+                    sendMIDINote(channel, note, 0, false);
+                }, duration);
+            } else if (state.outputMode === 'webaudio') {
+                playWebAudioNote(channel, note, velocity, duration, instHex);
+            }
+        }
+
+        // Enter note directly using QWERTY keyboard (Schism Tracker style)
+        function enterNote(noteName) {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern.channels[state.activeCell.channel]) {
+                pattern.channels[state.activeCell.channel] = [];
+                for (let i = 0; i < state.patternLength; i++) {
+                    pattern.channels[state.activeCell.channel].push(createEmptyStep());
+                }
+            }
+            
+            if (!pattern.channels[state.activeCell.channel][state.activeCell.row]) {
+                pattern.channels[state.activeCell.channel][state.activeCell.row] = createEmptyStep();
+            }
+
+            // Format note: C#4, D3, etc.
+            const noteStr = noteName + state.currentOctave;
+            pattern.channels[state.activeCell.channel][state.activeCell.row].note = noteStr;
+            
+            // Update the display
+            const cell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
+            if (cell) {
+                const noteField = cell.querySelector('input[data-field="note"]');
+                if (noteField) {
+                    noteField.value = noteStr;
+                }
+            }
+
+            // Play note preview
+            const midiNote = parseNote(noteStr);
+            if (midiNote !== null) {
+                const step = pattern.channels[state.activeCell.channel][state.activeCell.row];
+                const velocity = step.vol 
+                    ? parseInt(step.vol, 16) * 2 
+                    : 64;
+                previewNote(state.activeCell.channel, midiNote, Math.min(127, velocity), 150, step.inst);
+            }
+
+            // Auto-advance: move to next row (like Schism Tracker)
+            moveCell(state.activeCell.row + 1, state.activeCell.channel, 'note');
+            focusField(state.activeCell.row, state.activeCell.channel, 'note');
+            savePatternsToStorage();
+        }
+
+        // Enter hex value in current field
+        function enterHexValue(value) {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern.channels[state.activeCell.channel]) {
+                pattern.channels[state.activeCell.channel] = [];
+                for (let i = 0; i < state.patternLength; i++) {
+                    pattern.channels[state.activeCell.channel].push(createEmptyStep());
+                }
+            }
+            
+            if (!pattern.channels[state.activeCell.channel][state.activeCell.row]) {
+                pattern.channels[state.activeCell.channel][state.activeCell.row] = createEmptyStep();
+            }
+
+            const field = state.activeCell.field;
+            const currentValue = pattern.channels[state.activeCell.channel][state.activeCell.row][field] || '';
+            
+            // For single-digit fields, replace; for two-digit fields, append
+            let newValue;
+            if (field === 'effect' || field === 'param') {
+                // Single hex digit
+                newValue = value.toUpperCase();
+            } else {
+                // Two hex digits - append or replace
+                if (currentValue.length >= 2) {
+                    newValue = value.toUpperCase();
+                } else {
+                    newValue = (currentValue + value).toUpperCase().padStart(2, '0');
+                }
+            }
+
+            pattern.channels[state.activeCell.channel][state.activeCell.row][field] = newValue;
+            
+            // Update the display
+            const cell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
+            if (cell) {
+                const fieldInput = cell.querySelector(`input[data-field="${field}"]`);
+                if (fieldInput) {
+                    fieldInput.value = newValue;
+                }
+            }
+
+            // Auto-advance to next field or row based on field
+            if (field === 'param') {
+                // After parameter, move to next row
+                moveCell(state.activeCell.row + 1, state.activeCell.channel, 'note');
+                focusField(state.activeCell.row, state.activeCell.channel, 'note');
+            } else {
+                // Move to next field
+                const fields = ['note', 'inst', 'vol', 'effect', 'param'];
+                const currentIndex = fields.indexOf(field);
+                if (currentIndex < fields.length - 1) {
+                    focusField(state.activeCell.row, state.activeCell.channel, fields[currentIndex + 1]);
+                    state.activeCell.field = fields[currentIndex + 1];
+                }
+            }
+            savePatternsToStorage();
+        }
+
+        // Playback engine
+        function playTick() {
+            if (!state.isPlaying) return;
+
+            const now = performance.now();
+            const tickInterval = (60000 / state.tempo / state.speed);
+
+            if (now - state.lastTickTime >= tickInterval) {
+                state.lastTickTime = now;
+                state.tickCounter++;
+
+                if (state.tickCounter >= state.speed) {
+                    state.tickCounter = 0;
+                    playStep();
+                }
+            }
+
+            state.animationFrame = requestAnimationFrame(playTick);
+        }
+
+        function playStep() {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern) return;
+
+            // Process current step
+            for (let ch = 0; ch < state.channels; ch++) {
+                if (!pattern.channels[ch]) continue;
+                const step = pattern.channels[ch][state.currentStep];
+                if (!step) continue;
+
+                // Stop previous note if new note or note off
+                const noteKey = `${ch}-${state.currentStep}`;
+                
+                if (state.outputMode === 'midi') {
+                    if (state.activeNotes.has(noteKey)) {
+                        const activeNote = state.activeNotes.get(noteKey);
+                        sendMIDINote(ch, activeNote.note, 0, false);
+                        state.activeNotes.delete(noteKey);
+                    }
+                } else {
+                    // Web Audio mode
+                    if (state.activeWebAudioNotes.has(ch)) {
+                        const activeNote = state.activeWebAudioNotes.get(ch);
+                        stopWebAudioNote(activeNote);
+                        state.activeWebAudioNotes.delete(ch);
+                    }
+                }
+
+                // Parse and play note
+                if (step.note && step.note.trim() !== '') {
+                    const midiNote = parseNote(step.note);
+                    if (midiNote !== null) {
+                        const velocity = step.vol ? parseInt(step.vol, 16) * 2 : 64;
+                        const clampedVelocity = Math.min(127, velocity);
+                        
+                        if (state.outputMode === 'midi') {
+                            sendMIDINote(ch, midiNote, clampedVelocity);
+                            state.activeNotes.set(noteKey, { note: midiNote, channel: ch });
+                        } else {
+                            // Web Audio mode - pass instrument from step
+                            const noteInfo = playWebAudioNote(ch, midiNote, clampedVelocity, null, step.inst);
+                            if (noteInfo) {
+                                state.activeWebAudioNotes.set(ch, noteInfo);
+                            }
+                        }
+                    }
+                }
+
+                // Handle effects
+                if (step.effect) {
+                    const effect = parseInt(step.effect, 16) || 0;
+                    const param = parseInt(step.param, 16) || 0;
+                    handleEffect(ch, effect, param);
+                }
+            }
+
+            // Update visual
+            updateActiveCell();
+
+            // Advance step
+            state.currentStep++;
+            if (state.currentStep >= state.patternLength) {
+                state.currentStep = 0;
+                // Advance to next pattern in order
+                const orderIndex = state.order.indexOf(state.currentPattern);
+                if (orderIndex >= 0 && orderIndex < state.order.length - 1) {
+                    state.currentPattern = state.order[orderIndex + 1];
+                    document.getElementById('patternInput').value = state.currentPattern;
+                    renderPattern();
+                    updatePatternOrder();
+                    updatePatternQuickSwitch();
+                } else {
+                    // Loop
+                    state.currentPattern = state.order[0];
+                    document.getElementById('patternInput').value = state.currentPattern;
+                    renderPattern();
+                    updatePatternOrder();
+                    updatePatternQuickSwitch();
+                }
+            }
+
+            document.getElementById('currentStep').textContent = state.currentStep;
+        }
+
+        // Handle effect commands
+        function handleEffect(channel, effect, param) {
+            switch (effect) {
+                case 0x0C: // Set volume
+                    sendMIDICC(channel, 7, param);
+                    break;
+                case 0x0B: // Set panning
+                    sendMIDICC(channel, 10, param);
+                    break;
+                case 0x01: // Portamento up
+                    // Implementation depends on synth
+                    break;
+                case 0x02: // Portamento down
+                    // Implementation depends on synth
+                    break;
+                // Add more effects as needed
+            }
+        }
+
+        // Start playback
+        async function startPlayback() {
+            if (state.isPlaying) return;
+            
+            // Initialize Web Audio if needed
+            if (state.outputMode === 'webaudio') {
+                await initAudioContext();
+            }
+            
+            state.isPlaying = true;
+            state.currentStep = 0;
+            state.tickCounter = 0;
+            state.lastTickTime = performance.now();
+            document.getElementById('playBtn').classList.add('active');
+            playTick();
+        }
+
+        // Stop playback
+        function stopPlayback() {
+            state.isPlaying = false;
+            state.currentStep = 0;
+            document.getElementById('playBtn').classList.remove('active');
+            
+            // Stop all active notes
+            if (state.outputMode === 'midi') {
+                state.activeNotes.forEach((note, key) => {
+                    sendMIDINote(note.channel, note.note, 0, false);
+                });
+                state.activeNotes.clear();
+            } else {
+                // Web Audio mode
+                state.activeWebAudioNotes.forEach((noteInfo, ch) => {
+                    stopWebAudioNote(noteInfo);
+                });
+                state.activeWebAudioNotes.clear();
+            }
+
+            if (state.animationFrame) {
+                cancelAnimationFrame(state.animationFrame);
+            }
+            document.getElementById('currentStep').textContent = state.currentStep;
+            updateActiveCell();
+        }
+
+
+        // Update pattern order display
+        function updatePatternOrder() {
+            const orderDiv = document.getElementById('patternOrder');
+            orderDiv.innerHTML = '';
+            state.order.forEach((patternIndex, index) => {
+                const item = document.createElement('div');
+                item.className = 'pattern-order-item';
+                if (patternIndex === state.currentPattern) {
+                    item.classList.add('active');
+                }
+                item.textContent = patternIndex;
+                item.addEventListener('click', () => {
+                    state.currentPattern = patternIndex;
+                    document.getElementById('patternInput').value = patternIndex;
+                    renderPattern();
+                    updatePatternOrder();
+                    updatePatternQuickSwitch();
+                    savePatternsToStorage();
+                });
+                orderDiv.appendChild(item);
+            });
+        }
+
+        // Update pattern quick switch buttons
+        function updatePatternQuickSwitch() {
+            const quickSwitch = document.getElementById('patternQuickSwitch');
+            if (!quickSwitch) return;
+            
+            quickSwitch.innerHTML = '';
+            // Show up to 8 pattern buttons
+            const maxButtons = Math.min(8, state.patterns.length);
+            for (let i = 0; i < maxButtons; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'pattern-quick-btn';
+                btn.textContent = i;
+                if (i === state.currentPattern) {
+                    btn.classList.add('active');
+                }
+                btn.title = `Pattern ${i} (Ctrl+${i + 1})`;
+                btn.addEventListener('click', () => {
+                    if (i < state.patterns.length) {
+                        state.currentPattern = i;
+                        document.getElementById('patternInput').value = i;
+                        renderPattern();
+                        updatePatternOrder();
+                        updatePatternQuickSwitch();
+                        savePatternsToStorage();
+                    }
+                });
+                quickSwitch.appendChild(btn);
+            }
+        }
+
+        // Add channel
+        function addChannel() {
+            if (state.channels >= state.maxChannels) {
+                alert(`Maximum ${state.maxChannels} channels reached`);
+                return;
+            }
+            state.channels++;
+            state.patterns.forEach(pattern => {
+                const channel = [];
+                for (let i = 0; i < state.patternLength; i++) {
+                    channel.push(createEmptyStep());
+                }
+                pattern.channels.push(channel);
+            });
+            document.getElementById('channelCount').textContent = state.channels;
+            renderPattern();
+            savePatternsToStorage();
+        }
+
+        // Add pattern
+        function addPattern() {
+            const pattern = {
+                channels: []
+            };
+            for (let ch = 0; ch < state.channels; ch++) {
+                const channel = [];
+                for (let row = 0; row < state.patternLength; row++) {
+                    channel.push(createEmptyStep());
+                }
+                pattern.channels.push(channel);
+            }
+            state.patterns.push(pattern);
+            state.order.push(state.patterns.length - 1);
+            updatePatternOrder();
+            updatePatternQuickSwitch();
+            savePatternsToStorage();
+        }
+
+        // Add Amen Break pattern
+        function addAmenBreak() {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern) {
+                initPattern(state.currentPattern);
+            }
+            
+            // Ensure we have at least 3 channels (kick, snare, hi-hat)
+            while (state.channels < 3) {
+                addChannel();
+            }
+            
+            // Ensure channels are initialized
+            for (let ch = 0; ch < 3; ch++) {
+                if (!pattern.channels[ch]) {
+                    pattern.channels[ch] = [];
+                    for (let i = 0; i < state.patternLength; i++) {
+                        pattern.channels[ch].push(createEmptyStep());
+                    }
+                }
+            }
+            
+            // Classic Amen Break pattern (16 steps)
+            // Channel 0: Kick (C1)
+            const kickRows = [0, 2, 4, 5, 7, 8, 9, 11, 12, 14, 15];
+            kickRows.forEach(row => {
+                if (row < state.patternLength) {
+                    pattern.channels[0][row] = {
+                        note: 'C-1',
+                        inst: '',
+                        vol: '80',
+                        effect: '',
+                        param: ''
+                    };
+                }
+            });
+            
+            // Channel 1: Snare (D1)
+            const snareRows = [3, 7, 11, 15];
+            snareRows.forEach(row => {
+                if (row < state.patternLength) {
+                    pattern.channels[1][row] = {
+                        note: 'D-1',
+                        inst: '',
+                        vol: '80',
+                        effect: '',
+                        param: ''
+                    };
+                }
+            });
+            
+            // Channel 2: Hi-hat (C2)
+            const hihatRows = [1, 3, 5, 7, 9, 11, 13, 15];
+            hihatRows.forEach(row => {
+                if (row < state.patternLength) {
+                    pattern.channels[2][row] = {
+                        note: 'C-2',
+                        inst: '',
+                        vol: '60',
+                        effect: '',
+                        param: ''
+                    };
+                }
+            });
+            
+            renderPattern();
+            savePatternsToStorage();
+        }
+
+        // Enhanced keyboard shortcuts (Schism Tracker style)
+        document.addEventListener('keydown', (e) => {
+            // Don't intercept if user is typing in header inputs
+            if (e.target.tagName === 'INPUT' && (e.target.id === 'tempoInput' || e.target.id === 'speedInput' || e.target.id === 'patternInput')) {
+                return;
+            }
+
+            const isCellInput = e.target.tagName === 'INPUT' && e.target.closest('td.cell');
+            const key = e.key.toLowerCase();
+
+            // QWERTY note entry (Schism Tracker style) - check this FIRST
+            // Always allow QWERTY note entry when in note field or when not actively typing
+            if (qwertyNoteMap[key] && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                // Only allow if we're in note field, or if we're not in a cell input
+                if (state.activeCell.field === 'note' || !isCellInput) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Blur the input field if focused, so it doesn't capture the key
+                    if (isCellInput && document.activeElement) {
+                        document.activeElement.blur();
+                    }
+                    const noteName = qwertyNoteMap[key];
+                    enterNote(noteName);
+                    // Note preview is handled inside enterNote()
+                    return;
+                }
+            }
+
+            // / and * keys for octave decrease/increase (Schism Tracker style)
+            if ((key === '/' || key === '*') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                if (state.activeCell.field === 'note' || !isCellInput) {
+                    e.preventDefault();
+                    if (key === '/') {
+                        // Decrease octave
+                        state.currentOctave = Math.max(0, state.currentOctave - 1);
+                    } else if (key === '*') {
+                        // Increase octave
+                        state.currentOctave = Math.min(9, state.currentOctave + 1);
+                    }
+                    updateOctaveDisplay();
+                    return;
+                }
+            }
+
+            // Number keys for octave selection
+            if (key >= '0' && key <= '9' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                if (state.activeCell.field === 'note' || !isCellInput) {
+                    e.preventDefault();
+                    const octave = parseInt(key);
+                    // If we just entered a note, append octave; otherwise set octave for next note
+                    const pattern = state.patterns[state.currentPattern];
+                    const step = pattern.channels[state.activeCell.channel]?.[state.activeCell.row];
+                    if (step && step.note && step.note.match(/^[A-G][#]?$/)) {
+                        // Append octave to existing note
+                        step.note = step.note + octave;
+                        const cell = document.querySelector(`td.cell[data-row="${state.activeCell.row}"][data-channel="${state.activeCell.channel}"]`);
+                        if (cell) {
+                            const noteField = cell.querySelector('input[data-field="note"]');
+                            if (noteField) noteField.value = step.note;
+                        }
+                        moveCell(state.activeCell.row + 1, state.activeCell.channel, 'note');
+                        focusField(state.activeCell.row, state.activeCell.channel, 'note');
+                    } else {
+                        // Set octave for next note entry
+                        state.currentOctave = octave;
+                        updateOctaveDisplay();
+                    }
+                    return;
+                }
+            }
+
+            // ESC key to close modal
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('instrumentModal');
+                if (modal && modal.style.display === 'block') {
+                    e.preventDefault();
+                    closeInstrumentModal();
+                    return;
+                }
+            }
+
+            // Arrow keys - always handle navigation (even in cell inputs)
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                moveCell(state.activeCell.row - 1, state.activeCell.channel, state.activeCell.field);
+                focusField(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+                return;
+            } else if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                e.preventDefault();
+                moveCell(state.activeCell.row + 1, state.activeCell.channel, state.activeCell.field);
+                focusField(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+                return;
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const fields = ['note', 'inst', 'vol', 'effect', 'param'];
+                const currentIndex = fields.indexOf(state.activeCell.field);
+                if (currentIndex > 0) {
+                    // Move to previous field in same channel
+                    state.activeCell.field = fields[currentIndex - 1];
+                    focusField(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+                } else {
+                    // Move to previous channel (last field)
+                    if (state.activeCell.channel > 0) {
+                        moveCell(state.activeCell.row, state.activeCell.channel - 1, 'param');
+                        focusField(state.activeCell.row, state.activeCell.channel, 'param');
+                    }
+                }
+                return;
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                const fields = ['note', 'inst', 'vol', 'effect', 'param'];
+                const currentIndex = fields.indexOf(state.activeCell.field);
+                if (currentIndex < fields.length - 1) {
+                    // Move to next field in same channel
+                    state.activeCell.field = fields[currentIndex + 1];
+                    focusField(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+                } else {
+                    // Move to next channel (first field)
+                    if (state.activeCell.channel < state.channels - 1) {
+                        moveCell(state.activeCell.row, state.activeCell.channel + 1, 'note');
+                        focusField(state.activeCell.row, state.activeCell.channel, 'note');
+                    }
+                }
+                return;
+            }
+
+            // Hex digit entry for instrument, volume, effect, parameter
+            if (/[0-9A-Fa-f]/.test(key) && (state.activeCell.field === 'inst' || state.activeCell.field === 'vol' || 
+                state.activeCell.field === 'effect' || state.activeCell.field === 'param')) {
+                if (!isCellInput) {
+                    e.preventDefault();
+                    enterHexValue(key);
+                }
+                return;
+            }
+
+            // Control keys - Play/Stop
+            // Only handle if not typing in a cell input (unless it's Space, which should always work)
+            if (e.key === ' ') {
+                // Space for play/stop toggle (always works)
+                e.preventDefault();
+                if (state.isPlaying) {
+                    stopPlayback();
+                } else {
+                    startPlayback();
+                }
+                return;
+            } else if ((key === 'p' || key === 's') && !e.ctrlKey && !e.altKey && !e.metaKey && !isCellInput) {
+                // P for play/stop toggle, S for stop (only when not typing in cells)
+                e.preventDefault();
+                if (key === 'p') {
+                    // P: Play/Stop toggle
+                    if (state.isPlaying) {
+                        stopPlayback();
+                    } else {
+                        startPlayback();
+                    }
+                } else if (key === 's') {
+                    // S: Stop only
+                    if (state.isPlaying) {
+                        stopPlayback();
+                    }
+                }
+                return;
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (!isCellInput || e.target.value === '') {
+                    e.preventDefault();
+                    clearCell(state.activeCell.row, state.activeCell.channel);
+                }
+                return;
+            } else if (e.ctrlKey && key === 'c') {
+                e.preventDefault();
+                copyCell();
+                return;
+            } else if (e.ctrlKey && key === 'v') {
+                e.preventDefault();
+                pasteCell();
+                return;
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                moveCell(state.activeCell.row, state.activeCell.channel + 1, state.activeCell.field);
+                focusField(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+                return;
+            } else if (e.ctrlKey && key >= '1' && key <= '8') {
+                // Ctrl+1-8 for pattern switching (browser-friendly alternative to F1-F8)
+                e.preventDefault();
+                const num = parseInt(key) - 1;
+                if (num >= 0 && num < state.patterns.length) {
+                    state.currentPattern = num;
+                    document.getElementById('patternInput').value = state.currentPattern;
+                    renderPattern();
+                    updatePatternOrder();
+                    updatePatternQuickSwitch();
+                }
+                return;
+            } else if (e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                // Ctrl+Left/Right for previous/next pattern
+                e.preventDefault();
+                const currentIndex = state.order.indexOf(state.currentPattern);
+                if (e.key === 'ArrowLeft') {
+                    // Previous pattern in order
+                    if (currentIndex > 0) {
+                        state.currentPattern = state.order[currentIndex - 1];
+                    } else {
+                        state.currentPattern = state.order[state.order.length - 1];
+                    }
+                } else {
+                    // Next pattern in order
+                    if (currentIndex < state.order.length - 1) {
+                        state.currentPattern = state.order[currentIndex + 1];
+                    } else {
+                        state.currentPattern = state.order[0];
+                    }
+                }
+                document.getElementById('patternInput').value = state.currentPattern;
+                renderPattern();
+                updatePatternOrder();
+                updatePatternQuickSwitch();
+                return;
+            }
+        });
+
+        // Copy/paste
+        function copyCell() {
+            const pattern = state.patterns[state.currentPattern];
+            if (pattern.channels[state.activeCell.channel]) {
+                state.clipboard = pattern.channels[state.activeCell.channel][state.activeCell.row];
+            }
+        }
+
+        function pasteCell() {
+            if (!state.clipboard) return;
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern.channels[state.activeCell.channel]) {
+                pattern.channels[state.activeCell.channel] = [];
+                for (let i = 0; i < state.patternLength; i++) {
+                    pattern.channels[state.activeCell.channel].push(createEmptyStep());
+                }
+            }
+            pattern.channels[state.activeCell.channel][state.activeCell.row] = { ...state.clipboard };
+            renderPattern();
+            moveCell(state.activeCell.row, state.activeCell.channel, state.activeCell.field);
+            savePatternsToStorage();
+        }
+
+        // Event listeners
+        document.getElementById('playBtn').addEventListener('click', startPlayback);
+        document.getElementById('stopBtn').addEventListener('click', stopPlayback);
+        document.getElementById('addChannelBtn').addEventListener('click', addChannel);
+        document.getElementById('addPatternBtn').addEventListener('click', addPattern);
+        document.getElementById('amenBreakBtn').addEventListener('click', addAmenBreak);
+        
+        // Octave input field
+        document.getElementById('octaveInput').addEventListener('change', (e) => {
+            const octave = parseInt(e.target.value);
+            if (!isNaN(octave) && octave >= 0 && octave <= 9) {
+                state.currentOctave = octave;
+                updateOctaveDisplay();
+            }
+        });
+        
+        // Pattern length input field
+        document.getElementById('patternLengthInput').addEventListener('change', (e) => {
+            const length = parseInt(e.target.value);
+            if (!isNaN(length) && length >= 1 && length <= 256) {
+                const oldLength = state.patternLength;
+                state.patternLength = length;
+                
+                // Resize all patterns
+                resizeAllPatterns();
+                
+                // If current step is beyond new length, reset to 0
+                if (state.currentStep >= state.patternLength) {
+                    state.currentStep = 0;
+                }
+                
+                // Re-render pattern
+                renderPattern();
+                savePatternsToStorage();
+            } else {
+                // Reset to valid value if invalid
+                e.target.value = state.patternLength;
+            }
+        });
+        
+        // Output mode selector
+        document.getElementById('outputModeSelect').addEventListener('change', async (e) => {
+            state.outputMode = e.target.value;
+            
+            // Stop all notes when switching modes
+            if (state.isPlaying) {
+                stopPlayback();
+            }
+            
+            // Initialize Web Audio if switching to Web Audio mode
+            if (state.outputMode === 'webaudio') {
+                await initAudioContext();
+            }
+        });
+
+        document.getElementById('tempoInput').addEventListener('input', (e) => {
+            state.tempo = parseInt(e.target.value) || 125;
+        });
+
+        document.getElementById('speedInput').addEventListener('input', (e) => {
+            const newSpeed = parseInt(e.target.value) || 6;
+            state.speed = newSpeed;
+            // Reset timing when speed changes during playback
+            if (state.isPlaying) {
+                state.lastTickTime = performance.now();
+                state.tickCounter = 0;
+            }
+        });
+
+        document.getElementById('patternInput').addEventListener('input', (e) => {
+            const patternIndex = parseInt(e.target.value) || 0;
+            if (patternIndex >= 0 && patternIndex < state.patterns.length) {
+                state.currentPattern = patternIndex;
+                renderPattern();
+                updatePatternOrder();
+                updatePatternQuickSwitch();
+                savePatternsToStorage();
+            }
+        });
+
+        // Initialize
+        // Try to load patterns from storage
+        const patternsLoaded = loadPatternsFromStorage();
+        
+        // If no patterns were loaded, create default pattern
+        if (!patternsLoaded) {
+            // Ensure pattern 0 exists and has 8 channels
+            if (!state.patterns[0] || state.patterns[0].channels.length < state.channels) {
+                initPattern(0);
+                // Ensure it has all 8 channels
+                const pattern = state.patterns[0];
+                while (pattern.channels.length < state.channels) {
+                    const channel = [];
+                    for (let row = 0; row < state.patternLength; row++) {
+                        channel.push(createEmptyStep());
+                    }
+                    pattern.channels.push(channel);
+                }
+            }
+            // Save initial patterns
+            savePatternsToStorage();
+        } else {
+            // Ensure all loaded patterns have the correct number of channels
+            state.patterns.forEach(pattern => {
+                while (pattern.channels.length < state.channels) {
+                    const channel = [];
+                    for (let row = 0; row < state.patternLength; row++) {
+                        channel.push(createEmptyStep());
+                    }
+                    pattern.channels.push(channel);
+                }
+            });
+        }
+        
+        // Load instruments
+        loadInstrumentsFromStorage();
+        
+        // Initialize Web Audio as default
+        state.outputMode = 'webaudio';
+        document.getElementById('outputModeSelect').value = 'webaudio';
+        initAudioContext();
+        
+        renderPattern();
+        updatePatternOrder();
+        updatePatternQuickSwitch();
+        document.getElementById('currentPattern').textContent = state.currentPattern;
+        document.getElementById('channelCount').textContent = state.channels;
+        updateOctaveDisplay();
+        
+        // Instrument modal event listeners
+        document.getElementById('instrumentsBtn').addEventListener('click', openInstrumentModal);
+        document.getElementById('closeModal').addEventListener('click', closeInstrumentModal);
+        document.getElementById('saveInstrument').addEventListener('click', saveInstrument);
+        document.getElementById('deleteInstrument').addEventListener('click', deleteInstrument);
+        document.getElementById('newInstrument').addEventListener('click', newInstrument);
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('instrumentModal');
+            if (e.target === modal) {
+                closeInstrumentModal();
+            }
+        });
+        
+        // Focus the editor on load
+        setTimeout(() => {
+            focusField(0, 0, 'note');
+        }, 100);
+    </script>
+</body>
+</html>
+

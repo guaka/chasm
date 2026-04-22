@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ambient6 - ChasmTracker</title>
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            height: 100vh;
+            gap: 20px;
+        }
+
+        .controls-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+        }
+
+        .controls-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .controls-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .controls-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 50%, #45b7d1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #a0a0a0;
+            margin-bottom: 15px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #c0c0c0;
+        }
+
+        select, button {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:hover, button:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        select:focus, button:focus {
+            outline: none;
+            border-color: #4ecdc4;
+            box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.2);
+        }
+
+        button {
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+            border: none;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #4ecdc4 0%, #ff6b6b 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .slider-container {
+            position: relative;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(78, 205, 196, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 3px 8px rgba(78, 205, 196, 0.6);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(78, 205, 196, 0.4);
+        }
+
+        .slider-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 12px;
+            color: #4ecdc4;
+            font-weight: 600;
+        }
+
+        .toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(24px);
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .status.connected {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .status.disconnected {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+
+        .channels-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .channel-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 11px;
+            position: relative;
+        }
+
+        .channel-item.active {
+            border-color: #4ecdc4;
+            background: rgba(78, 205, 196, 0.1);
+            box-shadow: 0 0 8px rgba(78, 205, 196, 0.3);
+        }
+
+        .channel-number {
+            font-weight: 600;
+            color: #4ecdc4;
+            margin-bottom: 4px;
+        }
+
+        .channel-program {
+            width: 100%;
+            padding: 4px;
+            font-size: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #e0e0e0;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .canvas-container:fullscreen {
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 0;
+            border: none;
+        }
+
+        .canvas-container:-webkit-full-screen {
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 0;
+            border: none;
+        }
+
+        .canvas-container:-moz-full-screen {
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 0;
+            border: none;
+        }
+
+        .canvas-container:-ms-fullscreen {
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 0;
+            border: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls-panel">
+            <h1>Ambient MIDI v6</h1>
+            
+            <div class="section">
+                <div class="section-title">Connection</div>
+                <div class="status disconnected" id="status">Disconnected</div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Playback</div>
+                <div class="control-group">
+                    <button id="playBtn">Play</button>
+                    <button id="stopBtn" style="margin-top: 10px;">Stop</button>
+                </div>
+            </div>
+
+
+            <div class="section">
+                <div class="section-title">Music</div>
+                <div class="control-group">
+                    <label>Tempo: <span class="slider-value" id="tempoValue">85</span> BPM</label>
+                    <input type="range" class="slider" id="tempoSlider" min="10" max="500" value="85">
+                </div>
+                <div class="control-group">
+                    <label>Scale</label>
+                    <select id="scaleSelect">
+                        <option value="major">Major</option>
+                        <option value="minor">Minor</option>
+                        <option value="pentatonic">Pentatonic</option>
+                        <option value="dorian">Dorian</option>
+                        <option value="lydian">Lydian</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Intensity: <span class="slider-value" id="intensityValue">50</span>%</label>
+                    <input type="range" class="slider" id="intensitySlider" min="0" max="100" value="50">
+                </div>
+                <div class="control-group">
+                    <label>Root Note</label>
+                    <select id="rootNoteSelect">
+                        <option value="48">C3</option>
+                        <option value="50">D3</option>
+                        <option value="52">E3</option>
+                        <option value="53">F3</option>
+                        <option value="55">G3</option>
+                        <option value="57">A3</option>
+                        <option value="59">B3</option>
+                    </select>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="visualCanvas"></canvas>
+        </div>
+    </div>
+
+    <script src="../midi-synths.js"></script>
+    <script>
+        // State management
+        const state = {
+            midiManager: null,
+            midiAccess: null,
+            midiOutput: null,
+            isPlaying: false,
+            tempo: 85,
+            scale: 'major',
+            intensity: 50,
+            rootNote: 48,
+            particleCount: 400,
+            visualIntensity: 100,
+            visuals: {
+                particles: true,
+                oscilloscope: true,
+                geometric: true
+            },
+            // Global mode toggles (deprecated, kept for compatibility)
+            modes: {
+                rhythm: true,
+                bassline: true,
+                chords: false,
+                melody: true
+            },
+            // MIDI channels (0-15) - each with its own mode and parameters
+            channels: Array.from({ length: 16 }, (_, i) => ({
+                number: i,
+                program: 0,
+                active: false,
+                lastActivity: 0,
+                mode: i === 9 ? 'rhythm' : (i === 0 ? 'bassline' : (i < 5 ? 'chords' : 'melody')), // Default modes
+                velocity: 100,
+                noteCount: 0,
+                lastNote: null,
+                activityLevel: 0, // 0-1 for visualization
+                // Per-channel timing
+                lastNoteTime: 0,
+                lastBeatTime: 0,
+                beatIndex: 0,
+                basslineIndex: 0,
+                lastBasslineTime: 0,
+                chordIndex: 0,
+                lastChordTime: 0,
+                melodyIndex: 0,
+                lastMelodyTime: 0
+            })),
+            // MIDI clock
+            midiClockTimer: null,
+            scheduledMidiClockTime: 0,
+            midiClockTick: 0,
+            // Active notes tracking
+            activeNotes: [],
+            lastNoteTime: 0,
+            lastBeatTime: 0,
+            beatIndex: 0,
+            // Beat buildup
+            beatStartTime: 0,
+            beatBuildup: {
+                kick: false,
+                snare: false,
+                hihat: false,
+                kickDrum: false,
+                bassline: false
+            },
+            // IDM patterns - 32 steps
+            kickPattern: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+            snarePattern: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+            hihatPattern: [1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0],
+            kickDrumPattern: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+            basslinePattern: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            lastBasslineTime: 0,
+            basslineIndex: 0,
+            // Current channel for cycling
+            currentChannel: 0,
+            // Chord progression
+            chordIndex: 0,
+            lastChordTime: 0,
+            // Melody
+            melodyIndex: 0,
+            lastMelodyTime: 0,
+            animationId: null,
+            waveformData: new Uint8Array(2048),
+            frequencyData: new Uint8Array(1024),
+            waveformDataLeft: new Uint8Array(2048),
+            waveformDataRight: new Uint8Array(2048)
+        };
+
+        // Scale definitions
+        const scales = {
+            major: [0, 2, 4, 5, 7, 9, 11],
+            minor: [0, 2, 3, 5, 7, 8, 10],
+            pentatonic: [0, 2, 4, 7, 9],
+            dorian: [0, 2, 3, 5, 7, 9, 10],
+            lydian: [0, 2, 4, 6, 7, 9, 11]
+        };
+
+        // GM Drum note mappings (for rhythm mode)
+        const drumNotes = {
+            kick: 36,      // C1 - Bass Drum 1
+            snare: 38,     // D1 - Acoustic Snare
+            hihatClosed: 42, // F#1 - Closed Hi-Hat
+            hihatOpen: 46,   // A#1 - Open Hi-Hat
+            crash: 49,     // C#2 - Crash Cymbal 1
+            ride: 51,      // D#2 - Ride Cymbal 1
+            tomHigh: 48,   // C2 - Hi-Mid Tom
+            tomMid: 45,    // A1 - Mid Tom
+            tomLow: 41     // F1 - Low Tom
+        };
+
+        // Color palette - vibrant colors
+        const colorPalette = [
+            { h: 0, s: 70, l: 60 },    // Red
+            { h: 30, s: 80, l: 65 },   // Orange
+            { h: 60, s: 75, l: 70 },   // Yellow
+            { h: 120, s: 70, l: 60 },  // Green
+            { h: 180, s: 70, l: 60 },  // Cyan
+            { h: 210, s: 80, l: 65 },  // Light Blue
+            { h: 240, s: 70, l: 60 },  // Blue
+            { h: 270, s: 70, l: 60 },  // Purple
+            { h: 300, s: 70, l: 60 },  // Magenta
+            { h: 330, s: 70, l: 60 }   // Pink
+        ];
+
+        // Canvas setup
+        const canvas = document.getElementById('visualCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Enhanced Particles that respond to sound
+        class Particle {
+            constructor(x, y, frequency = 0, amplitude = 0) {
+                this.x = x;
+                this.y = y;
+                this.frequency = frequency; // Normalized 0-1
+                this.amplitude = amplitude; // Normalized 0-1
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.003 + 0.001;
+                this.size = Math.random() * 4 + 1;
+                // Color based on frequency
+                const colorIndex = Math.floor(this.frequency * colorPalette.length) % colorPalette.length;
+                const color = colorPalette[colorIndex];
+                this.hue = color.h + (Math.random() - 0.5) * 20;
+                this.saturation = color.s;
+                this.lightness = color.l;
+            }
+
+            update(frequencyData) {
+                // Respond to current frequency data
+                if (frequencyData && frequencyData.length > 0) {
+                    const freqIndex = Math.floor(this.frequency * (frequencyData.length - 1));
+                    const currentAmp = frequencyData[freqIndex] / 255;
+                    this.amplitude = currentAmp;
+                    
+                    // Velocity affected by frequency response
+                    const freqResponse = currentAmp * 0.5;
+                    this.vx += (Math.random() - 0.5) * freqResponse * 0.1;
+                    this.vy += (Math.random() - 0.5) * freqResponse * 0.1;
+                }
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= this.decay;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                
+                // Bounce off edges
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -0.8;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -0.8;
+                this.x = Math.max(0, Math.min(canvas.width, this.x));
+                this.y = Math.max(0, Math.min(canvas.height, this.y));
+            }
+
+            draw() {
+                ctx.save();
+                const alpha = this.life * (0.5 + this.amplitude * 0.5);
+                ctx.globalAlpha = alpha;
+                const size = this.size * (1 + this.amplitude * 0.5);
+                ctx.fillStyle = `hsl(${this.hue}, ${this.saturation}%, ${this.lightness}%)`;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = `hsl(${this.hue}, ${this.saturation}%, ${this.lightness}%)`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            isDead() {
+                return this.life <= 0;
+            }
+        }
+
+        let particles = [];
+        let geometricRotation = 0;
+        let geometricScale = 1;
+        let beatPulse = 0;
+
+        // MIDI Functions using MidiManager
+        async function requestMIDIAccess() {
+            if (!state.midiManager) {
+                state.midiManager = new MidiManager();
+                state.midiManager.onStateChange = autoConnectMIDI;
+            }
+            
+            const success = await state.midiManager.initialize();
+            if (success) {
+                autoConnectMIDI();
+                return true;
+            } else {
+                updateStatus('MIDI not available', false);
+                return false;
+            }
+        }
+
+        function autoConnectMIDI() {
+            if (!state.midiManager) return;
+            
+                const devices = state.midiManager.getDevices();
+            if (devices.length > 0) {
+                // Auto-connect to first available device
+                const success = state.midiManager.connect(0);
+            if (success) {
+                state.midiOutput = state.midiManager.midiOutput;
+                updateStatus(`Connected: ${state.midiManager.getConnectedDeviceName()}`, true);
+            } else {
+                    updateStatus('Failed to connect', false);
+                }
+            } else {
+                updateStatus('No MIDI devices found', false);
+            }
+        }
+
+        function updateChannelDisplay(channel) {
+            // Visualization updates happen in animate() function
+        }
+
+        // MIDI Clock functions
+        function sendMIDIClock() {
+            if (!state.midiOutput) return;
+            state.midiOutput.send([0xF8]);
+            state.midiClockTick++;
+        }
+
+        function sendMIDIStart() {
+            if (!state.midiOutput) return;
+            state.midiOutput.send([0xFA]);
+            state.midiClockTick = 0;
+        }
+
+        function sendMIDIStop() {
+            if (!state.midiOutput) return;
+            state.midiOutput.send([0xFC]);
+            if (state.midiClockTimer) {
+                clearTimeout(state.midiClockTimer);
+                state.midiClockTimer = null;
+            }
+        }
+
+        function scheduleMidiClock() {
+            if (!state.isPlaying) return;
+            
+            const now = performance.now();
+            const midiClockInterval = (60000.0 / state.tempo / 24.0);
+            
+            if (state.scheduledMidiClockTime === 0) {
+                state.scheduledMidiClockTime = now + midiClockInterval;
+            } else {
+                state.scheduledMidiClockTime += midiClockInterval;
+            }
+            
+            const delay = Math.max(0, Math.min(midiClockInterval, state.scheduledMidiClockTime - now));
+            
+            state.midiClockTimer = setTimeout(() => {
+                if (state.isPlaying) {
+                    sendMIDIClock();
+                    scheduleMidiClock();
+                }
+            }, delay);
+        }
+
+        function sendMIDINote(note, velocity, duration, channel = null) {
+            if (!state.midiOutput) return;
+            
+            // Use provided channel or cycle through all 16 channels
+            if (channel === null) {
+                channel = state.currentChannel;
+                state.currentChannel = (state.currentChannel + 1) % 16;
+            }
+            
+            // Clamp channel to 0-15
+            channel = Math.max(0, Math.min(15, channel));
+            
+            // Clamp note to valid MIDI range (0-127)
+            note = Math.max(0, Math.min(127, Math.round(note)));
+            
+            // Clamp velocity to valid MIDI range (0-127)
+            velocity = Math.max(0, Math.min(127, Math.round(velocity)));
+            
+            // Update channel activity and statistics
+            const channelData = state.channels[channel];
+            channelData.active = true;
+            channelData.lastActivity = Date.now();
+            channelData.noteCount++;
+            channelData.lastNote = note;
+            channelData.activityLevel = Math.min(1.0, channelData.activityLevel + 0.3);
+            
+            // Apply channel velocity multiplier
+            const finalVelocity = Math.max(0, Math.min(127, Math.floor((velocity * channelData.velocity) / 100)));
+            
+            updateChannelDisplay(channel);
+            
+            // Send note on with channel
+            const noteOn = [0x90 | channel, note, finalVelocity];
+            state.midiOutput.send(noteOn);
+            
+            // Track active note
+            const noteId = `${channel}-${note}`;
+            state.activeNotes.push(noteId);
+            
+            // Schedule note off
+            if (duration > 0) {
+                setTimeout(() => {
+                    if (state.midiOutput) {
+                        const noteOff = [0x80 | channel, note, 0];
+                        state.midiOutput.send(noteOff);
+                        
+                        // Remove from active notes
+                        const index = state.activeNotes.indexOf(noteId);
+                        if (index > -1) {
+                            state.activeNotes.splice(index, 1);
+                        }
+                        
+                        // Update channel activity (fade after 200ms)
+                        setTimeout(() => {
+                            if (Date.now() - channelData.lastActivity > 200) {
+                                channelData.active = false;
+                                updateChannelDisplay(channel);
+                            }
+                        }, 200);
+                    }
+                }, duration);
+            }
+        }
+
+        function sendProgramChange(channel, program) {
+            if (!state.midiOutput) return;
+            channel = Math.max(0, Math.min(15, channel));
+            program = Math.max(0, Math.min(127, program));
+            state.midiOutput.send([0xC0 | channel, program]);
+            state.channels[channel].program = program;
+            updateChannelDisplay(channel);
+        }
+
+
+        // Beat buildup - gradually introduce elements
+        function updateBeatBuildup() {
+            if (!state.isPlaying) return;
+            
+            const elapsed = (Date.now() - state.beatStartTime) / 1000; // seconds
+            
+            // Gradually introduce beat elements
+            if (elapsed >= 2) state.beatBuildup.kick = true;
+            if (elapsed >= 3) state.beatBuildup.bassline = true;
+            if (elapsed >= 4) state.beatBuildup.kickDrum = true;
+            if (elapsed >= 6) state.beatBuildup.snare = true;
+            if (elapsed >= 8) state.beatBuildup.hihat = true;
+        }
+        
+        // Bassline mode - for a specific channel
+        function playBassline(channel) {
+            if (!state.isPlaying || state.channels[channel].mode !== 'bassline') return;
+            
+            const channelData = state.channels[channel];
+            // Add randomness to timing - each channel has different interval
+            const baseInterval = (60000 / state.tempo) * 2; // Half note intervals
+            const randomOffset = (channel % 3) * 0.2; // Vary by channel
+            const basslineInterval = baseInterval * (1 + randomOffset + (Math.random() * 0.3 - 0.15));
+            const now = Date.now();
+            
+            if (now - channelData.lastBasslineTime >= basslineInterval) {
+                const step = channelData.basslineIndex % 32;
+                
+                if (state.beatBuildup.bassline && state.basslinePattern[step]) {
+                    const scaleNotes = scales[state.scale];
+                    // Each channel plays different notes in the scale
+                    const scaleOffset = (channel % scaleNotes.length);
+                    const octaveOffset = Math.floor(channel / 4) - 2; // Vary octaves by channel
+                    const bassNote = state.rootNote - 24 + (octaveOffset * 12) + scaleNotes[scaleOffset];
+                    const velocity = 100 + Math.floor(Math.random() * 20); // 100-120
+                    const duration = 1500 + Math.floor(Math.random() * 600); // 1500-2100
+                    sendMIDINote(bassNote, velocity, duration, channel);
+                }
+                
+                channelData.basslineIndex = (channelData.basslineIndex + 1) % 32;
+                channelData.lastBasslineTime = now;
+            }
+        }
+        
+        // Chords mode - for a specific channel
+        function playChords(channel) {
+            if (!state.isPlaying || state.channels[channel].mode !== 'chords') return;
+            
+            const channelData = state.channels[channel];
+            // Each channel has different timing - vary by channel number
+            const baseInterval = (60000 / state.tempo) * 4; // Whole note intervals
+            const channelTimingOffset = (channel % 4) * 0.25; // Stagger chords across channels
+            const chordInterval = baseInterval * (1 + channelTimingOffset + (Math.random() * 0.2 - 0.1));
+            const now = Date.now();
+            
+            if (now - channelData.lastChordTime >= chordInterval) {
+                const scaleNotes = scales[state.scale];
+                const chordTypes = [
+                    [0, 2, 4],      // Major triad
+                    [0, 3, 7],      // Minor triad
+                    [0, 4, 7],      // Major triad (alternative)
+                    [0, 2, 5, 7],   // Major 7th
+                    [0, 3, 6, 9],   // Diminished
+                    [0, 4, 7, 11]   // Major 7th (alternative)
+                ];
+                
+                // Each channel starts with different chord type and progresses differently
+                const chordTypeIndex = (channelData.chordIndex + channel) % chordTypes.length;
+                const chordType = chordTypes[chordTypeIndex];
+                
+                // Each channel uses different root notes in the scale
+                const rootOffsetIndex = (channelData.chordIndex + (channel * 2)) % scaleNotes.length;
+                const rootOffset = scaleNotes[rootOffsetIndex];
+                
+                // Vary octave by channel
+                const octaveOffset = Math.floor(channel / 3) - 1;
+                
+                // Play chord notes with slight timing variation
+                chordType.forEach((offset, i) => {
+                    const note = state.rootNote + (octaveOffset * 12) + rootOffset + offset;
+                    const velocity = 70 + Math.floor(Math.random() * 20); // 70-90
+                    const duration = 1800 + Math.floor(Math.random() * 400); // 1800-2200
+                    // Stagger chord notes slightly for more natural sound
+                    setTimeout(() => {
+                        sendMIDINote(note, velocity, duration, channel);
+                    }, i * 10);
+                });
+                
+                channelData.chordIndex++;
+                channelData.lastChordTime = now;
+            }
+        }
+
+        // Melody mode - for a specific channel
+        function playMelody(channel) {
+            if (!state.isPlaying || state.channels[channel].mode !== 'melody') return;
+            
+            const channelData = state.channels[channel];
+            // Each channel has different timing - create polyrhythmic melodies
+            const baseInterval = (60000 / state.tempo) * 0.5; // 8th note intervals
+            const channelTimingMultiplier = 1 + ((channel % 5) * 0.15); // Different speeds per channel
+            const randomVariation = 1 + (Math.random() * 0.4 - 0.2); // ±20% randomness
+            const melodyInterval = baseInterval * channelTimingMultiplier * randomVariation;
+            const now = Date.now();
+            
+            if (now - channelData.lastMelodyTime >= melodyInterval) {
+                const scaleNotes = scales[state.scale];
+                
+                // Each channel starts at different position in scale and progresses differently
+                const baseNoteIndex = (channelData.melodyIndex + (channel * 3)) % scaleNotes.length;
+                
+                // Add randomness - sometimes skip notes, sometimes repeat
+                let noteIndex = baseNoteIndex;
+                if (Math.random() < 0.3) {
+                    // 30% chance to jump to different note in scale
+                    noteIndex = Math.floor(Math.random() * scaleNotes.length);
+                } else if (Math.random() < 0.2) {
+                    // 20% chance to repeat previous note
+                    noteIndex = (baseNoteIndex - 1 + scaleNotes.length) % scaleNotes.length;
+                }
+                
+                // Each channel uses different octave range
+                const octaveBase = Math.floor(channel / 4);
+                const octaveVariation = Math.floor(Math.random() * 2); // 0 or 1
+                const octave = (octaveBase + octaveVariation) % 3; // 0, 1, or 2
+                
+                const note = state.rootNote + (octave * 12) + scaleNotes[noteIndex];
+                
+                // More varied velocity and duration
+                const baseVelocity = 60 + (state.intensity / 100) * 40;
+                const velocity = Math.floor(baseVelocity + (Math.random() * 30 - 15)); // ±15 variation
+                const baseDuration = 500 + (state.intensity / 100) * 1000;
+                const duration = Math.floor(baseDuration + (Math.random() * 400 - 200)); // ±200ms variation
+                
+                sendMIDINote(note, velocity, duration, channel);
+                
+                // Vary progression speed - sometimes skip ahead, sometimes stay
+                if (Math.random() < 0.7) {
+                    channelData.melodyIndex++;
+                } else if (Math.random() < 0.3) {
+                    channelData.melodyIndex += 2; // Skip ahead
+                }
+                // Otherwise stay on same note (already handled by randomness above)
+                
+                channelData.lastMelodyTime = now;
+            }
+        }
+
+        // Rhythm mode - sends GM drum notes for a specific channel
+        function playRhythm(channel) {
+            if (!state.isPlaying || state.channels[channel].mode !== 'rhythm') return;
+            
+            updateBeatBuildup();
+            
+            const channelData = state.channels[channel];
+            // Each rhythm channel can have slightly different timing for polyrhythmic feel
+            const baseInterval = (60000 / state.tempo) / 8; // 32nd note intervals
+            const channelTimingOffset = (channel % 3) * 0.05; // Slight timing variation
+            const randomTiming = 1 + (Math.random() * 0.1 - 0.05); // ±5% randomness
+            const beatInterval = baseInterval * (1 + channelTimingOffset) * randomTiming;
+            const now = Date.now();
+            
+            if (now - channelData.lastBeatTime >= beatInterval) {
+                // Each channel can have different pattern offset
+                const patternOffset = channel * 2; // Shift pattern by channel
+                const step = (channelData.beatIndex + patternOffset) % 32;
+                
+                // Each channel focuses on different drum sounds
+                const drumFocus = channel % 4;
+                
+                // Kick - GM note 36 (varied by channel)
+                if (state.beatBuildup.kick && state.kickPattern[step] && (drumFocus === 0 || Math.random() < 0.3)) {
+                    const baseVelocity = step % 16 === 0 ? 100 : (step % 8 === 0 ? 85 : 70);
+                    const velocity = baseVelocity + Math.floor(Math.random() * 15 - 7); // ±7 variation
+                    const duration = 80 + Math.floor(Math.random() * 40); // 80-120ms
+                    sendMIDINote(drumNotes.kick, velocity, duration, channel);
+                    beatPulse = 1.0;
+                }
+                
+                // Kick drum (sub) - GM note 36 with variation
+                if (state.beatBuildup.kickDrum && state.kickDrumPattern[step] && (drumFocus === 1 || Math.random() < 0.2)) {
+                    const baseVelocity = step % 16 === 0 ? 95 : 80;
+                    const velocity = baseVelocity + Math.floor(Math.random() * 10 - 5);
+                    const duration = 120 + Math.floor(Math.random() * 60);
+                    sendMIDINote(drumNotes.kick, velocity, duration, channel);
+                    beatPulse = 1.2;
+                }
+                
+                // Snare - GM note 38
+                if (state.beatBuildup.snare && state.snarePattern[step] && (drumFocus === 2 || Math.random() < 0.4)) {
+                    const baseVelocity = step % 16 === 4 || step % 16 === 12 ? 90 : 75;
+                    const velocity = baseVelocity + Math.floor(Math.random() * 12 - 6);
+                    const duration = 60 + Math.floor(Math.random() * 40);
+                    sendMIDINote(drumNotes.snare, velocity, duration, channel);
+                }
+                
+                // Hi-hat - GM note 42 (closed) or 46 (open)
+                if (state.beatBuildup.hihat && state.hihatPattern[step] && (drumFocus === 3 || Math.random() < 0.5)) {
+                    const baseVelocity = step % 8 === 0 ? 60 : 45;
+                    const velocity = baseVelocity + Math.floor(Math.random() * 10 - 5);
+                    const hihatNote = step % 4 === 0 ? drumNotes.hihatOpen : drumNotes.hihatClosed;
+                    // Sometimes use crash or ride instead
+                    const alternativeNote = Math.random() < 0.1 ? (Math.random() < 0.5 ? drumNotes.crash : drumNotes.ride) : hihatNote;
+                    const duration = 30 + Math.floor(Math.random() * 30);
+                    sendMIDINote(alternativeNote, velocity, duration, channel);
+                }
+                
+                // Random additional percussion hits
+                if (Math.random() < 0.05) { // 5% chance
+                    const randomDrum = [drumNotes.tomHigh, drumNotes.tomMid, drumNotes.tomLow][Math.floor(Math.random() * 3)];
+                    const velocity = 50 + Math.floor(Math.random() * 30);
+                    sendMIDINote(randomDrum, velocity, 50, channel);
+                }
+                
+                // Vary progression - sometimes skip steps for more interesting rhythms
+                if (Math.random() < 0.85) {
+                    channelData.beatIndex = (channelData.beatIndex + 1) % 32;
+                } else {
+                    channelData.beatIndex = (channelData.beatIndex + 2) % 32; // Skip ahead
+                }
+                channelData.lastBeatTime = now;
+            }
+        }
+
+        // Music Generation - Lower pitches (2 octaves lower for intensity-controlled sounds)
+        function generateNextNote() {
+            if (!state.isPlaying) return null;
+
+            const scaleNotes = scales[state.scale];
+            // Lower octaves: 2-3 instead of 3-4
+            const octave = Math.floor(Math.random() * 2) + 2;
+            const scaleIndex = Math.floor(Math.random() * scaleNotes.length);
+            let note = state.rootNote + (octave * 12) + scaleNotes[scaleIndex];
+            
+            // Make intensity-controlled sounds 2 octaves lower (subtract 24 semitones)
+            note = note - 24;
+            
+            // Lower max pitch - clamp to 72 (C5) instead of 108, but accounting for 2 octaves lower
+            const clampedNote = Math.max(21, Math.min(72, note));
+            const velocity = Math.floor(60 + (state.intensity / 100) * 40);
+            const duration = 2000 + (Math.random() * 4000) + ((100 - state.intensity) * 20);
+            
+            return { note: clampedNote, velocity, duration };
+        }
+
+        function playNote(noteData) {
+            if (!noteData) return;
+
+            const { note, velocity, duration } = noteData;
+            
+            // Send to MIDI (will cycle through all 16 channels)
+                sendMIDINote(note, velocity, duration);
+
+            // Trigger visual effects
+            triggerVisualEffect(note, velocity);
+        }
+
+        function triggerVisualEffect(note, velocity) {
+            // Add particles with frequency mapping
+            if (state.visuals.particles) {
+                const count = Math.floor((velocity / 127) * 15);
+                const normalizedNote = (note - 21) / (72 - 21); // Normalize to 0-1 (max is now 72)
+                for (let i = 0; i < count; i++) {
+                    particles.push(new Particle(
+                        Math.random() * canvas.width,
+                        Math.random() * canvas.height,
+                        normalizedNote + (Math.random() - 0.5) * 0.1,
+                        velocity / 127
+                    ));
+                }
+            }
+
+            // Update geometric pattern
+            if (state.visuals.geometric) {
+                geometricRotation += (velocity / 127) * 0.15;
+                geometricScale = 0.8 + (velocity / 127) * 0.5;
+            }
+        }
+
+        // Playback control
+        async function startPlayback() {
+            if (state.isPlaying) return;
+
+            state.isPlaying = true;
+            state.lastNoteTime = Date.now();
+            state.lastBeatTime = Date.now();
+            state.beatIndex = 0;
+            state.beatStartTime = Date.now();
+            state.midiClockTick = 0;
+            state.scheduledMidiClockTime = 0;
+            
+            // Reset per-channel timing
+            for (let ch = 0; ch < 16; ch++) {
+                const channel = state.channels[ch];
+                channel.lastNoteTime = Date.now();
+                channel.lastBeatTime = Date.now();
+                channel.beatIndex = 0;
+                channel.basslineIndex = 0;
+                channel.lastBasslineTime = Date.now();
+                channel.chordIndex = 0;
+                channel.lastChordTime = Date.now();
+                channel.melodyIndex = 0;
+                channel.lastMelodyTime = Date.now();
+            }
+            
+            // Reset buildup
+            state.beatBuildup = {
+                kick: false,
+                snare: false,
+                hihat: false,
+                kickDrum: false,
+                bassline: false
+            };
+
+            // Send MIDI Start and begin clock
+            sendMIDIStart();
+            scheduleMidiClock();
+
+            function scheduleNext() {
+                if (!state.isPlaying) return;
+
+                const now = Date.now();
+                
+                // Play each channel according to its mode
+                for (let ch = 0; ch < 16; ch++) {
+                    const channelMode = state.channels[ch].mode;
+                    if (channelMode === 'rhythm') {
+                        playRhythm(ch);
+                    } else if (channelMode === 'bassline') {
+                        playBassline(ch);
+                    } else if (channelMode === 'chords') {
+                        playChords(ch);
+                    } else if (channelMode === 'melody') {
+                        playMelody(ch);
+                    }
+                    // 'off' mode does nothing
+                }
+
+                setTimeout(scheduleNext, 50);
+            }
+
+            scheduleNext();
+        }
+
+        function stopPlayback() {
+            state.isPlaying = false;
+            particles = [];
+            beatPulse = 0;
+            
+            // Send MIDI Stop
+            sendMIDIStop();
+            
+            // Send all notes off on all channels
+            if (state.midiOutput) {
+                for (let channel = 0; channel < 16; channel++) {
+                    // All Notes Off (CC 123)
+                    state.midiOutput.send([0xB0 | channel, 123, 0]);
+                    state.channels[channel].active = false;
+                    updateChannelDisplay(channel);
+                }
+            }
+        }
+
+        // Channel visualization - 4x4 grid, one section per channel
+        let channelSections = [];
+        let mouseOverChannel = null;
+        let selectedChannel = null;
+        let editingControl = null; // 'mode', 'program', 'velocity', or null
+        
+        function getChannelSection(channel) {
+            const col = channel % 4;
+            const row = Math.floor(channel / 4);
+            const sectionWidth = canvas.width / 4;
+            const sectionHeight = canvas.height / 4;
+            return {
+                x: col * sectionWidth,
+                y: row * sectionHeight,
+                width: sectionWidth,
+                height: sectionHeight,
+                channel: channel
+            };
+        }
+
+        function getChannelFromCoords(x, y) {
+            const col = Math.floor((x / canvas.width) * 4);
+            const row = Math.floor((y / canvas.height) * 4);
+            const channel = row * 4 + col;
+            return Math.max(0, Math.min(15, channel));
+        }
+        
+        function getControlArea(section, controlType) {
+            const controlHeight = section.height * 0.12;
+            const yOffset = {
+                'mode': section.y + section.height * 0.15,
+                'program': section.y + section.height * 0.30,
+                'velocity': section.y + section.height * 0.45
+            };
+            return {
+                x: section.x + section.width * 0.1,
+                y: yOffset[controlType],
+                width: section.width * 0.8,
+                height: controlHeight
+            };
+        }
+        
+        function getControlAtPosition(x, y, channel) {
+            const section = getChannelSection(channel);
+            const controls = ['mode', 'program', 'velocity'];
+            for (const control of controls) {
+                const area = getControlArea(section, control);
+                if (x >= area.x && x <= area.x + area.width &&
+                    y >= area.y && y <= area.y + area.height) {
+                    return control;
+                }
+            }
+            return null;
+        }
+
+        // Enhanced Visualization - 4x4 grid per channel
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Fade activity levels
+            const now = Date.now();
+            for (let i = 0; i < 16; i++) {
+                const channel = state.channels[i];
+                if (!channel.active && channel.activityLevel > 0) {
+                    channel.activityLevel *= 0.95; // Fade out
+                    if (channel.activityLevel < 0.01) {
+                        channel.activityLevel = 0;
+                    }
+                }
+            }
+
+            // Draw 4x4 grid - one section per channel
+            for (let ch = 0; ch < 16; ch++) {
+                const section = getChannelSection(ch);
+                const channel = state.channels[ch];
+                
+                    ctx.save();
+                
+                // Section background
+                const bgAlpha = 0.1 + (channel.activityLevel * 0.3);
+                ctx.fillStyle = `hsla(${ch * 22.5}, 50%, 30%, ${bgAlpha})`;
+                ctx.fillRect(section.x, section.y, section.width, section.height);
+                
+                // Border
+                const borderWidth = channel.active ? 3 : 1;
+                const borderColor = channel.active ? 
+                    `hsl(${ch * 22.5}, 70%, 60%)` : 
+                    `hsla(${ch * 22.5}, 30%, 40%, 0.3)`;
+                ctx.strokeStyle = borderColor;
+                ctx.lineWidth = borderWidth;
+                ctx.strokeRect(section.x, section.y, section.width, section.height);
+                
+                // Channel number
+                ctx.fillStyle = '#e0e0e0';
+                ctx.font = 'bold 16px monospace';
+                ctx.fillText(`Ch ${ch + 1}`, section.x + 8, section.y + 18);
+                
+                // Mode selector (clickable)
+                const modeArea = getControlArea(section, 'mode');
+                const isModeSelected = selectedChannel === ch && editingControl === 'mode';
+                ctx.fillStyle = isModeSelected ? `hsla(${ch * 22.5}, 70%, 60%, 0.3)` : 'rgba(255, 255, 255, 0.1)';
+                ctx.fillRect(modeArea.x, modeArea.y, modeArea.width, modeArea.height);
+                ctx.strokeStyle = isModeSelected ? `hsl(${ch * 22.5}, 70%, 60%)` : 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = isModeSelected ? 2 : 1;
+                ctx.strokeRect(modeArea.x, modeArea.y, modeArea.width, modeArea.height);
+                ctx.fillStyle = `hsl(${ch * 22.5}, 70%, 60%)`;
+                ctx.font = '11px monospace';
+                ctx.textAlign = 'left';
+                const modeText = channel.mode.substring(0, 3).toUpperCase();
+                ctx.fillText(modeText, modeArea.x + 6, modeArea.y + modeArea.height * 0.7);
+                
+                // Program change selector (clickable)
+                const programArea = getControlArea(section, 'program');
+                const isProgramSelected = selectedChannel === ch && editingControl === 'program';
+                ctx.fillStyle = isProgramSelected ? `hsla(${ch * 22.5}, 70%, 60%, 0.3)` : 'rgba(255, 255, 255, 0.1)';
+                ctx.fillRect(programArea.x, programArea.y, programArea.width, programArea.height);
+                ctx.strokeStyle = isProgramSelected ? `hsl(${ch * 22.5}, 70%, 60%)` : 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = isProgramSelected ? 2 : 1;
+                ctx.strokeRect(programArea.x, programArea.y, programArea.width, programArea.height);
+                ctx.fillStyle = '#e0e0e0';
+                ctx.font = '10px monospace';
+                ctx.fillText(`PC ${channel.program}`, programArea.x + 6, programArea.y + programArea.height * 0.7);
+                
+                // Velocity slider (clickable)
+                const velocityArea = getControlArea(section, 'velocity');
+                const isVelocitySelected = selectedChannel === ch && editingControl === 'velocity';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.fillRect(velocityArea.x, velocityArea.y, velocityArea.width, velocityArea.height);
+                ctx.strokeStyle = isVelocitySelected ? `hsl(${ch * 22.5}, 70%, 60%)` : 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = isVelocitySelected ? 2 : 1;
+                ctx.strokeRect(velocityArea.x, velocityArea.y, velocityArea.width, velocityArea.height);
+                
+                // Velocity bar
+                const velocityWidth = (channel.velocity / 200) * velocityArea.width;
+                ctx.fillStyle = `hsl(${ch * 22.5}, 70%, 60%)`;
+                ctx.fillRect(velocityArea.x, velocityArea.y, velocityWidth, velocityArea.height);
+                
+                // Velocity text
+                ctx.fillStyle = '#e0e0e0';
+                ctx.font = '9px monospace';
+                ctx.fillText(`${channel.velocity}%`, velocityArea.x + 6, velocityArea.y + velocityArea.height * 0.7);
+                
+                // Activity visualization
+                if (channel.activityLevel > 0) {
+                    const activityHeight = section.height * 0.4 * channel.activityLevel;
+                    ctx.fillStyle = `hsla(${ch * 22.5}, 70%, 60%, ${0.6 * channel.activityLevel})`;
+                    ctx.fillRect(section.x, section.y + section.height - activityHeight, section.width, activityHeight);
+                }
+                
+                // Note visualization
+                if (channel.lastNote !== null) {
+                    const noteX = section.x + section.width / 2;
+                    const noteY = section.y + section.height * 0.6;
+                    const noteSize = 8 + (channel.activityLevel * 12);
+                    
+                    ctx.fillStyle = `hsl(${ch * 22.5}, 70%, 60%)`;
+                    ctx.beginPath();
+                    ctx.arc(noteX, noteY, noteSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Note number
+                    ctx.fillStyle = '#000';
+                    ctx.font = 'bold 10px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(channel.lastNote.toString(), noteX, noteY + 3);
+                    ctx.textAlign = 'left';
+                }
+                
+                // Note count
+                if (channel.noteCount > 0) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.font = '9px monospace';
+                    ctx.fillText(`${channel.noteCount}`, section.x + section.width - 25, section.y + section.height - 5);
+                }
+                
+                // Hover effect
+                if (mouseOverChannel === ch) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    ctx.fillRect(section.x, section.y, section.width, section.height);
+                }
+                
+                ctx.restore();
+            }
+
+            state.animationId = requestAnimationFrame(animate);
+        }
+
+        // localStorage functions
+        function saveSettings() {
+            const settings = {
+                tempo: state.tempo,
+                scale: state.scale,
+                intensity: state.intensity,
+                rootNote: state.rootNote,
+                modes: state.modes,
+                channelPrograms: state.channels.map(c => c.program),
+                channelModes: state.channels.map(c => c.mode),
+                channelVelocities: state.channels.map(c => c.velocity)
+            };
+            localStorage.setItem('midi6Settings', JSON.stringify(settings));
+        }
+
+        function loadSettings() {
+            const saved = localStorage.getItem('midi6Settings');
+            if (saved) {
+                try {
+                    const settings = JSON.parse(saved);
+                    state.tempo = settings.tempo || state.tempo;
+                    state.scale = settings.scale || state.scale;
+                    state.intensity = settings.intensity || state.intensity;
+                    state.rootNote = settings.rootNote || state.rootNote;
+                    
+                    if (settings.modes) {
+                        Object.assign(state.modes, settings.modes);
+                    }
+                    
+                    if (settings.channelPrograms) {
+                        settings.channelPrograms.forEach((program, i) => {
+                            if (i < 16) {
+                                state.channels[i].program = program;
+                            }
+                        });
+                    }
+                    
+                    if (settings.channelModes) {
+                        settings.channelModes.forEach((mode, i) => {
+                            if (i < 16 && mode) {
+                                state.channels[i].mode = mode;
+                            }
+                        });
+                    }
+                    
+                    if (settings.channelVelocities) {
+                        settings.channelVelocities.forEach((velocity, i) => {
+                            if (i < 16 && velocity !== undefined) {
+                                state.channels[i].velocity = velocity;
+                            }
+                        });
+                    }
+                    
+                    // Update UI
+                    updateUIFromState();
+                } catch (error) {
+                    console.error('Error loading settings:', error);
+                }
+            }
+        }
+
+        function updateUIFromState() {
+            document.getElementById('tempoSlider').value = state.tempo;
+            document.getElementById('tempoValue').textContent = state.tempo;
+            document.getElementById('scaleSelect').value = state.scale;
+            document.getElementById('intensitySlider').value = state.intensity;
+            document.getElementById('intensityValue').textContent = state.intensity;
+            document.getElementById('rootNoteSelect').value = state.rootNote;
+        }
+
+
+        // Fullscreen toggle on double-click
+        const canvasContainer = document.querySelector('.canvas-container');
+        let isFullscreen = false;
+
+        async function toggleFullscreen() {
+            try {
+                if (!isFullscreen) {
+                    // Enter fullscreen
+                    if (canvasContainer.requestFullscreen) {
+                        await canvasContainer.requestFullscreen();
+                    } else if (canvasContainer.webkitRequestFullscreen) {
+                        await canvasContainer.webkitRequestFullscreen();
+                    } else if (canvasContainer.mozRequestFullScreen) {
+                        await canvasContainer.mozRequestFullScreen();
+                    } else if (canvasContainer.msRequestFullscreen) {
+                        await canvasContainer.msRequestFullscreen();
+                    }
+                } else {
+                    // Exit fullscreen
+                    if (document.exitFullscreen) {
+                        await document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        await document.webkitExitFullscreen();
+                    } else if (document.mozCancelFullScreen) {
+                        await document.mozCancelFullScreen();
+                    } else if (document.msExitFullscreen) {
+                        await document.msExitFullscreen();
+                    }
+                }
+            } catch (error) {
+                console.error('Fullscreen error:', error);
+            }
+        }
+
+        // Handle fullscreen change events
+        function handleFullscreenChange() {
+            isFullscreen = !!(
+                document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement
+            );
+            
+            // Resize canvas when entering/exiting fullscreen
+            setTimeout(() => {
+                resizeCanvas();
+            }, 100);
+        }
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+        // Canvas interaction for channel control
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            mouseOverChannel = getChannelFromCoords(x, y);
+            
+            // Update cursor based on what we're hovering over
+            if (mouseOverChannel !== null) {
+                const control = getControlAtPosition(x, y, mouseOverChannel);
+                canvas.style.cursor = control ? 'pointer' : 'default';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            mouseOverChannel = null;
+            canvas.style.cursor = 'default';
+        });
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const channel = getChannelFromCoords(x, y);
+            const control = getControlAtPosition(x, y, channel);
+            
+            if (control === 'mode') {
+                // Cycle through modes
+                const modes = ['rhythm', 'bassline', 'chords', 'melody', 'off'];
+                const currentIndex = modes.indexOf(state.channels[channel].mode);
+                const nextIndex = (currentIndex + 1) % modes.length;
+                state.channels[channel].mode = modes[nextIndex];
+                saveSettings();
+            } else if (control === 'program') {
+                // Cycle through program changes (0-127)
+                state.channels[channel].program = (state.channels[channel].program + 1) % 128;
+                sendProgramChange(channel, state.channels[channel].program);
+                saveSettings();
+            } else if (control === 'velocity') {
+                // Set velocity based on X position in the slider area
+                const section = getChannelSection(channel);
+                const velocityArea = getControlArea(section, 'velocity');
+                const relativeX = x - velocityArea.x;
+                const percentage = Math.max(0, Math.min(200, (relativeX / velocityArea.width) * 200));
+                state.channels[channel].velocity = Math.round(percentage);
+                saveSettings();
+            } else {
+                // Click on channel area but not a control - select channel
+                selectedChannel = selectedChannel === channel ? null : channel;
+                editingControl = null;
+            }
+        });
+        
+        canvas.addEventListener('wheel', (e) => {
+            if (selectedChannel !== null && editingControl !== null) {
+                e.preventDefault();
+                const channel = state.channels[selectedChannel];
+                
+                if (editingControl === 'program') {
+                    const delta = e.deltaY > 0 ? -1 : 1;
+                    channel.program = Math.max(0, Math.min(127, channel.program + delta));
+                    sendProgramChange(selectedChannel, channel.program);
+                    saveSettings();
+                } else if (editingControl === 'velocity') {
+                    const delta = e.deltaY > 0 ? -5 : 5;
+                    channel.velocity = Math.max(0, Math.min(200, channel.velocity + delta));
+                    saveSettings();
+                }
+            }
+        });
+        
+        // Right-click to set editing control
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const channel = getChannelFromCoords(x, y);
+            const control = getControlAtPosition(x, y, channel);
+            
+            if (control) {
+                selectedChannel = channel;
+                editingControl = control;
+            }
+        });
+
+        // F key to toggle fullscreen
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                toggleFullscreen();
+            }
+        });
+
+        // UI Controls
+        function updateStatus(message, connected) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + (connected ? 'connected' : 'disconnected');
+        }
+
+
+        document.getElementById('playBtn').addEventListener('click', async () => {
+            await startPlayback();
+            if (!state.animationId) {
+                animate();
+            }
+        });
+
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            stopPlayback();
+        });
+
+        document.getElementById('tempoSlider').addEventListener('input', (e) => {
+            state.tempo = parseInt(e.target.value);
+            document.getElementById('tempoValue').textContent = state.tempo;
+            saveSettings();
+        });
+
+        document.getElementById('scaleSelect').addEventListener('change', (e) => {
+            state.scale = e.target.value;
+            saveSettings();
+        });
+
+        document.getElementById('intensitySlider').addEventListener('input', (e) => {
+            state.intensity = parseInt(e.target.value);
+            document.getElementById('intensityValue').textContent = state.intensity;
+            saveSettings();
+        });
+
+        document.getElementById('rootNoteSelect').addEventListener('change', (e) => {
+            state.rootNote = parseInt(e.target.value);
+            saveSettings();
+        });
+
+        // Visuals are always enabled, no controls needed
+
+        // Initialize
+        loadSettings(); // Load saved settings first
+        requestMIDIAccess();
+        animate();
+    </script>
+</body>
+</html>
+

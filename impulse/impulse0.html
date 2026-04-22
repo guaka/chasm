@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Impulse Tracker Player - Chasm</title>
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', Consolas, monospace; background: #0a0a0c; color: #e0e0e0; height: 100vh; overflow: hidden; }
+        .container { display: flex; flex-direction: column; height: 100vh; }
+        .header { background: #1a1a1e; padding: 6px 12px; border-bottom: 2px solid #2a2a30; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .header h1 { font-size: 15px; font-weight: normal; color: #c0c0c0; }
+        .header button, .header select { background: #2a2a30; border: 1px solid #444; color: #e0e0e0; padding: 5px 10px; font-family: inherit; font-size: 11px; cursor: pointer; }
+        .header button:hover { background: #353540; }
+        .header button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .header button.active { background: #404060; border-color: #6666aa; }
+        .header label { color: #888; font-size: 11px; }
+        .header input[type=number] { width: 44px; background: #2a2a30; border: 1px solid #444; color: #fff; padding: 4px; font-family: inherit; font-size: 11px; }
+        .main { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+        .file-list { width: 160px; min-width: 160px; background: #121216; border-right: 1px solid #2a2a30; overflow-y: auto; padding: 6px; }
+        .file-list h3 { font-size: 10px; color: #555; margin-bottom: 6px; }
+        .file-list a { display: block; padding: 3px 5px; color: #777; text-decoration: none; font-size: 10px; border-radius: 2px; }
+        .file-list a:hover { background: #1e1e24; color: #c0c0c0; }
+        .file-list a.loaded { color: #80a0ff; }
+        .editor-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .tabs { display: flex; background: #161618; border-bottom: 1px solid #2a2a30; }
+        .tab { padding: 5px 14px; font-size: 11px; color: #666; cursor: pointer; border-bottom: 2px solid transparent; }
+        .tab:hover { color: #aaa; }
+        .tab.active { color: #c0c0e0; border-bottom-color: #6666aa; }
+        .info-bar { background: #1a1a1e; padding: 3px 10px; font-size: 10px; color: #666; border-bottom: 1px solid #2a2a30; }
+        .info-bar span { margin-right: 14px; }
+        .panel { flex: 1; overflow: hidden; display: none; }
+        .panel.active { display: flex; flex-direction: column; }
+        .pattern-wrap { flex: 1; overflow: auto; padding: 4px 8px; }
+        .pattern-table { border-collapse: collapse; font-size: 11px; width: max-content; }
+        .pattern-table th, .pattern-table td { border: 1px solid #1e1e22; padding: 1px 4px; white-space: nowrap; }
+        .pattern-table th { background: #1a1a20; color: #555; position: sticky; top: 0; z-index: 2; font-size: 10px; }
+        .pattern-table td.rn { background: #141418; color: #444; text-align: right; width: 28px; font-size: 10px; position: sticky; left: 0; z-index: 1; }
+        .pattern-table td.c { min-width: 80px; }
+        .pattern-table tr.playing td { background: #28203e !important; }
+        .pattern-table tr.playing td.rn { color: #9070dd; }
+        .pattern-table .nt { color: #90b8e0; } .pattern-table .nt.off { color: #e08080; }
+        .pattern-table .in { color: #70a070; } .pattern-table .vl { color: #c0a060; } .pattern-table .fx { color: #b08080; }
+        .sample-panel { flex: 1; overflow: auto; padding: 10px; display: flex; gap: 12px; }
+        .sample-list-wrap { width: 220px; min-width: 220px; overflow-y: auto; }
+        .sample-list-wrap h3 { font-size: 11px; color: #666; margin-bottom: 6px; }
+        .smp-item { padding: 4px 6px; font-size: 10px; color: #888; cursor: pointer; border: 1px solid transparent; border-radius: 2px; display: flex; gap: 6px; }
+        .smp-item:hover { background: #1e1e24; }
+        .smp-item.active { background: #202038; border-color: #4444aa; color: #c0c0e0; }
+        .smp-item .idx { color: #555; width: 24px; text-align: right; }
+        .sample-detail { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .waveform-canvas { width: 100%; height: 160px; background: #0e0e12; border: 1px solid #2a2a30; border-radius: 2px; }
+        .smp-info { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; font-size: 11px; }
+        .smp-info .field { display: flex; gap: 6px; }
+        .smp-info .lbl { color: #666; }
+        .smp-info .val { color: #b0b0c0; }
+        .inst-panel { flex: 1; overflow: auto; padding: 10px; display: flex; gap: 12px; }
+        .inst-list-wrap { width: 220px; min-width: 220px; overflow-y: auto; }
+        .inst-list-wrap h3 { font-size: 11px; color: #666; margin-bottom: 6px; }
+        .ins-item { padding: 4px 6px; font-size: 10px; color: #888; cursor: pointer; border: 1px solid transparent; border-radius: 2px; display: flex; gap: 6px; }
+        .ins-item:hover { background: #1e1e24; }
+        .ins-item.active { background: #202038; border-color: #4444aa; color: #c0c0e0; }
+        .ins-item .idx { color: #555; width: 24px; text-align: right; }
+        .inst-detail { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .env-canvas { width: 100%; height: 120px; background: #0e0e12; border: 1px solid #2a2a30; border-radius: 2px; }
+        .note-table-wrap { overflow: auto; max-height: 200px; }
+        .note-table { border-collapse: collapse; font-size: 10px; width: 100%; }
+        .note-table th, .note-table td { border: 1px solid #1e1e22; padding: 2px 4px; }
+        .note-table th { background: #1a1a20; color: #555; position: sticky; top: 0; }
+        .note-table td { color: #888; }
+        .toast { position: fixed; bottom: 16px; right: 16px; background: #2a2a30; border: 1px solid #555; color: #e0e0e0; padding: 8px 14px; font-size: 11px; border-radius: 3px; z-index: 100; display: none; }
+        kbd { background: #2a2a30; border: 1px solid #444; border-radius: 2px; padding: 1px 5px; font-family: inherit; font-size: 10px; color: #c0c0e0; white-space: nowrap; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Impulse Player</h1>
+        <input type="file" id="fileInput" accept=".it" style="display:none;">
+        <button id="btnOpen">Open .it</button>
+        <button id="btnPlay" disabled>Play</button>
+        <button id="btnStop" disabled>Stop</button>
+        <label>Spd</label><input type="number" id="inputSpeed" min="1" max="255" value="6">
+        <label>Tmp</label><input type="number" id="inputTempo" min="32" max="255" value="125">
+        <label>Ord</label><input type="number" id="inputOrder" min="0" value="0" style="width:36px;background:#2a2a30;border:1px solid #444;color:#fff;padding:4px;font-family:inherit;font-size:11px;">
+        <span id="songTitle" style="color:#777;font-size:11px;margin-left:6px;">No module loaded</span>
+    </div>
+    <div class="main">
+        <div class="file-list" id="fileListPanel">
+            <h3>itfiles/</h3>
+        </div>
+        <div class="editor-area">
+            <div class="tabs">
+                <div class="tab active" data-panel="patternPanel">Pattern</div>
+                <div class="tab" data-panel="samplePanel">Samples</div>
+                <div class="tab" data-panel="instrumentPanel">Instruments</div>
+            </div>
+            <div class="info-bar">
+                <span id="infoOrders">Ord: -</span>
+                <span id="infoPattern">Pat: -</span>
+                <span id="infoRow">Row: -</span>
+                <span id="infoCh">Ch: -</span>
+                <span id="infoSmp">Smp: -</span>
+                <span id="infoIns">Ins: -</span>
+            </div>
+            <div class="panel active" id="patternPanel">
+                <div class="pattern-wrap" id="patternWrap">
+                    <table class="pattern-table"><thead id="patHead"></thead><tbody id="patBody"></tbody></table>
+                </div>
+            </div>
+            <div class="panel" id="samplePanel">
+                <div class="sample-panel">
+                    <div class="sample-list-wrap"><h3>Samples</h3><div id="smpList"></div></div>
+                    <div class="sample-detail">
+                        <canvas class="waveform-canvas" id="waveCanvas"></canvas>
+                        <div class="smp-info" id="smpInfo"></div>
+                        <div style="display:flex;gap:8px;">
+                            <button id="smpPreview" style="background:#2a2a30;border:1px solid #444;color:#e0e0e0;padding:4px 10px;font-family:inherit;font-size:11px;cursor:pointer;">Preview (C-5)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel" id="instrumentPanel">
+                <div class="inst-panel">
+                    <div class="inst-list-wrap"><h3>Instruments</h3><div id="insList"></div></div>
+                    <div class="inst-detail">
+                        <div id="insInfo" style="font-size:11px;color:#888;margin-bottom:6px;"></div>
+                        <canvas class="env-canvas" id="envCanvas"></canvas>
+                        <div class="note-table-wrap"><table class="note-table"><thead id="ntHead"></thead><tbody id="ntBody"></tbody></table></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FX = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const IT_FILES = [
+    '1-2sleepy.it','1EekWack.it','1fuzzy.it','2IdLike.it','3Fuzzy.it','3MetroM.it',
+    '4Buzz.it','4digginup.it','4LifeBan.it','5Ameracs.it','5EekWack.it','5noisy2.it',
+    '6fuck.it','6Gazzzz.it','6LoveIn.it','7LeftAln.it','8bloxy.it','8DyEver.it',
+    '8Nothing.it','9KasMo.it','9sick.it','a.it','aHomesick.it','alisan.it',
+    'amershit.it','babylon.it','bborl.it','befatrnd.it','biofield.it','bitoshir.it',
+    'bleazik.it','blyerz.it','Bmetro.it','bom.it','borrycal.it','bortyar.it',
+    'bourface.it','boywondr.it','bubbles.it','bubla-l-.it','bvbiet.it','bwcuie.it',
+    'byeceq.it','cDigginUp.it','CHRIS31B.IT','cl.it','coincook.it','Cquorny.it',
+    'crap.it','crappy.it','CYMALLY.IT','cZoxyMorn.it','DAFDOESD.IT','dais.it',
+    'dDigginUp.it','dioranje.it','doggiego.it','dreamt.it','drrt.it','Dzoxy.it',
+    'Ebomb.it','eImproNight.it','eonsformidi.it','eonsforn.it','ewsimul.it','extrnois.it',
+    'fatcase.it','fffuk.it','fVacuum.it','gBomb.IT','ghirw.it','gindust.it',
+    'HELLONE.IT','huty.it','indisqru.it','inside2.it','jattery.it','JEFF93.IT',
+    'jer222.it','kill.it','konjing.it','kowcoew.it','krash.it','lastloop.it',
+    'Module1.it','moizena.it','NEW FUCK.IT','NEWELE.IT','nice384.it','nicebiet.it',
+    'noname.it','nothing.it','ntry.it','nwase.it','obdistan.it','pannn.it',
+    'papdag.it','PARIJS.IT','pinpon.it','pretty.it','quakce.it','qwioe341.it',
+    'ronguit.it','ronk.it','ronnnn.it','ronsamb.it','rontest.it','roqwreo.it',
+    'seisreq.it','shinterf.it','shite.it','skinnyan.it','stormy.it','syak.it',
+    'synthe4.it','synthe5.it','TEST.IT','tineke.it','TOOEARLY.IT','trainish.it',
+    'TROPPORK.IT','trying.it','tskatska.it','turtlet.it','vadzhak.it','vagnoi.it',
+    'vaz111.it','virus!.it','viva!!!.it','viva.it','walta.it','weetikvl.it',
+    'whistle.it','yronne.it','zz3Fuzzy.it'
+];
+
+function noteStr(n) {
+    if (n == null) return '...';
+    if (n === 255) return '^^';
+    if (n === 254) return '==';
+    if (n >= 0 && n <= 119) return NOTE_NAMES[n % 12] + '-' + Math.floor(n / 12);
+    return '...';
+}
+function hex2(v) { return ('0' + (v || 0).toString(16)).slice(-2).toUpperCase(); }
+function readStr(dv, off, len) { let s = ''; for (let i = 0; i < len; i++) { const c = dv.getUint8(off + i); if (!c) break; s += String.fromCharCode(c); } return s.trim(); }
+
+// ── IT Parser ──────────────────────────────────────────────────
+function parseIT(buf) {
+    const dv = new DataView(buf);
+    if (dv.byteLength < 0xC4) return null;
+    const sig = readStr(dv, 0, 4);
+    if (sig !== 'IMPM') return null;
+    const songName = readStr(dv, 0x04, 26);
+    const ordNum = dv.getUint16(0x20, true);
+    const insNum = dv.getUint16(0x22, true);
+    const smpNum = dv.getUint16(0x24, true);
+    const patNum = dv.getUint16(0x26, true);
+    const flags  = dv.getUint16(0x2C, true);
+    const globalVol = dv.getUint8(0x30);
+    const mixVol    = dv.getUint8(0x31);
+    const speed     = dv.getUint8(0x32) || 6;
+    const tempo     = dv.getUint8(0x33) || 125;
+    const chnlPan = []; for (let i = 0; i < 64; i++) chnlPan.push(dv.getUint8(0x40 + i));
+    const chnlVol = []; for (let i = 0; i < 64; i++) chnlVol.push(dv.getUint8(0x80 + i));
+    const orders = []; for (let i = 0; i < ordNum; i++) orders.push(dv.getUint8(0xC0 + i));
+    const insPtrBase = 0xC0 + ordNum;
+    const smpPtrBase = insPtrBase + insNum * 4;
+    const patPtrBase = smpPtrBase + smpNum * 4;
+    const useInstruments = !!(flags & 4);
+
+    const insOff = []; for (let i = 0; i < insNum; i++) insOff.push(dv.getUint32(insPtrBase + i * 4, true));
+    const smpOff = []; for (let i = 0; i < smpNum; i++) smpOff.push(dv.getUint32(smpPtrBase + i * 4, true));
+    const patOff = []; for (let i = 0; i < patNum; i++) patOff.push(dv.getUint32(patPtrBase + i * 4, true));
+
+    const instruments = [];
+    for (let i = 0; i < insNum; i++) {
+        const o = insOff[i];
+        if (!o || o + 0x130 > buf.byteLength || readStr(dv, o, 4) !== 'IMPI') { instruments.push({ name: '', sampleTable: [], volEnv: null }); continue; }
+        const name = readStr(dv, o + 0x20, 26);
+        const tbl = [];
+        for (let k = 0; k < 120; k++) tbl.push({ note: dv.getUint8(o + 0x40 + k * 2), smp: dv.getUint8(o + 0x40 + k * 2 + 1) });
+        const volEnv = parseEnvelope(dv, o + 0x130);
+        const panEnv = parseEnvelope(dv, o + 0x182);
+        const pitchEnv = parseEnvelope(dv, o + 0x1D4);
+        instruments.push({ name, sampleTable: tbl, volEnv, panEnv, pitchEnv });
+    }
+
+    const samples = [];
+    for (let i = 0; i < smpNum; i++) {
+        const o = smpOff[i];
+        if (!o || o + 0x50 > buf.byteLength || readStr(dv, o, 4) !== 'IMPS') {
+            samples.push({ name: '', length: 0, data: null, c5speed: 8363, vol: 64, loopStart: 0, loopEnd: 0, loop: false, bits16: false, flags: 0 });
+            continue;
+        }
+        const sFlags = dv.getUint8(o + 0x12);
+        const vol    = dv.getUint8(o + 0x13);
+        const name   = readStr(dv, o + 0x14, 26);
+        const cvt    = dv.getUint8(o + 0x20);
+        const length    = dv.getUint32(o + 0x30, true);
+        const loopStart = dv.getUint32(o + 0x34, true);
+        const loopEnd   = dv.getUint32(o + 0x38, true);
+        const c5speed   = dv.getUint32(o + 0x3C, true) || 8363;
+        const dataOff   = dv.getUint32(o + 0x48, true);
+        const bits16     = !!(sFlags & 2);
+        const compressed = !!(sFlags & 8);
+        const loop       = !!(sFlags & 16);
+        const signed     = !!(cvt & 1);
+        let data = null;
+        if (length > 0 && dataOff > 0 && dataOff < buf.byteLength) {
+            try {
+                data = compressed ? decompressIT(dv, dataOff, length, bits16) : readRaw(dv, dataOff, length, bits16, signed);
+            } catch (e) { console.warn('Sample', i, 'load error:', e); }
+        }
+        samples.push({ name, length, data, c5speed, vol: vol || 64, loopStart, loopEnd, loop, bits16, flags: sFlags });
+    }
+
+    const patterns = [];
+    for (let p = 0; p < patNum; p++) {
+        const o = patOff[p];
+        if (!o) { patterns.push(emptyPat(64)); continue; }
+        try {
+            const packLen = dv.getUint16(o, true);
+            const rows = dv.getUint16(o + 2, true) || 64;
+            const start = o + 8;
+            const len = Math.min(packLen, buf.byteLength - start);
+            if (len <= 0) { patterns.push(emptyPat(rows)); continue; }
+            patterns.push({ rows, data: unpackPat(new Uint8Array(buf, start, len), rows) });
+        } catch (e) { console.warn('Pattern', p, 'error:', e); patterns.push(emptyPat(64)); }
+    }
+
+    console.log('Parsed IT:', songName, '| ord:', ordNum, '| ins:', insNum, '| smp:', smpNum, '| pat:', patNum, '| spd:', speed, '| tmp:', tempo);
+    return { songName, orders, instruments, samples, patterns, speed, tempo, globalVol, mixVol, flags, useInstruments, chnlPan, chnlVol };
+}
+
+function parseEnvelope(dv, off) {
+    try {
+        const flg = dv.getUint8(off);
+        const num = dv.getUint8(off + 1);
+        const lpB = dv.getUint8(off + 2);
+        const lpE = dv.getUint8(off + 3);
+        const slB = dv.getUint8(off + 4);
+        const slE = dv.getUint8(off + 5);
+        const nodes = [];
+        for (let i = 0; i < Math.min(num, 25); i++) {
+            const y = dv.getInt8(off + 6 + i * 3);
+            const x = dv.getUint16(off + 7 + i * 3, true);
+            nodes.push({ x, y });
+        }
+        return { enabled: !!(flg & 1), loop: !!(flg & 2), susLoop: !!(flg & 4), lpB, lpE, slB, slE, nodes };
+    } catch (e) { return null; }
+}
+
+function emptyPat(rows) {
+    const data = [];
+    for (let r = 0; r < rows; r++) { const row = []; for (let c = 0; c < 64; c++) row.push({ note: null, inst: null, vol: null, eff: 0, param: 0 }); data.push(row); }
+    return { rows, data };
+}
+
+function readRaw(dv, off, len, b16, signed) {
+    const bLen = dv.byteLength;
+    const avail = Math.min(len, Math.floor((bLen - off) / (b16 ? 2 : 1)));
+    if (avail <= 0) return null;
+    const out = new Float32Array(avail);
+    if (b16) {
+        if (signed) { for (let i = 0; i < avail; i++) { const p = off + i * 2; if (p + 1 >= bLen) break; out[i] = dv.getInt16(p, true) / 32768; } }
+        else { for (let i = 0; i < avail; i++) { const p = off + i * 2; if (p + 1 >= bLen) break; out[i] = (dv.getUint16(p, true) - 32768) / 32768; } }
+    } else {
+        if (signed) { for (let i = 0; i < avail; i++) { const p = off + i; if (p >= bLen) break; let r = dv.getUint8(p); out[i] = (r > 127 ? r - 256 : r) / 128; } }
+        else { for (let i = 0; i < avail; i++) { const p = off + i; if (p >= bLen) break; out[i] = (dv.getUint8(p) - 128) / 128; } }
+    }
+    return out;
+}
+
+// Ported from Schism Tracker fmt/compression.c (it_decompress8 / it_decompress16)
+function decompressIT(dv, dataOff, length, b16) {
+    const BLOCK = b16 ? 0x4000 : 0x8000;
+    const maxW = b16 ? 17 : 9;
+    const topBit = b16 ? 0x10000 : 0x100;
+    const norm = b16 ? 32768 : 128;
+    const out = new Float32Array(length);
+    let outPos = 0, fp = dataOff;
+
+    while (outPos < length) {
+        if (fp + 2 > dv.buffer.byteLength) break;
+        const blockBytes = dv.getUint16(fp, true); fp += 2;
+        const blockEnd = Math.min(fp + blockBytes, dv.buffer.byteLength);
+        if (!blockBytes) { outPos += BLOCK; continue; }
+        const blkLen = Math.min(BLOCK, length - outPos);
+        let sPos = fp, bBuf = 0, bNum = 0;
+        function rb(n) {
+            let val = 0, i = n;
+            while (i--) {
+                if (!bNum) { if (sPos >= blockEnd) return -1; bBuf = dv.getUint8(sPos++); bNum = 8; }
+                val >>>= 1;
+                val |= (bBuf & 1) << 31;
+                bBuf >>>= 1;
+                bNum--;
+            }
+            return val >>> (32 - n);
+        }
+        let width = maxW, d1 = 0, blkPos = 0;
+        while (blkPos < blkLen) {
+            if (width > maxW) break;
+            const value = rb(width);
+            if (value < 0) break;
+            if (width < 7) {
+                if (value === (1 << (width - 1))) {
+                    const nv = rb(b16 ? 4 : 3); if (nv < 0) break;
+                    const nw = nv + 1;
+                    width = (nw < width) ? nw : nw + 1;
+                    continue;
+                }
+            } else if (width < maxW) {
+                const border = ((b16 ? 0xFFFF : 0xFF) >>> (maxW - width)) - (b16 ? 8 : 4);
+                if (value > border && value <= border + (b16 ? 16 : 8)) {
+                    const nw = value - border;
+                    width = (nw < width) ? nw : nw + 1;
+                    continue;
+                }
+            } else {
+                if (value & topBit) { width = (value + 1) & 0xFF; continue; }
+            }
+            let v;
+            if (b16) {
+                if (width < 16) { v = (value << (16 - width)) << 16 >> 16 >> (16 - width); }
+                else v = value << 16 >> 16;
+            } else {
+                if (width < 8) { v = (value << (8 - width)) << 24 >> 24 >> (8 - width); }
+                else v = value << 24 >> 24;
+            }
+            d1 = b16 ? (d1 + v) << 16 >> 16 : (d1 + v) << 24 >> 24;
+            out[outPos++] = d1 / norm;
+            blkPos++;
+        }
+        fp += blockBytes;
+    }
+    return out;
+}
+
+function unpackPat(pd, numRows) {
+    const data = [];
+    for (let r = 0; r < numRows; r++) { const row = []; for (let c = 0; c < 64; c++) row.push({ note: null, inst: null, vol: null, eff: 0, param: 0 }); data.push(row); }
+    const last = []; for (let c = 0; c < 64; c++) last.push({ note: null, inst: null, vol: null, eff: 0, param: 0, mask: 0 });
+    let p = 0, row = 0;
+    while (row < numRows && p < pd.length) {
+        const cb = pd[p++];
+        if (!cb) { row++; continue; }
+        const ch = (cb - 1) & 63;
+        let mask = (cb & 128) ? pd[p++] : last[ch].mask;
+        last[ch].mask = mask;
+        if (mask & 1) last[ch].note = pd[p++];
+        if (mask & 2) last[ch].inst = pd[p++];
+        if (mask & 4) last[ch].vol = pd[p++];
+        if (mask & 8) { last[ch].eff = pd[p++]; last[ch].param = pd[p++]; }
+        data[row][ch] = { note: last[ch].note, inst: last[ch].inst, vol: last[ch].vol, eff: last[ch].eff || 0, param: last[ch].param || 0 };
+    }
+    return data;
+}
+
+// ── Playback Engine ────────────────────────────────────────────
+const state = {
+    mod: null, ctx: null, master: null,
+    playing: false, ordIdx: 0, row: 0, tick: 0, speed: 6, tempo: 125,
+    schedTime: 0, animId: null,
+    displayRow: 0, displayOrd: 0, lastDisplayRow: -1, lastDisplayOrd: -1,
+    channels: new Array(64).fill(null).map(() => ({ src: null, gain: null, note: -1, inst: 0, vol: 64, period: 0, active: false })),
+    selectedSmp: 0, selectedIns: 0,
+    toastId: null
+};
+
+function tickLen() { return 2.5 / state.tempo; }
+
+function sampleForNote(mod, instNum, note) {
+    if (mod.useInstruments && instNum >= 1 && instNum <= mod.instruments.length) {
+        const ins = mod.instruments[instNum - 1];
+        if (ins.sampleTable && note >= 0 && note <= 119) {
+            const p = ins.sampleTable[note];
+            if (p && p.smp >= 1 && p.smp <= mod.samples.length) return { smp: mod.samples[p.smp - 1], note: p.note };
+        }
+    }
+    if (!mod.useInstruments && instNum >= 1 && instNum <= mod.samples.length) return { smp: mod.samples[instNum - 1], note };
+    return null;
+}
+
+function buildAudioBuffer(smp) {
+    if (smp._abuf) return smp._abuf;
+    if (!smp.data || !smp.data.length) return null;
+    const ab = state.ctx.createBuffer(1, smp.data.length, smp.c5speed || 44100);
+    ab.getChannelData(0).set(smp.data);
+    smp._abuf = ab;
+    return ab;
+}
+
+function triggerNote(ch, note, instNum, when) {
+    const mod = state.mod;
+    if (!mod || !state.ctx || !state.master) return;
+    const chn = state.channels[ch];
+    if (chn.src) try { chn.src.stop(); } catch (_) {}
+    chn.active = false;
+    if (note === 255 || note === 254) return;
+    const res = sampleForNote(mod, instNum, note);
+    if (!res || !res.smp || !res.smp.data) return;
+    const smp = res.smp;
+    const ab = buildAudioBuffer(smp);
+    if (!ab) return;
+    try {
+        const src = state.ctx.createBufferSource();
+        src.buffer = ab;
+        if (smp.loop && smp.loopEnd > smp.loopStart) {
+            src.loop = true;
+            src.loopStart = smp.loopStart / (smp.c5speed || 44100);
+            src.loopEnd = smp.loopEnd / (smp.c5speed || 44100);
+        }
+        const g = state.ctx.createGain();
+        const vol = chn.vol / 64;
+        g.gain.value = vol * (mod.globalVol / 128) * (mod.mixVol / 128);
+        src.connect(g); g.connect(state.master);
+        src.playbackRate.value = Math.pow(2, (note - 60) / 12);
+        src.start(when || 0);
+        chn.src = src; chn.gain = g; chn.note = note; chn.inst = instNum; chn.active = true;
+    } catch (e) { console.warn('triggerNote', e); }
+}
+
+function processRow(when) {
+    const mod = state.mod;
+    if (!mod) return;
+    let patIdx = mod.orders[state.ordIdx];
+    while (patIdx === 254) { state.ordIdx++; if (state.ordIdx >= mod.orders.length) { state.ordIdx = 0; } patIdx = mod.orders[state.ordIdx]; }
+    if (patIdx === 255) { state.playing = false; return; }
+    const pat = mod.patterns[patIdx];
+    if (!pat || !pat.data || state.row >= pat.rows) { state.row = 0; state.ordIdx++; if (state.ordIdx >= mod.orders.length) state.ordIdx = 0; return; }
+    const rowData = pat.data[state.row];
+    let newOrd = -1, newRow = -1;
+    for (let ch = 0; ch < 64; ch++) {
+        const cell = rowData[ch];
+        if (cell.vol != null && cell.vol <= 64) state.channels[ch].vol = cell.vol;
+        if (cell.note != null && cell.inst != null && cell.inst > 0) {
+            triggerNote(ch, cell.note, cell.inst, when);
+        } else if (cell.note != null && cell.note <= 119) {
+            const inst = state.channels[ch].inst || 1;
+            triggerNote(ch, cell.note, inst, when);
+        } else if (cell.note === 255 || cell.note === 254) {
+            triggerNote(ch, cell.note, 0, when);
+        }
+        if (cell.inst > 0) state.channels[ch].inst = cell.inst;
+        if (cell.eff === 1) state.speed = cell.param || state.speed; // Axx
+        if (cell.eff === 2) newOrd = cell.param; // Bxx
+        if (cell.eff === 3) newRow = cell.param; // Cxx
+        if (cell.eff === 20 && cell.param) state.tempo = cell.param; // Txx
+        if (cell.eff === 13) { // Mxx
+            const chn = state.channels[ch];
+            if (chn.gain) {
+                chn.gain.gain.setValueAtTime((cell.param / 64) * (mod.globalVol / 128) * (mod.mixVol / 128), when || state.ctx.currentTime);
+                chn.vol = cell.param;
+            }
+        }
+    }
+    if (newOrd >= 0) { state.ordIdx = newOrd; state.row = 0; return; }
+    if (newRow >= 0) { state.ordIdx++; if (state.ordIdx >= mod.orders.length) state.ordIdx = 0; state.row = newRow; return; }
+    state.row++;
+    if (state.row >= pat.rows) { state.row = 0; state.ordIdx++; if (state.ordIdx >= mod.orders.length) state.ordIdx = 0; }
+}
+
+function scheduler() {
+    if (!state.mod || !state.playing) return;
+    const LOOKAHEAD = 0.1;
+    while (state.schedTime < state.ctx.currentTime + LOOKAHEAD) {
+        state.tick++;
+        if (state.tick >= state.speed) {
+            state.tick = 0;
+            const rowBefore = state.row, ordBefore = state.ordIdx;
+            processRow(state.schedTime);
+            state.displayRow = rowBefore;
+            state.displayOrd = ordBefore;
+        }
+        state.schedTime += tickLen();
+        if (!state.playing) break;
+    }
+}
+
+function loop() {
+    scheduler();
+    if (state.displayRow !== state.lastDisplayRow || state.displayOrd !== state.lastDisplayOrd) {
+        state.lastDisplayRow = state.displayRow;
+        state.lastDisplayOrd = state.displayOrd;
+        state.row = state.displayRow;
+        state.ordIdx = state.displayOrd;
+        updateUI();
+    }
+    if (state.playing) state.animId = requestAnimationFrame(loop);
+}
+
+// ── Audio Init ─────────────────────────────────────────────────
+function initAudio() {
+    if (state.ctx) return state.ctx.resume();
+    state.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    state.master = state.ctx.createGain();
+    state.master.gain.value = 0.7;
+    state.master.connect(state.ctx.destination);
+    return Promise.resolve();
+}
+
+// ── UI ─────────────────────────────────────────────────────────
+function loadModule(buf, skipSave) {
+    const mod = parseIT(buf);
+    if (!mod) { toast('Not a valid IT file'); return; }
+    stopPlayback();
+    state.mod = mod; state.speed = mod.speed; state.tempo = mod.tempo; state.ordIdx = 0; state.row = 0; state.tick = 0;
+    state.channels.forEach(c => { c.note = -1; c.inst = 0; c.vol = 64; c.active = false; });
+    document.getElementById('songTitle').textContent = mod.songName || '(unnamed)';
+    document.getElementById('inputSpeed').value = state.speed;
+    document.getElementById('inputTempo').value = state.tempo;
+    document.getElementById('inputOrder').value = 0;
+    document.getElementById('btnPlay').disabled = false;
+    document.getElementById('btnStop').disabled = false;
+    state.selectedSmp = 0; state.selectedIns = 0;
+    buildSampleList(); buildInstrumentList(); updateUI();
+    toast('Loaded: ' + (mod.songName || 'module') + ' (' + mod.samples.length + ' samples, ' + mod.patterns.length + ' patterns)');
+    if (!skipSave) saveToStorage(buf);
+}
+
+function saveToStorage(buf) {
+    try {
+        const bytes = new Uint8Array(buf);
+        const CHUNK = 8192;
+        let b64 = '';
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+            b64 += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+        }
+        b64 = btoa(b64);
+        localStorage.setItem('impulse0_file', b64);
+        localStorage.setItem('impulse0_name', state.mod ? state.mod.songName : '');
+    } catch (e) { console.warn('localStorage save failed (file too large?):', e); }
+}
+
+function loadFromStorage() {
+    try {
+        const b64 = localStorage.getItem('impulse0_file');
+        if (!b64) return false;
+        const bin = atob(b64);
+        const buf = new ArrayBuffer(bin.length);
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i);
+        loadModule(buf, true);
+        return true;
+    } catch (e) { console.warn('localStorage load failed:', e); return false; }
+}
+
+function stopPlayback() {
+    state.playing = false;
+    if (state.animId) { cancelAnimationFrame(state.animId); state.animId = null; }
+    state.channels.forEach(c => { if (c.src) try { c.src.stop(); } catch (_) {} c.src = null; c.active = false; });
+}
+
+function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.style.display = 'block';
+    clearTimeout(state.toastId); state.toastId = setTimeout(() => el.style.display = 'none', 3000);
+}
+
+function updateUI() {
+    const mod = state.mod; if (!mod) return;
+    const patIdx = mod.orders[state.ordIdx];
+    document.getElementById('infoOrders').textContent = 'Ord: ' + state.ordIdx + '/' + mod.orders.length;
+    document.getElementById('infoPattern').textContent = 'Pat: ' + (patIdx != null ? patIdx : '-');
+    document.getElementById('infoRow').textContent = 'Row: ' + state.row;
+    document.getElementById('infoCh').textContent = 'Ch: 64';
+    document.getElementById('infoSmp').textContent = 'Smp: ' + mod.samples.length;
+    document.getElementById('infoIns').textContent = 'Ins: ' + mod.instruments.length;
+    renderPattern(patIdx);
+}
+
+function renderPattern(patIdx) {
+    const mod = state.mod;
+    const thead = document.getElementById('patHead');
+    const tbody = document.getElementById('patBody');
+    thead.innerHTML = ''; tbody.innerHTML = '';
+    if (!mod || patIdx == null || patIdx >= mod.patterns.length) return;
+    const pat = mod.patterns[patIdx];
+    if (!pat || !pat.data || !pat.data.length) return;
+    let usedCh = 0;
+    for (let c = 63; c >= 0; c--) { for (let r = 0; r < pat.rows; r++) { const cl = pat.data[r][c]; if (cl.note != null || cl.inst != null || cl.vol != null || cl.eff) { usedCh = c + 1; break; } } if (usedCh) break; }
+    usedCh = Math.max(usedCh, 4);
+    let h = '<tr><th style="width:28px">#</th>';
+    for (let c = 0; c < usedCh; c++) h += '<th>' + (c + 1) + '</th>';
+    h += '</tr>'; thead.innerHTML = h;
+    const frag = document.createDocumentFragment();
+    for (let r = 0; r < pat.rows; r++) {
+        const tr = document.createElement('tr');
+        if (r === state.row && state.playing) tr.className = 'playing';
+        let html = '<td class="rn">' + hex2(r) + '</td>';
+        for (let c = 0; c < usedCh; c++) {
+            const cl = pat.data[r][c];
+            const ns = noteStr(cl.note);
+            const nc = (cl.note === 255 || cl.note === 254) ? 'nt off' : 'nt';
+            const is = cl.inst != null ? hex2(cl.inst) : '..';
+            const vs = cl.vol != null ? hex2(cl.vol) : '..';
+            const ef = cl.eff ? FX[cl.eff] : '.';
+            const ep = hex2(cl.param);
+            html += '<td class="c"><span class="' + nc + '">' + ns + '</span> <span class="in">' + is + '</span> <span class="vl">' + vs + '</span> <span class="fx">' + ef + ep + '</span></td>';
+        }
+        tr.innerHTML = html;
+        frag.appendChild(tr);
+    }
+    tbody.appendChild(frag);
+    if (state.playing) {
+        const wrap = document.getElementById('patternWrap');
+        const rowEl = tbody.querySelector('tr.playing');
+        if (rowEl) rowEl.scrollIntoView({ block: 'center', behavior: 'auto' });
+    }
+}
+
+// ── Sample Editor ──────────────────────────────────────────────
+function buildSampleList() {
+    const mod = state.mod; if (!mod) return;
+    const el = document.getElementById('smpList');
+    el.innerHTML = '';
+    mod.samples.forEach((s, i) => {
+        const d = document.createElement('div');
+        d.className = 'smp-item' + (i === state.selectedSmp ? ' active' : '');
+        d.innerHTML = '<span class="idx">' + hex2(i + 1) + '</span><span>' + (s.name || '(empty)') + '</span>';
+        d.onclick = () => { state.selectedSmp = i; buildSampleList(); renderSample(); };
+        el.appendChild(d);
+    });
+    renderSample();
+}
+
+function renderSample() {
+    const mod = state.mod; if (!mod) return;
+    const smp = mod.samples[state.selectedSmp];
+    if (!smp) return;
+    const info = document.getElementById('smpInfo');
+    info.innerHTML = [
+        field('Name', smp.name || '(none)'),
+        field('Length', smp.length + ' samples'),
+        field('C5 Speed', smp.c5speed + ' Hz'),
+        field('Volume', smp.vol),
+        field('Bits', smp.bits16 ? '16-bit' : '8-bit'),
+        field('Loop', smp.loop ? smp.loopStart + ' → ' + smp.loopEnd : 'Off'),
+        field('Has Data', smp.data ? 'Yes (' + smp.data.length + ')' : 'No'),
+    ].join('');
+    drawWaveform(smp);
+}
+
+function field(lbl, val) { return '<div class="field"><span class="lbl">' + lbl + ':</span><span class="val">' + val + '</span></div>'; }
+
+function drawWaveform(smp) {
+    const canvas = document.getElementById('waveCanvas');
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1);
+    const h = canvas.height = canvas.offsetHeight * (window.devicePixelRatio || 1);
+    ctx.fillStyle = '#0e0e12'; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#333'; ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+    if (!smp.data || !smp.data.length) { ctx.fillStyle = '#444'; ctx.font = '12px monospace'; ctx.fillText('No sample data', 10, h / 2); return; }
+    const data = smp.data;
+    const len = data.length;
+    const samplesPerPx = len / w;
+    ctx.fillStyle = '#5080c0';
+    if (samplesPerPx > 2) {
+        for (let x = 0; x < w; x++) {
+            const s0 = Math.floor(x / w * len);
+            const s1 = Math.min(Math.floor((x + 1) / w * len), len);
+            let mn = 1, mx = -1;
+            for (let j = s0; j < s1; j++) { if (data[j] < mn) mn = data[j]; if (data[j] > mx) mx = data[j]; }
+            const y0 = (1 - mx) / 2 * h;
+            const y1 = (1 - mn) / 2 * h;
+            ctx.fillRect(x, y0, 1, Math.max(1, y1 - y0));
+        }
+    } else {
+        ctx.strokeStyle = '#5080c0';
+        ctx.beginPath();
+        for (let x = 0; x < w; x++) {
+            const idx = Math.floor(x / w * len);
+            const y = (1 - data[idx]) / 2 * h;
+            if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+    if (smp.loop && smp.loopEnd > smp.loopStart) {
+        const lsX = smp.loopStart / len * w;
+        const leX = smp.loopEnd / len * w;
+        ctx.strokeStyle = '#80c050'; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(lsX, 0); ctx.lineTo(lsX, h); ctx.stroke();
+        ctx.strokeStyle = '#c05050';
+        ctx.beginPath(); ctx.moveTo(leX, 0); ctx.lineTo(leX, h); ctx.stroke();
+        ctx.setLineDash([]);
+    }
+}
+
+// ── Instrument Editor ──────────────────────────────────────────
+function buildInstrumentList() {
+    const mod = state.mod; if (!mod) return;
+    const el = document.getElementById('insList');
+    el.innerHTML = '';
+    mod.instruments.forEach((ins, i) => {
+        const d = document.createElement('div');
+        d.className = 'ins-item' + (i === state.selectedIns ? ' active' : '');
+        d.innerHTML = '<span class="idx">' + hex2(i + 1) + '</span><span>' + (ins.name || '(empty)') + '</span>';
+        d.onclick = () => { state.selectedIns = i; buildInstrumentList(); renderInstrument(); };
+        el.appendChild(d);
+    });
+    renderInstrument();
+}
+
+function renderInstrument() {
+    const mod = state.mod; if (!mod) return;
+    const ins = mod.instruments[state.selectedIns];
+    if (!ins) return;
+    document.getElementById('insInfo').innerHTML = '<strong>' + hex2(state.selectedIns + 1) + '</strong>: ' + (ins.name || '(unnamed)');
+    drawEnvelope(ins.volEnv, 'Vol');
+    renderNoteTable(ins);
+}
+
+function drawEnvelope(env, label) {
+    const canvas = document.getElementById('envCanvas');
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1);
+    const h = canvas.height = canvas.offsetHeight * (window.devicePixelRatio || 1);
+    ctx.fillStyle = '#0e0e12'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#444'; ctx.font = '11px monospace';
+    if (!env || !env.nodes || !env.nodes.length) { ctx.fillText('No ' + label + ' envelope', 10, h / 2); return; }
+    ctx.fillText((env.enabled ? label + ' Envelope (ON)' : label + ' Envelope (OFF)'), 6, 14);
+    ctx.strokeStyle = '#333'; ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+    const maxTick = Math.max(1, env.nodes[env.nodes.length - 1].x);
+    const padY = 16;
+    ctx.strokeStyle = env.enabled ? '#60a0e0' : '#555';
+    ctx.beginPath();
+    env.nodes.forEach((nd, i) => {
+        const x = nd.x / maxTick * (w - 20) + 10;
+        const y = padY + (1 - (nd.y + 32) / 96) * (h - padY * 2);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.fillStyle = env.enabled ? '#80c0ff' : '#666';
+    env.nodes.forEach(nd => {
+        const x = nd.x / maxTick * (w - 20) + 10;
+        const y = padY + (1 - (nd.y + 32) / 96) * (h - padY * 2);
+        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+    });
+    if (env.loop) {
+        const lsX = env.nodes[env.lpB] ? env.nodes[env.lpB].x / maxTick * (w - 20) + 10 : 0;
+        const leX = env.nodes[env.lpE] ? env.nodes[env.lpE].x / maxTick * (w - 20) + 10 : 0;
+        ctx.strokeStyle = '#80c050'; ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(lsX, 0); ctx.lineTo(lsX, h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(leX, 0); ctx.lineTo(leX, h); ctx.stroke();
+        ctx.setLineDash([]);
+    }
+}
+
+function renderNoteTable(ins) {
+    const thead = document.getElementById('ntHead');
+    const tbody = document.getElementById('ntBody');
+    thead.innerHTML = '<tr><th>Note</th><th>Sample</th><th>Maps To</th></tr>';
+    tbody.innerHTML = '';
+    if (!ins.sampleTable || !ins.sampleTable.length) return;
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < 120; i++) {
+        const p = ins.sampleTable[i];
+        if (!p || !p.smp) continue;
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + noteStr(i) + '</td><td>' + hex2(p.smp) + '</td><td>' + noteStr(p.note) + '</td>';
+        frag.appendChild(tr);
+    }
+    tbody.appendChild(frag);
+}
+
+// ── File List ──────────────────────────────────────────────────
+function buildFileList() {
+    const el = document.getElementById('fileListPanel');
+    const h3 = el.querySelector('h3');
+    el.innerHTML = ''; el.appendChild(h3);
+    IT_FILES.forEach(f => {
+        const a = document.createElement('a');
+        a.href = '#'; a.textContent = f;
+        a.onclick = (e) => {
+            e.preventDefault();
+            const base = window.location.href.replace(/\/[^/]*$/, '/');
+            const url = base + '../itfiles/' + encodeURIComponent(f);
+            fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+                .then(loadModule).catch(err => toast('Failed: ' + f + ' (' + err.message + ')'));
+        };
+        el.appendChild(a);
+    });
+    const p = document.createElement('p');
+    p.style.cssText = 'font-size:10px;color:#555;margin-top:8px;';
+    p.textContent = 'Or use "Open .it" for any file.';
+    el.appendChild(p);
+}
+
+// ── Events ─────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => {
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        document.getElementById(t.dataset.panel).classList.add('active');
+        if (t.dataset.panel === 'samplePanel') renderSample();
+        if (t.dataset.panel === 'instrumentPanel') renderInstrument();
+    };
+});
+
+document.getElementById('btnOpen').onclick = () => document.getElementById('fileInput').click();
+document.getElementById('fileInput').onchange = (e) => {
+    if (!e.target.files[0]) return;
+    const fr = new FileReader();
+    fr.onload = () => { loadModule(fr.result); e.target.value = ''; };
+    fr.readAsArrayBuffer(e.target.files[0]);
+};
+
+document.getElementById('btnPlay').onclick = () => {
+    if (!state.mod) return;
+    initAudio().then(() => {
+        state.mod.samples.forEach(s => { s._abuf = null; });
+        state.playing = true;
+        state.tick = state.speed - 1;
+        state.schedTime = state.ctx.currentTime;
+        state.lastDisplayRow = -1; state.lastDisplayOrd = -1;
+        state.displayRow = state.row; state.displayOrd = state.ordIdx;
+        loop();
+    });
+};
+
+document.getElementById('btnStop').onclick = () => { stopPlayback(); updateUI(); };
+
+document.getElementById('inputSpeed').onchange = (e) => state.speed = Math.max(1, parseInt(e.target.value) || 6);
+document.getElementById('inputTempo').onchange = (e) => state.tempo = Math.max(32, Math.min(255, parseInt(e.target.value) || 125));
+document.getElementById('inputOrder').onchange = (e) => {
+    if (!state.mod) return;
+    state.ordIdx = Math.max(0, Math.min(state.mod.orders.length - 1, parseInt(e.target.value) || 0));
+    state.row = 0; updateUI();
+};
+
+document.getElementById('smpPreview').onclick = () => {
+    if (!state.mod) return;
+    initAudio().then(() => {
+        const smp = state.mod.samples[state.selectedSmp];
+        if (!smp || !smp.data) { toast('No sample data'); return; }
+        const rate = smp.c5speed || 22050;
+        const ab = state.ctx.createBuffer(1, smp.data.length, rate);
+        ab.getChannelData(0).set(smp.data);
+        const src = state.ctx.createBufferSource();
+        src.buffer = ab;
+        if (smp.loop && smp.loopEnd > smp.loopStart) {
+            src.loop = true; src.loopStart = smp.loopStart / rate; src.loopEnd = smp.loopEnd / rate;
+        }
+        const g = state.ctx.createGain(); g.gain.value = 0.5;
+        src.connect(g); g.connect(state.master);
+        src.start();
+        if (state.previewSrc) try { state.previewSrc.stop(); } catch (_) {}
+        state.previewSrc = src;
+        if (!smp.loop) setTimeout(() => { try { src.stop(); } catch (_) {} }, 5000);
+    });
+};
+
+buildFileList();
+if (!loadFromStorage()) toast('Open an .it file or click one from the sidebar');
+
+// ── Keyboard Shortcuts (Schism/IT style) ──────────────────────
+function switchTab(panel) {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    const tab = document.querySelector('.tab[data-panel="' + panel + '"]');
+    if (tab) tab.classList.add('active');
+    document.getElementById(panel).classList.add('active');
+    if (panel === 'samplePanel') renderSample();
+    if (panel === 'instrumentPanel') renderInstrument();
+}
+
+function loadFileByIndex(idx) {
+    if (idx < 0 || idx >= IT_FILES.length) return;
+    const base = window.location.href.replace(/\/[^/]*$/, '/');
+    const url = base + '../itfiles/' + encodeURIComponent(IT_FILES[idx]);
+    toast('Loading ' + IT_FILES[idx] + '...');
+    fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+        .then(loadModule).catch(err => toast('Failed: ' + IT_FILES[idx] + ' (' + err.message + ')'));
+}
+
+function currentFileIndex() {
+    if (!state.mod) return -1;
+    return IT_FILES.findIndex(f => state.mod.songName && f.toLowerCase().includes(state.mod.songName.trim().toLowerCase().slice(0, 8)));
+}
+
+const HELP_HTML = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;align-items:center;justify-content:center" id="helpOverlay" onclick="this.remove()">' +
+    '<div style="background:#1a1a1e;border:1px solid #444;padding:20px 28px;max-width:520px;font-size:11px;line-height:1.8;color:#c0c0c0;border-radius:4px" onclick="event.stopPropagation()">' +
+    '<div style="font-size:13px;color:#e0e0e0;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:6px">Keyboard Shortcuts</div>' +
+    '<div style="display:grid;grid-template-columns:auto 1fr;gap:2px 14px">' +
+    '<kbd>F1</kbd><span>This help</span>' +
+    '<kbd>F5</kbd><span>Play from current position</span>' +
+    '<kbd>F8</kbd><span>Stop</span>' +
+    '<kbd>Ctrl+F5</kbd><span>Play from start</span>' +
+    '<kbd>F2</kbd><span>Pattern editor</span>' +
+    '<kbd>F3</kbd><span>Sample editor</span>' +
+    '<kbd>F4</kbd><span>Instrument editor</span>' +
+    '<kbd>F9</kbd><span>Previous order</span>' +
+    '<kbd>F10</kbd><span>Next order</span>' +
+    '<kbd>F11</kbd><span>Previous file in list</span>' +
+    '<kbd>F12</kbd><span>Next file in list</span>' +
+    '<kbd>Ctrl+O</kbd><span>Open .it file</span>' +
+    '<kbd>Ctrl+L</kbd><span>Toggle file list sidebar</span>' +
+    '<kbd>+/-</kbd><span>Next/prev order (pattern view)</span>' +
+    '<kbd>[ / ]</kbd><span>Next/prev sample</span>' +
+    '<kbd>Ctrl+↑/↓</kbd><span>Change tempo ±1</span>' +
+    '<kbd>Ctrl+←/→</kbd><span>Change speed ±1</span>' +
+    '</div>' +
+    '<div style="color:#666;margin-top:12px;font-size:10px">Press Esc or click outside to close</div>' +
+    '</div></div>';
+
+document.addEventListener('keydown', (e) => {
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    const ctrl = e.ctrlKey || e.metaKey;
+
+    switch (e.key) {
+    case 'F1':
+        e.preventDefault();
+        if (document.getElementById('helpOverlay')) document.getElementById('helpOverlay').remove();
+        else document.body.insertAdjacentHTML('beforeend', HELP_HTML);
+        break;
+    case 'Escape':
+        { const h = document.getElementById('helpOverlay'); if (h) { h.remove(); e.preventDefault(); } }
+        break;
+    case 'F2': e.preventDefault(); switchTab('patternPanel'); break;
+    case 'F3': e.preventDefault(); switchTab('samplePanel'); break;
+    case 'F4': e.preventDefault(); switchTab('instrumentPanel'); break;
+
+    case 'F5':
+        e.preventDefault();
+        if (!state.mod) break;
+        if (ctrl) { state.ordIdx = 0; state.row = 0; }
+        initAudio().then(() => {
+            state.mod.samples.forEach(s => { s._abuf = null; });
+            state.playing = true;
+            state.tick = state.speed - 1;
+            state.schedTime = state.ctx.currentTime;
+            state.lastDisplayRow = -1; state.lastDisplayOrd = -1;
+            state.displayRow = state.row; state.displayOrd = state.ordIdx;
+            loop();
+        });
+        break;
+    case 'F8':
+        e.preventDefault();
+        stopPlayback(); updateUI();
+        break;
+
+    case 'F9':
+        e.preventDefault();
+        if (!state.mod) break;
+        state.ordIdx = Math.max(0, state.ordIdx - 1);
+        state.row = 0;
+        document.getElementById('inputOrder').value = state.ordIdx;
+        updateUI();
+        break;
+    case 'F10':
+        e.preventDefault();
+        if (!state.mod) break;
+        state.ordIdx = Math.min(state.mod.orders.length - 1, state.ordIdx + 1);
+        state.row = 0;
+        document.getElementById('inputOrder').value = state.ordIdx;
+        updateUI();
+        break;
+
+    case 'F11': e.preventDefault(); { const ci = currentFileIndex(); loadFileByIndex(Math.max(0, ci - 1)); } break;
+    case 'F12': e.preventDefault(); { const ci = currentFileIndex(); loadFileByIndex(ci + 1 < IT_FILES.length ? ci + 1 : 0); } break;
+
+    case '+': case '=':
+        if (!ctrl && state.mod) {
+            state.ordIdx = Math.min(state.mod.orders.length - 1, state.ordIdx + 1);
+            state.row = 0; document.getElementById('inputOrder').value = state.ordIdx; updateUI();
+        }
+        break;
+    case '-':
+        if (!ctrl && state.mod) {
+            state.ordIdx = Math.max(0, state.ordIdx - 1);
+            state.row = 0; document.getElementById('inputOrder').value = state.ordIdx; updateUI();
+        }
+        break;
+    case '[':
+        if (state.mod) {
+            state.selectedSmp = Math.max(0, state.selectedSmp - 1);
+            buildSampleList();
+        }
+        break;
+    case ']':
+        if (state.mod) {
+            state.selectedSmp = Math.min(state.mod.samples.length - 1, state.selectedSmp + 1);
+            buildSampleList();
+        }
+        break;
+
+    case 'o':
+        if (ctrl) { e.preventDefault(); document.getElementById('fileInput').click(); }
+        break;
+    case 'l':
+        if (ctrl) {
+            e.preventDefault();
+            const fl = document.getElementById('fileListPanel');
+            fl.style.display = fl.style.display === 'none' ? '' : 'none';
+        }
+        break;
+
+    case 'ArrowUp':
+        if (ctrl) { e.preventDefault(); state.tempo = Math.min(255, state.tempo + 1); document.getElementById('inputTempo').value = state.tempo; }
+        break;
+    case 'ArrowDown':
+        if (ctrl) { e.preventDefault(); state.tempo = Math.max(32, state.tempo - 1); document.getElementById('inputTempo').value = state.tempo; }
+        break;
+    case 'ArrowRight':
+        if (ctrl) { e.preventDefault(); state.speed = Math.min(255, state.speed + 1); document.getElementById('inputSpeed').value = state.speed; }
+        break;
+    case 'ArrowLeft':
+        if (ctrl) { e.preventDefault(); state.speed = Math.max(1, state.speed - 1); document.getElementById('inputSpeed').value = state.speed; }
+        break;
+    }
+});
+</script>
+</body>
+</html>
